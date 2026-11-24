@@ -330,6 +330,12 @@ STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/proj
 # `-exec true` stands in for the Node runner, so each test binary is built and
 # never started. See scripts/ci-warm-build-cache.sh for why main has to do
 # this for pull requests.
+# What the `Warm the race build cache` job on main runs: the test binaries of
+# every workspace module, race-instrumented and with coverage, as the test
+# jobs on main compile them.
+warm-race-cache: i18n-catalogs ## Compile what the test jobs on main compile, to fill the race build cache (CI, on main)
+	@./scripts/ci-warm-build-cache.sh --race
+
 warm-build-cache: i18n-catalogs ## Compile what pull request test jobs compile, to fill the Go build cache (CI, on main)
 	@./scripts/ci-warm-build-cache.sh
 	GOOS=js GOARCH=wasm $(GO) test -exec true -run '^$$' $(STORE_PKGS) $(CHANGE_WASM_PKGS) ./host/ ./kapi/cmd/kapi-wasm-cli/ > /dev/null
@@ -3278,7 +3284,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-lockfile-idempotent reliability-checklist warm-build-cache workspace-paths test-parallel \
+        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-lockfile-idempotent reliability-checklist warm-build-cache warm-race-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

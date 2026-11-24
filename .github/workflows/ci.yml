@@ -1543,6 +1543,59 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: python3 scripts/ci-cache-budget.py prune
 
+  # ── The build cache the test jobs on main read ───────────────────────────
+  # The test jobs on main and the nightly compile race-instrumented, with
+  # coverage, and restore the "race" flavor. This job is its one writer:
+  # setup-go-modules never saves that flavor. It compiles every workspace
+  # module's test binaries that way, keeps the entries this run used, and
+  # saves them. No other job waits for it.
+  warm-race-cache:
+    name: Warm the race build cache
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 45
+    # The job deletes the copy of the cache it replaces (see the last step).
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          save-cache: "false"
+      - name: Note when compiling starts
+        id: start
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: Compile what the test jobs on main compile
+        run: make warm-race-cache
+      - name: Resolve the Go build cache path
+        id: gocache
+        run: echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      # Go stamps an entry it uses when the entry's stamp is over an hour old,
+      # so a file whose stamp is still more than an hour before this run
+      # started was not used by it. Deleting those keeps what the test jobs
+      # compile today.
+      - name: Drop the cache entries this run did not use
+        env:
+          GOCACHE_DIR: ${{ steps.gocache.outputs.build }}
+          START: ${{ steps.start.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          before=$(du -sm "$GOCACHE_DIR" | cut -f1)
+          find "$GOCACHE_DIR" -type f ! -newermt "@$((START - 3700))" -delete
+          echo "Go build cache: ${before} MiB before, $(du -sm "$GOCACHE_DIR" | cut -f1) MiB after dropping unused entries"
+      # The key setup-go-modules restores by prefix (flavor "race").
+      - name: Save the race build cache
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.gocache.outputs.build }}
+          key: go-build-${{ runner.os }}-go1.27.4-race-trimpath-${{ github.sha }}
+      - name: Delete the copy it replaces
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/ci-cache-budget.py prune
+
   # The build cache each lint-tags leg reads: the export data of the packages
   # that leg lints and of their dependencies, compiled for its configuration.
   # Nothing is linked and no test binary is built. This job is the one writer
@@ -1708,6 +1761,7 @@ jobs:
       - docs-guard
       - gha-lint
       - warm-pr-cache
+      - warm-race-cache
       - warm-lint-cache
       - tidy-check
       - module-boundaries

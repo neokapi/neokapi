@@ -3,6 +3,7 @@
 # leaves behind serves them.
 #
 #   scripts/ci-warm-build-cache.sh              compile every workspace module
+#   scripts/ci-warm-build-cache.sh --race       the same, as the jobs on main compile
 #   scripts/ci-warm-build-cache.sh --self-test
 #
 # A pull request can read a cache saved on main and one saved on its own
@@ -13,6 +14,10 @@
 # nothing. The `Warm the pull request build cache` job in ci.yml runs this on
 # main and saves the result under the cache flavor pull requests restore.
 #
+# With --race the script compiles what the test jobs on main and the nightly
+# compile instead: race-instrumented, with atomic coverage. The `Warm the race
+# build cache` job runs it and is the one writer of the "race" flavor.
+#
 # Each module's packages and test binaries are compiled with the tags the test
 # targets use and no test is run. A module that does not compile is reported
 # and the others still run: the test jobs are where a broken build fails, and
@@ -21,6 +26,7 @@
 set -uo pipefail
 
 tags="${WARM_TAGS:-fts5}"
+extra=()
 
 # warm_modules compiles the tests of every module on stdin, one directory per
 # line, and prints a summary. It returns 1 when no module compiled.
@@ -42,7 +48,7 @@ warm_modules() {
 # compile_tests builds the packages and test binaries of one module and runs
 # no test: `-run '^$'` matches none.
 compile_tests() {
-  (cd "$1" && go test -tags "$tags" -run '^$' ./... > /dev/null)
+  (cd "$1" && go test -tags "$tags" "${extra[@]}" -run '^$' ./... > /dev/null)
 }
 
 self_test() {
@@ -70,6 +76,17 @@ self_test() {
 if [ "${1:-}" = "--self-test" ]; then
   self_test
   exit $?
+fi
+
+if [ "${1:-}" = "--race" ]; then
+  # The coverage flags change how the package under test is compiled, so the
+  # profile is written and thrown away. -shuffle changes no object.
+  cover="$(mktemp)"
+  trap '/bin/rm -f "$cover"' EXIT
+  extra=(-race -covermode=atomic "-coverprofile=$cover")
+elif [ -n "${1:-}" ]; then
+  echo "usage: $0 [--race | --self-test]" >&2
+  exit 2
 fi
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

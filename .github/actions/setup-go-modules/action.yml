@@ -19,7 +19,9 @@ inputs:
       without the race detector, they read "pr". Use "pr" with `save-cache:
       "false"` for a job that never compiles with the race detector (build,
       tidy, lint, the analyzers). The job `Warm the pull request build cache`
-      saves "pr" on main and is its only writer.
+      saves "pr" on main and is its only writer. The job `Warm the race build
+      cache` is the only writer of "race": this action restores it and never
+      saves it.
     required: false
     default: race
   save-cache:
@@ -50,7 +52,7 @@ runs:
         go-version: ${{ inputs.go-version }}
         # Caching is handled explicitly below so the build cache can be keyed
         # per flavor (setup-go's built-in cache uses a single go.sum-derived key
-        # shared by every job, which thrashes the build cache — see cache-flavor).
+        # shared by every job, which thrashes the build cache; see cache-flavor).
         cache: false
 
     # The same Go flags as a make-driven local build (scripts/lib/goflags.mk),
@@ -91,27 +93,34 @@ runs:
           echo "value=$REQUESTED" >> "$GITHUB_OUTPUT"
         fi
 
+    # build is whether this job saves the build cache. The "race" flavor has
+    # one writer, `Warm the race build cache`, which keeps only the entries
+    # its run used. Over twenty jobs restore it, and when each saved, the
+    # first to finish carried forward everything an earlier run compiled.
     - name: Resolve whether to save the caches
       id: save
       shell: bash
       env:
         REQUESTED: ${{ inputs.save-cache }}
         REF: ${{ github.ref }}
+        FLAVOR: ${{ steps.flavor.outputs.value }}
       run: |
         case "$REQUESTED" in
-          false) echo "value=false" >> "$GITHUB_OUTPUT" ;;
+          false) value=false ;;
           true | auto)
-            if [ "$REF" = "refs/heads/main" ]; then
-              echo "value=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "value=false" >> "$GITHUB_OUTPUT"
-            fi
+            if [ "$REF" = "refs/heads/main" ]; then value=true; else value=false; fi
             ;;
           *)
             echo "::error::save-cache must be auto, true or false, not '$REQUESTED'"
             exit 1
             ;;
         esac
+        echo "value=$value" >> "$GITHUB_OUTPUT"
+        if [ "$FLAVOR" = race ]; then
+          echo "build=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "build=$value" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Restore and save module download cache (flavor-independent)
       if: github.ref == 'refs/heads/main' && inputs.save-cache != 'false'
@@ -132,7 +141,7 @@ runs:
           go-mod-${{ runner.os }}-
 
     - name: Restore and save build cache (flavor-scoped)
-      if: github.ref == 'refs/heads/main' && inputs.save-cache != 'false'
+      if: github.ref == 'refs/heads/main' && steps.save.outputs.build == 'true'
       uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
@@ -143,7 +152,7 @@ runs:
           go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-trimpath-
 
     - name: Restore build cache
-      if: github.ref != 'refs/heads/main' || inputs.save-cache == 'false'
+      if: github.ref != 'refs/heads/main' || steps.save.outputs.build != 'true'
       uses: actions/cache/restore@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
@@ -158,7 +167,7 @@ runs:
     # used the entry in a day. Those are dropped before this job starts;
     # whatever this job uses it compiles or restamps, and the save keeps.
     - name: Drop build cache entries unused for a day
-      if: github.ref == 'refs/heads/main' && inputs.save-cache != 'false'
+      if: github.ref == 'refs/heads/main' && steps.save.outputs.build == 'true'
       shell: bash
       env:
         GOCACHE_DIR: ${{ steps.gocache.outputs.build }}
@@ -200,7 +209,7 @@ runs:
       shell: bash
       run: make go-embed-placeholders
 
-    # The embedded gettext catalogs are build output — the repository carries
+    # The embedded gettext catalogs are build output. The repository carries
     # the translated JSON they are compiled from. core/i18n and host/i18n
     # resolve `//go:embed catalogs/*.mo` at compile time, so this runs before
     # any job's first Go build. Steps that reach the framework through `make`
