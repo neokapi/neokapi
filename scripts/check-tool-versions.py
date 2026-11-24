@@ -29,7 +29,7 @@ A row can carry a hold when a newer release cannot be taken yet:
 
 While a newer release exists and the review date has not come, the row is
 reported as HELD, with its condition, and does not fail. On the review date it
-fails again. A hold on a pin that is current fails too, so it is removed. The
+fails again, in the offline run (make lint) as well. A hold on a pin that is current fails too, so it is removed. The
 review date may be at most 90 days ahead, and every run lists the holds. Holds
 were approved by the founder on 2026-11-24; each new hold is named to the
 founder when it is added.
@@ -374,6 +374,9 @@ def check(rows, offline, ask=latest, root=ROOT, today=None):
             continue
         pinned = next(iter(found))
         if offline:
+            if hold and datetime.date.fromisoformat(hold["review"]) <= today:
+                findings.append(f"{row['name']}: the hold ({hold['issue']}) reached its review date {hold['review']}: take the release, or renew the hold with the founder")
+                continue
             held = f"; HELD until {hold['until']} ({hold['issue']}, review {hold['review']})" if hold else ""
             report.append(f"{row['name']}: {pinned} ({len(found[pinned])} place(s)){held}")
             continue
@@ -449,6 +452,8 @@ def self_test():
         assert not findings and "HELD until the binding supports it" in report[0], (report, findings)
         report, findings = check([held], offline=False, ask=newer, root=root, today=datetime.date(2027, 1, 15))
         assert len(findings) == 1 and "reached its review date" in findings[0], findings
+        report, findings = check([held], offline=True, root=root, today=datetime.date(2027, 1, 15))
+        assert len(findings) == 1 and "reached its review date" in findings[0], ("offline", findings)
         report, findings = check([held], offline=False, ask=same, root=root, today=today)
         assert len(findings) == 1 and "no longer needed" in findings[0], findings
         for bad, why in [({"issue": "#1", "review": "2027-01-01"}, "names no condition"),

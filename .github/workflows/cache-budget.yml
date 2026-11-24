@@ -18,7 +18,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
   contents: read
 
 concurrency:
@@ -26,24 +25,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  budget:
-    name: Prune and check the Actions caches
+  prune:
+    name: Prune the Actions caches
     runs-on: ubuntu-latest
     # A workflow_run fires for a pull request whose head branch is named main
     # as well, so require a push. A dispatch runs only from main: on another
     # branch it would run that branch's code with a token that deletes caches.
     if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push')
     timeout-minutes: 10
+    permissions:
+      actions: write # delete caches
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
           sparse-checkout: scripts
-      - name: Delete superseded and stale caches
+      - name: Delete superseded and off-main caches
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: python3 scripts/ci-cache-budget.py prune
-      - name: Check the total against the budget
+
+  check:
+    name: Check the Actions caches against the budget
+    needs: [prune]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read # list caches
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - name: Check the totals against the budget
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
