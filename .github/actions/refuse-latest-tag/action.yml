@@ -1,0 +1,22 @@
+name: Refuse latest as the image tag
+description: >
+  Fail when the tag a job is about to push is `latest` or empty. `latest`
+  belongs to the release and its weekly rebuild.
+  scripts/check-release-build-only.py trusts a variable tag only after this
+  action, in the same job, with the same expression.
+inputs:
+  tag:
+    description: The tag the job pushes, as the push step writes it
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Refuse latest as the image tag
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+      run: |
+        if [ -z "$TAG" ] || [ "$TAG" = latest ]; then
+          echo "::error::the image tag must be a commit or version tag, not '$TAG'; latest belongs to the release"
+          exit 1
+        fi

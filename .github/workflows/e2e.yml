@@ -173,16 +173,10 @@ jobs:
             echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
-      # scripts/check-release-build-only.py relies on this step: the tag the
-      # e2e images push is the commit, never latest.
-      - name: Refuse latest as the image tag
-        env:
-          TAG: ${{ steps.meta.outputs.tag }}
-        run: |
-          if [ "$TAG" = latest ] || [ -z "$TAG" ]; then
-            echo "::error::the e2e image tag must be the commit, not '$TAG'"
-            exit 1
-          fi
+      # The tag the e2e images push is the commit, never latest.
+      - uses: ./.github/actions/refuse-latest-tag
+        with:
+          tag: ${{ steps.meta.outputs.tag }}
 
       - name: Login to ghcr.io
         uses: ./.github/actions/registry-login

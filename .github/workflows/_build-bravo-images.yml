@@ -16,17 +16,12 @@ jobs:
       packages: write
       contents: read
     steps:
-      # The tag this workflow pushes besides `main`. `latest` belongs to the
-      # release (scripts/check-release-build-only.py relies on this step).
-      - name: Refuse latest as the image tag
-        env:
-          TAG: ${{ inputs.image-tag }}
-        run: |
-          if [ "$TAG" = latest ] || [ -z "$TAG" ]; then
-            echo "::error::image-tag must be a commit or version tag, not '$TAG'; latest belongs to the release"
-            exit 1
-          fi
       - uses: actions/checkout@v7
+      # The tag this workflow pushes besides `main`: never latest, which
+      # belongs to the release.
+      - uses: ./.github/actions/refuse-latest-tag
+        with:
+          tag: ${{ inputs.image-tag }}
 
       - name: Login to ghcr.io
         uses: docker/login-action@v4
