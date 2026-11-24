@@ -101,6 +101,56 @@ func getStoredBlock(t *testing.T, cs *bstore.PostgresStore, pid, bid string) *mo
 	return sb.Block
 }
 
+// A rejection restated with an edited note judges no new draft, so it leaves
+// the draft mark where it is and buys no model call. The next draft the unit
+// is owed reads the note as it stands. A rejection of a new draft still clears
+// the mark.
+func TestDecide_ARestatedRejectionKeepsTheDraftMark(t *testing.T) {
+	srv, cs := newReviewTestServer(t)
+	ctx := t.Context()
+
+	b := &model.Block{ID: "b1", Translatable: true}
+	b.SetSourceText("Hello")
+	b.SetTargetText("fr", "Bonjour")
+	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
+	bid := ids["Hello"]
+	reject := func(note string) {
+		t.Helper()
+		rev := targetRev(t, cs, pid, bid, "fr")
+		rec, _ := sendChanges(t, srv, pid, fullCaller, change.Set{Note: note, Ops: []change.Op{
+			decide(at("greetings.txt", bid, "fr"), rev, change.OutcomeReject),
+		}})
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	}
+	stamp := func() {
+		t.Helper()
+		rows, err := cs.ListUnitDecisions(ctx, pid, "main")
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		sb, err := cs.GetBlock(ctx, pid, "main", bid)
+		require.NoError(t, err)
+		require.NoError(t, cs.RecordDraftBases(ctx, pid, "main", []platstore.DraftBasis{{
+			ItemName: rows[0].ItemName, Unit: rows[0].Unit, Variant: "fr", Basis: sb.SourceRevision,
+		}}))
+		require.Len(t, draftMarks(t, cs, pid), 1)
+	}
+
+	reject("Too formal.")
+	assert.Empty(t, draftMarks(t, cs, pid), "the rejection clears the mark, so the unit is drafted again")
+	stamp()
+
+	reject("Too formal; use tu.")
+	assert.Len(t, draftMarks(t, cs, pid), 1, "an edited note on the same rejection asks for no draft")
+	rows, err := cs.ListUnitDecisions(ctx, pid, "main")
+	require.NoError(t, err)
+	assert.Equal(t, "Too formal; use tu.", rows[0].Note, "the ledger holds the note as it reads now")
+
+	editAsPerson(t, srv, pid, bid, "fr", textContent("Salut"))
+	stamp()
+	reject("Too casual now.")
+	assert.Empty(t, draftMarks(t, cs, pid), "a rejection of another draft clears the mark")
+}
+
 // draftMarks is every draft mark the project's ledger holds on main.
 func draftMarks(t *testing.T, cs *bstore.PostgresStore, pid string) []platstore.DraftBasis {
 	t.Helper()

@@ -173,7 +173,9 @@ drafting step is told what was rejected and why:
 
 The note goes to the AI provider the flow drafts with. It is redacted under the
 project's redaction policy like the rest of the request, and `--explain`
-records the prompt as it was sent. The prompt quotes each note, cuts a long
+records the prompt as it was sent. Redaction replaces a value the block
+withholds and text a rule names, so anything else you type in a note reaches
+the provider as you wrote it. The prompt quotes each note, cuts a long
 one short, and states it after the project's terms and rules, which a note does
 not change. The term check after drafting judges the new draft as it judges any
 other.
@@ -185,8 +187,9 @@ instructions: the block is drafted again without the reasons and note, and the
 run says so once. A run whose flow cannot draft leaves the block waiting, and
 `kapi status` says so.
 
-Changing a note makes that block's draft out of date, and the next `kapi up`
-drafts that block again and no other. After three rejections of drafts of the
+Editing the note or reasons of a rejection you already made asks for no new
+draft. The block's next draft, made when the block is next owed one, is given
+the note as it reads then. After three rejections of drafts of the
 same source, the loop drafts the block no more. `kapi status` and `kapi up` report
 it as waiting for a person to write the translation.
 

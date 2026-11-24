@@ -18,8 +18,12 @@ func TestFeedbackFingerprint(t *testing.T) {
 	reordered := UnitReviewFeedback{Rejections: []ReviewRejection{{TargetHash: "h1", Reasons: []string{"meaning", "tone"}, Note: "Too formal.", Text: "Bonjour"}}}
 	assert.Equal(t, a, FeedbackFingerprint("ctx", reordered), "reason order and whether the wording is held do not move it")
 
-	edited := UnitReviewFeedback{Rejections: []ReviewRejection{{TargetHash: "h1", Reasons: []string{"tone", "meaning"}, Note: "Use tu."}}}
-	assert.NotEqual(t, a, FeedbackFingerprint("ctx", edited), "a changed note moves it")
+	restated := UnitReviewFeedback{Rejections: []ReviewRejection{{TargetHash: "h1", Reasons: []string{"grammar"}, Note: "Use tu."}}}
+	assert.Equal(t, a, FeedbackFingerprint("ctx", restated),
+		"a rejection restated with another note or other reasons judges no new draft, so it asks for none")
+
+	another := UnitReviewFeedback{Rejections: []ReviewRejection{one.Rejections[0], {TargetHash: "h2", Note: "Still too formal."}}}
+	assert.NotEqual(t, a, FeedbackFingerprint("ctx", another), "a rejection of another draft moves it")
 }
 
 func TestReviewFeedbackForBlockIsKeyedByFile(t *testing.T) {

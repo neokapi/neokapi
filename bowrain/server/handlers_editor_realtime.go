@@ -48,10 +48,19 @@ func (s *Server) recordReviewDecision(ctx context.Context, c *echo.Context, ledg
 		return false
 	}
 	ledger.write(ctx, []venue.UnitDecision{next})
-	if status == model.TargetStatusDraft {
+	if status == model.TargetStatusDraft && !restatesRejection(prev, next) {
 		ledger.clearDraftBasis(ctx, sb, locale)
 	}
 	return true
+}
+
+// restatesRejection reports whether next rejects the same draft prev already
+// rejected, with an edited note or other reasons. It judges no new draft, so
+// it asks for none: the unit keeps its draft mark, and the next draft it is
+// owed reads the note as it stands then.
+func restatesRejection(prev *venue.UnitDecision, next venue.UnitDecision) bool {
+	return prev != nil && prev.ReviewState == venue.ReviewStateRejected &&
+		next.ReviewState == venue.ReviewStateRejected && prev.Revision != "" && prev.Revision == next.Revision
 }
 
 // decisionStands reports whether the ledger already holds next: the same

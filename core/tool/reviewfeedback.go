@@ -3,8 +3,6 @@ package tool
 import (
 	"context"
 	"errors"
-	"slices"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 )
@@ -138,18 +136,21 @@ func RejectionReasonPhrase(code string) string {
 // FeedbackFingerprint folds a unit's review feedback into the governing
 // fingerprint a producer stamps on its draft, and the staleness read
 // recomputes the same way, per unit. A unit with no feedback keeps contextFP
-// as it is, so only a unit whose feedback changed (a note edited, a new
-// rejection) reads as stale. The wording of a rejected draft is left out:
-// whether the host still holds it says nothing about the feedback.
+// as it is.
+//
+// Only which drafts were rejected is folded in, so only a rejection of
+// another draft makes a unit stale. A rejection restated with an edited note
+// or other reasons judges no new draft and asks for none: the next draft,
+// made when the unit is next owed one, reads the note as it is then. The
+// wording of a rejected draft is left out too: whether the host still holds
+// it says nothing about the feedback.
 func FeedbackFingerprint(contextFP string, fb UnitReviewFeedback) string {
 	if len(fb.Rejections) == 0 {
 		return contextFP
 	}
 	parts := []string{contextFP, "review-feedback"}
 	for _, r := range fb.Rejections {
-		reasons := slices.Clone(r.Reasons)
-		slices.Sort(reasons)
-		parts = append(parts, r.TargetHash, strings.Join(reasons, ","), r.Note)
+		parts = append(parts, r.TargetHash)
 	}
 	return OverlayConfigFingerprint(parts...)
 }

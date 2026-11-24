@@ -37,8 +37,9 @@ type MTTranslateTool struct {
 	contextFP      string
 	// feedback is the review feedback per unit key. A machine translation
 	// engine takes no instructions, so none of it is sent: a unit's draft is
-	// stamped with it (tool.FeedbackFingerprint), so a changed note makes that
-	// unit stale on this route as on any other, and a held unit is not drafted.
+	// stamped with it (tool.FeedbackFingerprint), so a rejection of another
+	// draft makes that unit stale on this route as on any other, and a held
+	// unit is not drafted.
 	feedback tool.ReviewFeedback
 	// grant reports a draft that repeated a rejected one, which is not kept.
 	grant tool.ReviewFeedbackGrant
