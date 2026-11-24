@@ -79,7 +79,7 @@ func TestMigrateSQLite_RefusesAShippedMigrationEdited(t *testing.T) {
 // code: behind migrates, at the code's version it starts, and ahead (a newer
 // release migrated it) refuses, naming both versions, and leaves the ledger
 // as the newer release wrote it. rows counts the ledger's rows.
-func newerReleaseCases(t *testing.T, migrate func([]storage.Migration) error, rows func() int) {
+func newerReleaseCases(t *testing.T, remedy string, migrate func([]storage.Migration) error, rows func() int) {
 	t.Helper()
 	code := []storage.Migration{
 		{Version: 1, Description: "create a", SQL: "CREATE TABLE newer_test_a (x INTEGER)"},
@@ -94,14 +94,14 @@ func newerReleaseCases(t *testing.T, migrate func([]storage.Migration) error, ro
 	err := migrate(code)
 	require.ErrorIs(t, err, corestorage.ErrNewerDatabase)
 	assert.Contains(t, err.Error(), "the database is at version 3 and this build knows versions up to 2")
-	assert.Contains(t, err.Error(), "at least as new as the database")
+	assert.Contains(t, err.Error(), remedy, "the refusal says what to run instead")
 	assert.Equal(t, 3, rows(), "the ledger is left as the newer release wrote it")
 }
 
 func TestMigratePostgres_RefusesADatabaseANewerReleaseMigrated(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	const table = "newer_test_schema_migrations"
-	newerReleaseCases(t,
+	newerReleaseCases(t, "deploy bowrain-server and bowrain-worker at a version at least as new as the one that migrated it. An older version cannot be started against this database",
 		func(ms []storage.Migration) error { return storage.MigratePostgresNS(db, table, ms) },
 		func() int {
 			var n int
@@ -115,7 +115,7 @@ func TestMigrateSQLite_RefusesADatabaseANewerReleaseMigrated(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 	const table = "newer_test_migrations"
-	newerReleaseCases(t,
+	newerReleaseCases(t, "update the Bowrain app to a release at least as new as the one that wrote "+db.Path(),
 		func(ms []storage.Migration) error { return storage.MigrateContextNS(t.Context(), db, table, ms) },
 		func() int {
 			var n int

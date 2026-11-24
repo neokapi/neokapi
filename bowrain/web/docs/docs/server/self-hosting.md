@@ -253,10 +253,13 @@ docker pull ghcr.io/neokapi/bowrain-web:0.5.0
 The server and the worker refuse to start against a database that a newer
 release migrated. The error names the database's schema version and the
 newest version the binary knows. `bowrain-server --migrate-only` refuses the
-same way. To go back, restore the database from a backup taken before the
-upgrade, or run a release at least as new as the database. Check the tag
-before you pull: `latest` names the last release, which can be older than a
-build from `main` you ran before.
+same way, before it migrates anything.
+
+So a rollback across a schema migration does not start: the older version
+refuses the database the newer one migrated. Fix such a deploy forward, with
+a release that keeps the migration, or restore the database from a backup
+taken before the upgrade. Check the tag before you pull: `latest` names the
+last release, which can be older than a build from `main` you ran before.
 
 ## Upgrading project pilots
 

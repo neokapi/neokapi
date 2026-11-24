@@ -149,11 +149,42 @@ func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigrati
 }
 
 // ErrNewerDatabase is a database whose ledger records a migration newer than
-// any the running build knows.
+// any the running build knows. A *NewerDatabaseError matches it.
 var ErrNewerDatabase = errors.New("the database was migrated by a newer release")
 
+// NewerDatabaseError is a ledger that records a version above the newest the
+// running build knows. Remedy says what the person who reads it does, which
+// only the program that opened the database can name: the runner that
+// meets the error fills it in.
+type NewerDatabaseError struct {
+	Ledger   string
+	Database int    // the newest version the database records
+	Known    int    // the newest version this build knows
+	Remedy   string // what to run instead, set by the runner
+}
+
+func (e *NewerDatabaseError) Error() string {
+	msg := fmt.Sprintf("refusing to open %q: the database is at version %d and this build knows versions up to %d: %s",
+		e.Ledger, e.Database, e.Known, ErrNewerDatabase)
+	if e.Remedy != "" {
+		msg += "; " + e.Remedy
+	}
+	return msg
+}
+
+func (e *NewerDatabaseError) Unwrap() error { return ErrNewerDatabase }
+
+// WithRemedy sets remedy on the *NewerDatabaseError err carries, if it carries
+// one, and returns err.
+func WithRemedy(err error, remedy string) error {
+	if newer, ok := errors.AsType[*NewerDatabaseError](err); ok && newer.Remedy == "" {
+		newer.Remedy = remedy
+	}
+	return err
+}
+
 // checkNotNewer refuses a ledger that records a version above the newest the
-// code knows, retired numbers included, naming both versions and the remedy.
+// code knows, retired numbers included, naming both versions.
 func checkNotNewer(ledger string, migrations []Migration, applied []AppliedMigration) error {
 	known := 0
 	for _, m := range migrations {
@@ -166,8 +197,7 @@ func checkNotNewer(ledger string, migrations []Migration, applied []AppliedMigra
 	if newest <= known {
 		return nil
 	}
-	return fmt.Errorf("refusing to open %q: the database is at version %d and this build knows versions up to %d: %w; run a server or kapi at least as new as the database",
-		ledger, newest, known, ErrNewerDatabase)
+	return &NewerDatabaseError{Ledger: ledger, Database: newest, Known: known}
 }
 
 // knownName reports whether recorded is a name the version has carried: the

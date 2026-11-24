@@ -159,6 +159,7 @@ func migrateUnderLock(ctx context.Context, db *PgDB, tableName string, migration
 		addIdentity: fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS identity TEXT NOT NULL DEFAULT ''", tableName),
 		insert:      fmt.Sprintf("INSERT INTO %s (version, description, identity) VALUES ($1, $2, $3)", tableName),
 		adopt:       fmt.Sprintf("UPDATE %s SET identity = $1 WHERE version = $2 AND identity = ''", tableName),
+		remedy:      serverRemedy(),
 	}, migrations)
 }
 
@@ -303,5 +304,5 @@ func CheckPostgresLedgerNS(ctx context.Context, db *PgDB, tableName string, migr
 		return fmt.Errorf("read %s: %w", tableName, err)
 	}
 	_, err = corestorage.CheckLedger(tableName, ordered, applied, shippedLedgers[tableName])
-	return err
+	return corestorage.WithRemedy(err, serverRemedy())
 }

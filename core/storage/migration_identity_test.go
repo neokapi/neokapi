@@ -214,7 +214,7 @@ func TestMigrate_RefusesADatabaseANewerReleaseMigrated(t *testing.T) {
 		err := storage.Migrate(db, "t_migrations", code)
 		require.ErrorIs(t, err, storage.ErrNewerDatabase)
 		assert.Contains(t, err.Error(), "the database is at version 4 and this build knows versions up to 3")
-		assert.Contains(t, err.Error(), "at least as new as the database")
+		assert.Contains(t, err.Error(), "update kapi to a release at least as new as the one that wrote "+db.Path())
 	})
 }
 

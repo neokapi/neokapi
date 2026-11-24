@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/version"
 )
 
 // Migration represents a single schema migration step.
@@ -80,7 +82,7 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		return err
 	}
 	if err := checkAndAdopt(db, tableName, ordered); err != nil {
-		return err
+		return WithRemedy(err, kapiRemedy(db))
 	}
 
 	var currentVersion int
@@ -145,7 +147,18 @@ func Check(ctx context.Context, db *DB, tableName string, migrations []Migration
 		return fmt.Errorf("read %s: %w", tableName, err)
 	}
 	_, err = CheckLedger(tableName, ordered, applied, shippedLedgers[tableName])
-	return err
+	return WithRemedy(err, kapiRemedy(db))
+}
+
+// kapiRemedy is what a person does about a store a newer kapi wrote: these
+// stores belong to kapi and the apps built on it, so the remedy is to update
+// kapi, and the path says which store.
+func kapiRemedy(db *DB) string {
+	where := "this store"
+	if p := db.Path(); p != "" && !isMemoryDSN(p) {
+		where = p
+	}
+	return fmt.Sprintf("update kapi to a release at least as new as the one that wrote %s (this is kapi %s)", where, version.Version)
 }
 
 // errLostRace marks the one non-lock condition applyMigration retries: another

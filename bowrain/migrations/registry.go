@@ -118,6 +118,14 @@ func RefuseNewer(ctx context.Context, db *storage.PgDB) error {
 // effect of constructing them, and changing that is a larger move than this
 // package needs to make.
 func Apply(db *storage.PgDB, log func(string, ...any)) error {
+	// Refused across every ledger before any is migrated, so a database a
+	// newer release migrated is left exactly as that release left it.
+	ctx, cancel := context.WithTimeout(context.Background(), storage.DefaultMigrationTimeout)
+	err := RefuseNewer(ctx, db)
+	cancel()
+	if err != nil {
+		return err
+	}
 	for _, s := range All() {
 		if err := storage.MigratePostgresNS(db, s.Table, s.Migrations); err != nil {
 			return fmt.Errorf("migrate %s: %w", s.Name, err)

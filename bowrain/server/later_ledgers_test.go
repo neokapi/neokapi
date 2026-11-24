@@ -48,5 +48,5 @@ func TestCheckLaterLedgers_RefusesADatabaseANewerReleaseMigrated(t *testing.T) {
 	err = checkLaterLedgers(db)
 	require.ErrorIs(t, err, corestorage.ErrNewerDatabase)
 	assert.Contains(t, err.Error(), "check the voice ledger")
-	assert.Contains(t, err.Error(), "at least as new as the database")
+	assert.Contains(t, err.Error(), "deploy bowrain-server and bowrain-worker at a version at least as new as the one that migrated it. An older version cannot be started against this database")
 }
