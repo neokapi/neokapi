@@ -21,6 +21,8 @@
 package migrations
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/agent"
@@ -34,6 +36,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/voice"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
 // Subsystem is one migration ledger: a set of migrations and the bookkeeping
@@ -91,6 +94,21 @@ func All() []Subsystem {
 		{Name: "terms", Table: "tb_schema_migrations", Migrations: terms.Migrations, PerWorkspace: true},
 		{Name: "memory", Table: "tm_schema_migrations", Migrations: memory.Migrations, PerWorkspace: true},
 	}
+}
+
+// RefuseNewer checks every ledger in the database against this build and
+// refuses, naming the subsystem, when any records a version newer than the
+// build knows (core/storage.ErrNewerDatabase): a newer release migrated the
+// database, so this build must not read or write it. A process that serves
+// or works on the database runs it at start, before anything else touches
+// the schema. Other disagreements are left to each ledger's migration.
+func RefuseNewer(ctx context.Context, db *storage.PgDB) error {
+	for _, s := range All() {
+		if err := storage.CheckPostgresLedgerNS(ctx, db, s.Table, s.Migrations); errors.Is(err, corestorage.ErrNewerDatabase) {
+			return fmt.Errorf("check the %s ledger: %w", s.Name, err)
+		}
+	}
+	return nil
 }
 
 // Apply brings every subsystem up to its latest version, in registry order.

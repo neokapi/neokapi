@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -173,4 +174,70 @@ func TestShippedCoverage(t *testing.T) {
 	require.NoError(t, storage.ShippedCoverage("t", ms, nil))
 	t.Setenv(storage.RecordLedgerEnv, t.TempDir())
 	require.NoError(t, storage.ShippedCoverage("t", ms, shipped), "recording lists it")
+}
+
+// A database a newer release migrated is refused before anything is read or
+// written: the ledger one version ahead of the code refuses and names both
+// versions, a ledger at the code's version opens, and one behind migrates.
+// A version the code retired counts as known.
+func TestMigrate_RefusesADatabaseANewerReleaseMigrated(t *testing.T) {
+	code := []storage.Migration{
+		{Version: 1, Description: "create a", SQL: "CREATE TABLE a (x INTEGER)"},
+		{Version: 2, Retired: true},
+		{Version: 3, Description: "create c", SQL: "CREATE TABLE c (z INTEGER)"},
+	}
+	open := func(t *testing.T) *storage.DB {
+		t.Helper()
+		db, err := storage.Open(filepath.Join(t.TempDir(), "s.db"))
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = db.Close() })
+		return db
+	}
+
+	t.Run("behind migrates", func(t *testing.T) {
+		db := open(t)
+		require.NoError(t, storage.Migrate(db, "t_migrations", code[:1]))
+		require.NoError(t, storage.Migrate(db, "t_migrations", code))
+		var n int
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM c`).Scan(&n))
+	})
+	t.Run("equal opens", func(t *testing.T) {
+		db := open(t)
+		require.NoError(t, storage.Migrate(db, "t_migrations", code))
+		require.NoError(t, storage.Migrate(db, "t_migrations", code))
+	})
+	t.Run("ahead refuses", func(t *testing.T) {
+		db := open(t)
+		newer := append(slices.Clone(code), storage.Migration{Version: 4, Description: "create d", SQL: "CREATE TABLE d (w INTEGER)"})
+		require.NoError(t, storage.Migrate(db, "t_migrations", newer))
+
+		err := storage.Migrate(db, "t_migrations", code)
+		require.ErrorIs(t, err, storage.ErrNewerDatabase)
+		assert.Contains(t, err.Error(), "the database is at version 4 and this build knows versions up to 3")
+		assert.Contains(t, err.Error(), "at least as new as the database")
+	})
+}
+
+// Check reads a ledger without migrating it: a missing ledger and one at the
+// code's version pass, one a newer release migrated refuses, and nothing is
+// written either way.
+func TestCheck_RefusesANewerLedgerWithoutMigrating(t *testing.T) {
+	code := []storage.Migration{{Version: 1, Description: "create a", SQL: "CREATE TABLE a (x INTEGER)"}}
+	db, err := storage.Open(filepath.Join(t.TempDir(), "s.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	require.NoError(t, storage.Check(t.Context(), db, "t_migrations", code), "no ledger yet")
+	var tables int
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'`).Scan(&tables))
+	assert.Zero(t, tables, "and nothing was created")
+
+	require.NoError(t, storage.Migrate(db, "t_migrations", code))
+	require.NoError(t, storage.Check(t.Context(), db, "t_migrations", code), "at the code's version")
+
+	_, err = db.ExecContext(t.Context(), `INSERT INTO t_migrations (version, description, identity) VALUES (2, 'create b', 'newer')`)
+	require.NoError(t, err)
+	err = storage.Check(t.Context(), db, "t_migrations", code)
+	require.ErrorIs(t, err, storage.ErrNewerDatabase)
+	assert.Contains(t, err.Error(), "the database is at version 2 and this build knows versions up to 1")
 }

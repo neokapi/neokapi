@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/migrations"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
@@ -132,6 +133,14 @@ func runWorker(dbURL string) error {
 		return fmt.Errorf("open PostgreSQL: %w", err)
 	}
 	defer pgdb.Close()
+	// A database a newer release migrated is refused before any store
+	// touches it, whichever ledger moved ahead.
+	refuseCtx, cancelRefuse := context.WithTimeout(context.Background(), storage.DefaultMigrationTimeout)
+	err = migrations.RefuseNewer(refuseCtx, pgdb)
+	cancelRefuse()
+	if err != nil {
+		return fmt.Errorf("bowrain-worker cannot start: %w", err)
+	}
 
 	pgCS, err := bstore.NewPostgresStoreFromDB(pgdb)
 	if err != nil {

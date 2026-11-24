@@ -62,6 +62,9 @@ import (
 
 // Server is the REST API server for neokapi.
 type Server struct {
+	// startupErr is why this server must not serve (StartupError).
+	startupErr error
+
 	Config         Config
 	FormatRegistry *registry.FormatRegistry
 	ToolRegistry   *registry.ToolRegistry
@@ -437,6 +440,11 @@ func platformConfigDefaults(cfg Config) platformconfig.Defaults {
 	}
 }
 
+// StartupError is why the server built by NewServer must not serve: a
+// database a newer release migrated (core/storage.ErrNewerDatabase). The
+// caller stops before listening. Nil when it may serve.
+func (s *Server) StartupError() error { return s.startupErr }
+
 func NewServer(cfg Config) *Server {
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
@@ -582,9 +590,15 @@ func NewServer(cfg Config) *Server {
 	// Initialize stores from PostgreSQL DatabaseURL.
 	if cfg.DatabaseURL != "" {
 		pg, err := openPostgresStores(cfg.DatabaseURL)
-		if err != nil {
+		switch {
+		case errors.Is(err, corestorage.ErrNewerDatabase):
+			// A newer release migrated the database: this build must not
+			// serve it at all (StartupError), unlike a store it can run
+			// without.
+			s.startupErr = err
+		case err != nil:
 			slog.Warn("failed to open PostgreSQL stores", "error", err)
-		} else {
+		default:
 			s.ContentStore = pg.Content
 			// Encrypt secret columns (connector credentials, AI provider keys) at
 			// rest when a key is configured (the cipher was built above and also

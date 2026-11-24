@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -104,7 +105,15 @@ type ShippedLedgers map[string]map[int]ShippedMigration
 // so the first run that turns the check on refuses a collision instead of
 // accepting it. A recorded version the code no longer carries (a folded
 // baseline, a retired number) is left alone.
+//
+// Before any of that, it refuses a database a newer release migrated: one
+// that records a version above the newest the code knows (ErrNewerDatabase).
+// This build cannot tell what such a migration changed, so it neither reads
+// nor writes the database.
 func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigration, shipped map[int]ShippedMigration) ([]Migration, error) {
+	if err := checkNotNewer(ledger, migrations, applied); err != nil {
+		return nil, err
+	}
 	byVersion := make(map[int]Migration, len(migrations))
 	var problems []string
 	for _, m := range migrations {
@@ -137,6 +146,28 @@ func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigrati
 		return nil, fmt.Errorf("refusing to migrate %q: %s", ledger, strings.Join(problems, "; "))
 	}
 	return adopt, nil
+}
+
+// ErrNewerDatabase is a database whose ledger records a migration newer than
+// any the running build knows.
+var ErrNewerDatabase = errors.New("the database was migrated by a newer release")
+
+// checkNotNewer refuses a ledger that records a version above the newest the
+// code knows, retired numbers included, naming both versions and the remedy.
+func checkNotNewer(ledger string, migrations []Migration, applied []AppliedMigration) error {
+	known := 0
+	for _, m := range migrations {
+		known = max(known, m.Version)
+	}
+	newest := 0
+	for _, a := range applied {
+		newest = max(newest, a.Version)
+	}
+	if newest <= known {
+		return nil
+	}
+	return fmt.Errorf("refusing to open %q: the database is at version %d and this build knows versions up to %d: %w; run a server or kapi at least as new as the database",
+		ledger, newest, known, ErrNewerDatabase)
 }
 
 // knownName reports whether recorded is a name the version has carried: the

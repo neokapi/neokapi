@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,4 +73,53 @@ func TestMigrateSQLite_RefusesAShippedMigrationEdited(t *testing.T) {
 	err = storage.MigrateContextNS(t.Context(), db, "test_migrations", []storage.Migration{edited})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "a shipped migration was edited")
+}
+
+// newerReleaseCases runs migrate against a ledger behind, at and ahead of the
+// code: behind migrates, at the code's version it starts, and ahead (a newer
+// release migrated it) refuses, naming both versions, and leaves the ledger
+// as the newer release wrote it. rows counts the ledger's rows.
+func newerReleaseCases(t *testing.T, migrate func([]storage.Migration) error, rows func() int) {
+	t.Helper()
+	code := []storage.Migration{
+		{Version: 1, Description: "create a", SQL: "CREATE TABLE newer_test_a (x INTEGER)"},
+		{Version: 2, Description: "create b", SQL: "CREATE TABLE newer_test_b (x INTEGER)"},
+	}
+	require.NoError(t, migrate(code[:1]))
+	require.NoError(t, migrate(code), "behind migrates")
+	require.NoError(t, migrate(code), "at the code's version it starts")
+
+	newer := append(slices.Clone(code), storage.Migration{Version: 3, Description: "create c", SQL: "CREATE TABLE newer_test_c (x INTEGER)"})
+	require.NoError(t, migrate(newer))
+	err := migrate(code)
+	require.ErrorIs(t, err, corestorage.ErrNewerDatabase)
+	assert.Contains(t, err.Error(), "the database is at version 3 and this build knows versions up to 2")
+	assert.Contains(t, err.Error(), "at least as new as the database")
+	assert.Equal(t, 3, rows(), "the ledger is left as the newer release wrote it")
+}
+
+func TestMigratePostgres_RefusesADatabaseANewerReleaseMigrated(t *testing.T) {
+	db := pgtest.NewTestDB(t)
+	const table = "newer_test_schema_migrations"
+	newerReleaseCases(t,
+		func(ms []storage.Migration) error { return storage.MigratePostgresNS(db, table, ms) },
+		func() int {
+			var n int
+			require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM "+table).Scan(&n))
+			return n
+		})
+}
+
+func TestMigrateSQLite_RefusesADatabaseANewerReleaseMigrated(t *testing.T) {
+	db, err := storage.Open(filepath.Join(t.TempDir(), "s.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	const table = "newer_test_migrations"
+	newerReleaseCases(t,
+		func(ms []storage.Migration) error { return storage.MigrateContextNS(t.Context(), db, table, ms) },
+		func() int {
+			var n int
+			require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM "+table).Scan(&n))
+			return n
+		})
 }

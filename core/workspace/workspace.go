@@ -100,6 +100,11 @@ func Open(ctx context.Context, backend Backend) (*Workspace, error) {
 		if err := storage.Migrate(registry, registryMigrationsTable, registryMigrations); err != nil {
 			return nil, fmt.Errorf("workspace: migrate project registry: %w", err)
 		}
+	} else if err := storage.Check(ctx, registry, registryMigrationsTable, registryMigrations); err != nil {
+		// Read-only, nothing is migrated, but a registry a newer kapi wrote
+		// is still refused rather than read in a shape this build does not
+		// know.
+		return nil, fmt.Errorf("workspace: check project registry: %w", err)
 	}
 	return &Workspace{backend: backend, registry: registry}, nil
 }
