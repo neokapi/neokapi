@@ -21,12 +21,23 @@ prune deletes two kinds of cache nobody will read:
 
 It needs a token with `actions: write` and runs from main.
 
-check fails when the ordinary caches pass ORDINARY_BYTES (7.5 GiB) or the
-total passes BUDGET_BYTES (9 GiB). The warm release caches (go-release-*,
-icu-static-*, about 1.8 GiB) are read only at release time, so GitHub's
-least-recently-used eviction past 10 GiB takes them first; the ordinary
-budget leaves them room. The scheduled cache-budget workflow runs check, and
-a failure there opens an issue through scheduled-failure-issue.yml.
+check applies two rules and fails when either breaks.
+
+  * Steady state. After what prune removes, the ordinary caches must stay
+    within ORDINARY_BYTES (7.5 GiB) and the total within BUDGET_BYTES
+    (9 GiB). These are the caches that stay between saves. The warm release
+    caches (go-release-*, icu-static-*, about 1.8 GiB) are read only at
+    release time, so GitHub's least-recently-used eviction past 10 GiB takes
+    them first. The ordinary budget leaves them room.
+  * One save in flight. The steady total plus the newest copy of the largest
+    family must stay within LIMIT_BYTES (GitHub's 10 GiB). A save adds a new
+    copy before prune deletes the old one, and GitHub evicts on the real
+    total in that window. The warm release caches were lost that way on
+    2026-11-23. A steady state that passes the first rule can still leave no
+    room for one save, and this rule catches that.
+
+The scheduled cache-budget workflow runs check, and a failure there opens an
+issue through scheduled-failure-issue.yml.
 
 The listing comes from `gh api repos/{repo}/actions/caches`; GH_REPO names the
 repository.
@@ -149,12 +160,48 @@ def over_budget(caches: list[dict]) -> list[str]:
     return out
 
 
+def after_prune(caches: list[dict]) -> list[dict]:
+    """The caches prune leaves: each family's newest copy on main, nothing
+    elsewhere. A new copy saved a moment before the next prune is a transient
+    every save makes; check judges the state prune converges on."""
+    doomed = {c["id"] for c in superseded(caches) + off_main(caches)}
+    return [c for c in caches if c["id"] not in doomed]
+
+
+def in_flight(steady: list[dict]) -> list[str]:
+    """The line broken when one save of the largest family lands before the
+    prune: its new copy and the old one both count until prune runs."""
+    newest = {}
+    for c in steady:
+        m = SHA_SUFFIX.match(c["key"])
+        if m:
+            newest[fold(m.group("family"))] = c
+    if not newest:
+        return []
+    largest = max(newest.values(), key=lambda c: c["size_in_bytes"])
+    total = sum(c["size_in_bytes"] for c in steady) + largest["size_in_bytes"]
+    if total <= LIMIT_BYTES:
+        return []
+    return [f"the caches prune keeps plus one more copy of {family_of(largest['key'])} "
+            f"({largest['size_in_bytes'] / 1024**3:.2f} GiB) hold {total / 1024**3:.2f} GiB, past GitHub's "
+            f"{LIMIT_BYTES / 1024**3:.0f} GiB; a save of that family before the prune would evict"]
+
+
+def check_problems(caches: list[dict]) -> list[str]:
+    """Both rules of check, on a raw listing."""
+    steady = after_prune(caches)
+    return over_budget(steady) + in_flight(steady)
+
+
 def main_check(repo: str) -> int:
     caches = list_caches(repo)
     print(report(caches))
-    ordinary = sum(c["size_in_bytes"] for c in caches if not is_release(c["key"]))
-    print(f"{ordinary / 1024**3:9.2f} GiB ordinary, {(sum(c['size_in_bytes'] for c in caches) - ordinary) / 1024**3:.2f} GiB warm release caches")
-    problems = over_budget(caches)
+    steady = after_prune(caches)
+    ordinary = sum(c["size_in_bytes"] for c in steady if not is_release(c["key"]))
+    print(f"after prune: {ordinary / 1024**3:.2f} GiB ordinary, "
+          f"{(sum(c['size_in_bytes'] for c in steady) - ordinary) / 1024**3:.2f} GiB warm release caches "
+          f"({len(caches) - len(steady)} copies prune removes)")
+    problems = check_problems(caches)
     for problem in problems:
         print(f"::error::{problem}. Find the family that grew above.")
     return 1 if problems else 0
@@ -201,6 +248,36 @@ def self_test() -> int:
     if gone != [5, 8, 9]:
         failures.append(f"every cache off main should go, read recently or not: [5, 8, 9], got {gone}")
     gib = 1024**3
+    # Two copies of one family a moment after a save: only the newest counts.
+    transient = [c(30, "go-build-race-" + sha(30), size=int(4 * gib), created="2026-11-22T09:00:00Z"),
+                 c(31, "go-build-race-" + sha(31), size=int(4 * gib), created="2026-11-22T10:00:00Z"),
+                 c(32, "go-build-race-" + sha(32), size=1, ref="refs/pull/1/merge")]
+    steady = after_prune(transient)
+    if [x["id"] for x in steady] != [31] or over_budget(steady):
+        failures.append(f"after prune only the newest copy counts: {[x['id'] for x in steady]}, {over_budget(steady)}")
+    if not over_budget(transient):
+        failures.append("the raw listing of two 4 GiB copies is over budget; only after_prune excuses it")
+    # 7.4 GiB ordinary at rest keeps the steady budget, but a second 2 GiB
+    # race copy in flight passes 10 GiB: the window the release caches were
+    # evicted in.
+    tight = [c(40, "go-build-Linux-race-trimpath-" + sha(40), size=int(2.0 * gib)),
+             c(41, "go-build-Linux-pr-trimpath-" + sha(41), size=int(1.9 * gib)),
+             c(47, "go-build-Linux-lint-model-trimpath-" + sha(47), size=int(1.75 * gib)),
+             c(48, "go-mod-Linux-" + "7" * 64, size=int(1.75 * gib)),
+             c(42, "go-release-Linux-X64-" + sha(42), size=int(1.5 * gib))]
+    if over_budget(after_prune(tight)):
+        failures.append(f"7.4 GiB ordinary and 8.9 GiB total keep the steady budget: {over_budget(after_prune(tight))}")
+    if not any("one more copy of go-build-Linux-race-trimpath-<sha>" in x for x in check_problems(tight)):
+        failures.append(f"8.9 GiB plus a 2 GiB race save in flight passes 10 GiB and must fail: {check_problems(tight)}")
+    roomy = [c(43, "go-build-Linux-race-trimpath-" + sha(43), size=int(2.0 * gib)),
+             c(44, "go-build-Linux-pr-trimpath-" + sha(44), size=int(2.0 * gib)),
+             c(45, "go-release-Linux-X64-" + sha(45), size=int(1.8 * gib))]
+    if check_problems(roomy):
+        failures.append(f"5.8 GiB plus a 2 GiB save in flight is within 10 GiB: {check_problems(roomy)}")
+    # The in-flight rule counts the steady state, not the older copy prune removes.
+    if check_problems(roomy + [c(46, "go-build-Linux-pr-trimpath-" + sha(46), size=int(2.0 * gib),
+                                 created="2026-11-21T10:00:00Z")]):
+        failures.append("an older copy prune removes is not counted twice")
     ordinary_full = [c(20, "go-build-x-" + sha(20), size=int(7.6 * gib))]
     if not any("ordinary" in x for x in over_budget(ordinary_full)):
         failures.append("ordinary caches past 7.5 GiB must fail")
