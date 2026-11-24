@@ -61,7 +61,7 @@ type WorkerDeps struct {
 	JobStore     JobStore
 	ContentStore store.ContentStore
 	// PushTransition runs one push's writes on a single transaction spanning
-	// every store the push touches — the content store AND the voice store the
+	// every store the push touches, the content store AND the voice store the
 	// context reconcile writes profiles to. Both are built from one PgDB, so
 	// one transaction covers both.
 	//
@@ -72,8 +72,8 @@ type WorkerDeps struct {
 	// already changed what governs the workspace on the strength of content
 	// that never landed.
 	//
-	// nil means the stores are not known to share a pool — a test double, or a
-	// deployment that cannot — and the push falls back to the content store's
+	// nil means the stores are not known to share a pool, a test double, or a
+	// deployment that cannot, and the push falls back to the content store's
 	// own transaction with the reconcile in front of it, which is what it did
 	// before this existed.
 	PushTransition PushTransitionFunc
@@ -111,7 +111,7 @@ type WorkerDeps struct {
 	// skipped. Optional; nil when the deployment runs without Redis.
 	SyncCache diffcache.HashCache
 	// Tracker captures product analytics events (content_pushed). Optional;
-	// nil disables capture. Fire-and-forget — never blocks job processing.
+	// nil disables capture. Fire-and-forget, never blocks job processing.
 	Tracker EventTracker
 	// MaxJobAttempts bounds transient-failure retries before a job is failed.
 	// Zero uses defaultMaxJobAttempts.
@@ -132,22 +132,22 @@ type WorkerDeps struct {
 	// workspaceStores.getMemory.
 	MemoryResolver MemoryResolver
 	// VoiceStore reads voice profiles so a translation job carries the
-	// project's voice into the AI prompt — parity with the CLI flow's
+	// project's voice into the AI prompt, parity with the CLI flow's
 	// brand binding. Optional; nil translates without voice.
 	VoiceStore coreprofile.Store
 	// WorkspaceDefault resolves the workspace-level default voice
-	// profile — the base rung of the voicescope resolution ladder that a
+	// profile, the base rung of the voicescope resolution ladder that a
 	// project/stream/collection binding overrides. Optional; nil skips the
 	// workspace rung.
 	WorkspaceDefault voicescope.WorkspaceDefault
 	// TermsResolver returns the workspace terms so a translation job carries
-	// the project's terminology as prompt term rules — parity with the CLI
+	// the project's terminology as prompt term rules, parity with the CLI
 	// flow's terms binding. Optional; nil translates without terminology.
 	TermsResolver TermsResolver
 	// ConnectorFetcher performs the fetch+store for durable forge-ingest jobs
 	// (webhook/bind-triggered source ingests enqueued by the server). The
 	// worker wires a store-backed fetcher that instantiates connectors on
-	// demand from their persisted config. Nil fails ingest jobs permanently —
+	// demand from their persisted config. Nil fails ingest jobs permanently,
 	// a worker without connector wiring must not silently eat them.
 	ConnectorFetcher ConnectorFetcher
 	// ConnectorConfigs reads persisted (decrypted) connector configs and
@@ -161,7 +161,7 @@ type WorkerDeps struct {
 	// model list from platform config. Required for model-sweep jobs.
 	SweepSettings ModelSweepSettings
 	// ModelRecommender, when set, lets platform model resolution prefer a
-	// fresh measured recommendation for the job's project+locale — but only
+	// fresh measured recommendation for the job's project+locale, but only
 	// when the workspace has not pinned a model (PlatformProviderConfig.
 	// ModelPinned) and the recommender's own gates pass (flag on, fresh, model
 	// still enabled). Optional; nil keeps the previous resolution exactly.
@@ -224,7 +224,7 @@ func (d *WorkerDeps) queueLabel() string {
 // jobHeartbeatInterval is how often a running translation refreshes its job's
 // updated_at while it still holds the lease. It sits comfortably below the
 // stale-job sweeper threshold (defaultStaleJobThreshold, 15m) so a slow-but-live
-// job — e.g. one chunk stuck behind a rate-limited model — is never mistaken for
+// job, e.g. one chunk stuck behind a rate-limited model, is never mistaken for
 // a crashed worker and swept out from under itself.
 const jobHeartbeatInterval = 2 * time.Minute
 
@@ -234,7 +234,7 @@ const translationProgressChunk = 50
 
 // defaultDrainGrace is how long a job in flight when SIGTERM arrives may keep
 // running. It sits just under the orchestrator's stop timeout, so the job
-// either finishes or is parked deliberately — rather than being killed with
+// either finishes or is parked deliberately, rather than being killed with
 // the task and left for the fifteen-minute stale sweeper on another instance.
 const defaultDrainGrace = 25 * time.Second
 
@@ -319,8 +319,8 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 		// fifteen-minute sweeper on another instance.
 		//
 		// Seed the job ID as the correlation ID so every log line emitted while
-		// processing this job carries request_id=<jobID> — the same ID a user
-		// sees for the job/run — and any Sentry capture is tagged with it.
+		// processing this job carries request_id=<jobID>, the same ID a user
+		// sees for the job/run, and any Sentry capture is tagged with it.
 		runCtx, stopDrain := drainableJobContext(ctx, deps.drainGrace())
 		jobCtx := observe.WithRequestID(runCtx, jobID)
 		// Bookkeeping outlives the shutdown signal too: the row, the broker
@@ -351,7 +351,7 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 				observe.JobsProcessedTotal.WithLabelValues(queueLabel, "deferred").Inc()
 				// Parked on a known-down dependency. Re-enqueue with a delay
 				// matched to the breaker's cooldown, so the redelivery arrives
-				// when a probe is due rather than immediately — an outage must
+				// when a probe is due rather than immediately, an outage must
 				// not turn into a queue-spinning hot loop. Same fresh-message
 				// rationale as the transient path: never trust nack() to
 				// reproduce a delivery whose visibility may already have lapsed.
@@ -372,17 +372,13 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 				// Transient upstream failure with retry budget left:
 				// processJobWithDeps has already reset the row to 'queued'.
 				//
-				// Do NOT rely on nack() to reproduce the delivery: if this job
-				// ran longer than the broker AckWait, JetStream may have already
-				// redelivered THIS message to a peer worker (which saw
-				// 'processing', returned nil, and ACKed it), removing the broker
-				// message. A nack() on our now-stale delivery is then a no-op and
-				// the row is stranded in 'queued' with no message — and the
-				// sweeper only recovers 'processing' rows. Instead publish a FRESH
-				// message and ACK this one. Enqueue is idempotent: ClaimJob dedups
-				// a stray concurrent redelivery. Fall back to nack() only if the
-				// fresh enqueue fails, so the broker can still redeliver if it
-				// happens to hold the message.
+				// A job that ran past the broker AckWait may already have been
+				// redelivered to a peer worker, which saw 'processing' and ACKed
+				// the message away. A nack() then strands the row in 'queued'
+				// with no message, and the sweeper recovers only 'processing'
+				// rows. So publish a FRESH message and ACK this one; ClaimJob
+				// dedups a stray redelivery. nack() is the fallback when the
+				// enqueue fails.
 				if eqErr := deps.Queue.Enqueue(postCtx, jobID); eqErr != nil {
 					slog.WarnContext(postCtx, "job transient failure; re-enqueue failed, nacking instead",
 						"job_id", jobID, "error", processErr, "enqueue_error", eqErr)
@@ -401,7 +397,7 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			observe.ObserveJob(queueLabel, "failed", jobStart)
 			// …and tell the people waiting on it. This is the one branch that
 			// has ruled out both retry and deferral, so it fires once per job
-			// rather than once per attempt — the difference between a summons
+			// rather than once per attempt, the difference between a summons
 			// and a burst of mail on a flaky provider.
 			announceJobFailure(postCtx, deps, jobID, processErr)
 		} else {
@@ -462,7 +458,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	}
 
 	// Check the monthly token quota before starting. This is the internal abuse
-	// cap (see jobs.QuotaStore) — a hard ceiling to bound runaway usage — not the
+	// cap (see jobs.QuotaStore), a hard ceiling to bound runaway usage, not the
 	// user-facing credit ledger (bowrain/billing). It applies to platform and BYO
 	// jobs alike; credit deduction (below, per chunk) is platform-only.
 	if deps.QuotaStore != nil {
@@ -493,7 +489,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 			return nil
 		}
 		// The drain grace ran out before the job finished. The provider call
-		// comes back context.Canceled, which is permanent everywhere else — but
+		// comes back context.Canceled, which is permanent everywhere else, but
 		// here it says only that this process is going away, which is nothing
 		// the job did. Park it exactly like a dependency outage: back to
 		// 'queued' without spending an attempt, re-enqueued as a fresh message,
@@ -516,7 +512,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 					map[string]string{"item": job.ItemName, "locale": job.TargetLocale, "dependency": d.dependency})
 				return d
 			}
-			// Deferral budget exhausted — DeferJob marked the job failed.
+			// Deferral budget exhausted: DeferJob marked the job failed.
 			emitLog(deps, job.StepID, "error",
 				d.dependency+" did not recover; giving up on this job.",
 				map[string]string{"item": job.ItemName, "locale": job.TargetLocale, "dependency": d.dependency})
@@ -534,7 +530,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 				// Signal the loop to NAK; the row is back in 'queued'.
 				return &transientError{err: err}
 			}
-			// Retry budget exhausted — RetryOrFail marked the job failed.
+			// Retry budget exhausted: RetryOrFail marked the job failed.
 			emitLog(deps, job.StepID, "error",
 				"Translation failed after retries: "+err.Error(),
 				map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
@@ -563,7 +559,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return err
 	}
 
-	// Mark as completed — under the lease, like every other terminal write. A
+	// Mark as completed, under the lease, like every other terminal write. A
 	// worker whose lease was taken must not report success: the sweeper's fresh
 	// owner is still running the job, and a cancellation is a decision this
 	// write would quietly undo.
@@ -598,7 +594,7 @@ func deferInterruptedJob(ctx context.Context, deps *WorkerDeps, job *Translation
 		slog.WarnContext(book, "shutdown defer bookkeeping failed", "job_id", job.ID, "error", derr)
 	}
 	if !deferred {
-		// Out of deferral budget — DeferJob marked the job failed.
+		// Out of deferral budget: DeferJob marked the job failed.
 		emitLog(deps, job.StepID, "error",
 			"Repeatedly interrupted by worker restarts; giving up on this job.",
 			map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
@@ -651,7 +647,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 	// Source-first convergence: translate only the blocks whose source has
 	// settled to (or above) the project's translate_after level. A block held
-	// below the level is skipped here — never translated into this locale — so a partially
+	// below the level is skipped here, never translated into this locale, so a partially
 	// settled item translates only its ready segments and an off-brand /
 	// un-term-checked source is not fanned out. The orchestrator already refuses
 	// to spawn a job for an item with nothing producible; this is the per-block
@@ -696,7 +692,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	}
 
 	// Lazily resolve the standing voice profile once for draft scoring
-	// (persistDraftVoiceScores) — resolved only when a draft actually persists,
+	// (persistDraftVoiceScores), resolved only when a draft actually persists,
 	// so a job with nothing to score costs no extra store reads.
 	var voiceProfile *coreprofile.VoiceProfile
 	voiceProfileResolved := false
@@ -718,7 +714,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		rules := recycleTermRules(ctx, resolveJobTerms(deps, job), proj, srcLocale, tgtLocale)
 		res, rerr := recycleBlocks(ctx, tm, storedBlocks, srcLocale, tgtLocale, projectMemoryMinScore(proj), ledger, rules)
 		if rerr != nil {
-			// A content memory failure must never block the paid translation path — fall
+			// A content memory failure must never block the paid translation path: fall
 			// back to translating everything, exactly as before.
 			slog.WarnContext(ctx, "content memory recycle failed; falling back to AI-only", "job_id", job.ID, "error", rerr)
 		} else {
@@ -737,7 +733,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				// rate covers content memory output too.
 				persistDraftVoiceScores(ctx, deps, job, draftProfile(), filled, tgtLocale)
 			}
-			// Rebuild the stored-block slice for the AI loop as the remainder —
+			// Rebuild the stored-block slice for the AI loop as the remainder,
 			// only genuinely-new segments cost credits. StoredBlock carries more
 			// than the Block, so re-query the remainder by ID to keep the slice
 			// shape (StoredBlock) the chunk loop expects.
@@ -759,7 +755,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 	// Where this attempt starts. Chunks persist as they complete, so an attempt
 	// that died partway left finished translations behind and a done_blocks that
-	// says how many — resuming there is what stops a retry from paying to
+	// says how many, resuming there is what stops a retry from paying to
 	// translate them again. Only a remainder of the same size can be resumed
 	// into: the blocks are ordered by id and the recycle pass reshapes the
 	// slice, so a different total means the offsets no longer name the same
@@ -831,7 +827,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		// Lease gate: only bill + persist this chunk while we still own the job.
 		// If a (possibly slow) chunk let the sweeper resurrect the job and a
 		// fresh worker re-claimed it (claim_epoch advanced), RenewLease reports
-		// !owner — abandon before RecordUsage/DeductTokens so the fresh owner is
+		// !owner: abandon before RecordUsage/DeductTokens so the fresh owner is
 		// not double-charged. RenewLease also refreshes updated_at, so a live job
 		// making steady chunk progress additionally never looks stale.
 		owner, lerr := deps.JobStore.RenewLease(ctx, job.ID, epoch)
@@ -858,7 +854,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		//
 		// Fail-open by policy: the tokens are already spent by the time this
 		// runs, so a meter that is down must not also cost the customer the
-		// translation. Fail-open is not fail-silent, though — the discarded
+		// translation. Fail-open is not fail-silent, though: the discarded
 		// record is the only trace this spend ever leaves, so it is logged and
 		// counted rather than dropped.
 		if deps.QuotaStore != nil {
@@ -879,19 +875,15 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 			}
 		}
 
-		// Deduct billing credits and report to Stripe Meters — but only for the
+		// Deduct billing credits and report to Stripe Meters, but only for the
 		// platform-held key (resolved.Source, the shared hybrid-AI gate from
 		// resolveProvider). A workspace bring-your-own key still recorded usage
 		// above (the ai_usage abuse cap) but burns NO credits (Epic 004).
 		//
-		// The reference id names the WORK, not its position: "<jobID>:<first
-		// block id of the chunk>". A retried attempt covers whatever the job
-		// still owes, so the chunk at offset 0 the second time is a different
-		// set of blocks from the chunk at offset 0 the first time; keying on
-		// the offset made the Stripe meter's idempotency suppress a real
-		// deduction and the job cost less than the work it did. Keyed on the
-		// block, a chunk that is genuinely redone still dedupes and one that is
-		// not still bills.
+		// The reference id names the work: "<jobID>:<first block id of the
+		// chunk>". A retried attempt covers whatever the job still owes, so
+		// the same offset names other blocks the second time. Keyed on the
+		// block, a chunk that is redone dedupes and a new one bills.
 		if deps.BillingHooks != nil && job.WorkspaceID != "" && resolved.Source == ProviderSourcePlatform {
 			deps.BillingHooks.DeductTokens(ctx, job.WorkspaceID, chunkTokens, "ai_translation",
 				chunkBillingRef(job.ID, chunk, i))
@@ -918,7 +910,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 			// voice-informed for every drafted block.
 			persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
 			// AI drafts do NOT enter the content memory. The corpus has one door
-			// in — wording a decision approved (PromoteDecisionsToMemory) — so a
+			// in, wording a decision approved (PromoteDecisionsToMemory), so a
 			// guess can never be offered back as approved wording. Draft reuse
 			// within a run is the block store's job: identical source means an
 			// identical content hash, exact-match only, labeled for what it is.
@@ -959,7 +951,7 @@ type leaseRenewer interface {
 // slow-but-live job from being swept as stale. The returned stop func blocks
 // until the goroutine has fully exited, so the worker's goleak check stays
 // green. Ownership loss is not acted on here (it only stops the heartbeat and
-// logs) — the per-chunk RenewLease gate is the authoritative place that halts
+// logs), the per-chunk RenewLease gate is the authoritative place that halts
 // billing/persistence, so cancellation semantics stay simple.
 func startLeaseHeartbeat(ctx context.Context, store leaseRenewer, jobID string, epoch int64) func() {
 	stop := make(chan struct{})
@@ -1013,7 +1005,7 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 		// recommendation for this job's project+locale over the platform
 		// default. The recommender itself enforces the model_sweeps.enabled
 		// flag, the freshness bound, the adherence floor, and that the model is
-		// still ctrl-enabled — all disabled paths fall through to the previous
+		// still ctrl-enabled, all disabled paths fall through to the previous
 		// resolution unchanged.
 		if deps.ModelRecommender != nil && !platform.ModelPinned {
 			if rec, ok := deps.ModelRecommender.RecommendedModel(ctx, job.ProjectID, job.TargetLocale); ok && rec != "" {
@@ -1037,7 +1029,7 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 
 	// Per-workspace BYO provider: resolve the saved config (with its sealed key
 	// decrypted) from Postgres, scoped strictly to this job's durable billing
-	// workspace id (now persisted on the job). Slug is deliberately not used — it
+	// workspace id (now persisted on the job). Slug is deliberately not used: it
 	// is mutable and reusable, so it must never authorize secret retrieval.
 	if deps.ProviderStore == nil {
 		return nil, errors.New("per-workspace provider store not configured; " +
@@ -1138,14 +1130,14 @@ func jobStreamName(job *TranslationJob) string {
 }
 
 // ProjectDNTTerms reads the project's do-not-translate terms from settings
-// (comma-separated in Properties["dnt_terms"]) — product names, trademarks, and
+// (comma-separated in Properties["dnt_terms"]), product names, trademarks, and
 // code identifiers that must survive verbatim into every target. The AI
 // translate tool masks and restores these spans so they cannot be translated.
 // Empty when unset.
 //
 // It is the single derivation shared by every server-side translation
-// surface — the worker's jobs (jobTranslateConfig) and the synchronous editor
-// translate in bowrain/server — so both protect identical terms.
+// surface, the worker's jobs (jobTranslateConfig) and the synchronous editor
+// translate in bowrain/server, so both protect identical terms.
 func ProjectDNTTerms(proj *store.Project) []string {
 	if proj == nil || proj.Properties == nil {
 		return nil
@@ -1169,7 +1161,7 @@ func ProjectDNTTerms(proj *store.Project) []string {
 // orchestrator's item-level gate, so a partially-settled item translates only
 // its ready segments.
 //
-// A block that was never settled (SourceStatusNew — no committed status) is
+// A block that was never settled (SourceStatusNew, no committed status) is
 // PASSED THROUGH: the worker is not the settle phase, and holding an unstamped
 // block here would silently strand every non-source-first path (auto-translate,
 // projects that never ran a settle pass). The hold applies only to what settlement

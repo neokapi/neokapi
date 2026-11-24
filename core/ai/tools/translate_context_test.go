@@ -9,7 +9,7 @@ import (
 )
 
 // The key is sent by default. A bare "Save" is a coin flip between a verb and a
-// noun, and the key is the cheapest signal that settles it — already in the
+// noun, and the key is the cheapest signal that settles it, already in the
 // document, a handful of tokens, and what every localization vendor sends.
 func TestContextDefaultsToKey(t *testing.T) {
 	tool := NewAITranslateTool(nil, AITranslateConfig{Provider: "anthropic"})
@@ -108,7 +108,7 @@ func TestContextPolicyChangesTheConfigFingerprint(t *testing.T) {
 
 // Neighbours need the document in order, and only the buffering path has it. So
 // `batching: single` + `context: neighbours` must still route through the batched
-// path — which is exactly the shape the evidence favours: large non-translated
+// path, which is exactly the shape the evidence favours: large non-translated
 // context, small translation unit.
 func TestNeighboursForceTheBufferingPath(t *testing.T) {
 	single := NewAITranslateTool(nil, AITranslateConfig{
