@@ -27,6 +27,7 @@ on:
       - Cache Budget
       - Bot PR Watch
       - Gardening
+      - Rebuild release images
     types: [completed]
   workflow_dispatch:
     inputs:

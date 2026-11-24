@@ -49,6 +49,13 @@ SHA_SUFFIX = re.compile(r"^(?P<family>.+)-(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 RELEASE_FAMILIES = ("go-release-", "icu-static-")
 
 
+def fold(family: str) -> str:
+    """One family across config hashes: a 64-digit hash inside the key (a
+    golangci-lint config, say) changes with the config, and the copy under the
+    old hash would otherwise never be superseded."""
+    return re.sub(r"-[0-9a-f]{64}(?=-|$)", "-<hash>", family)
+
+
 def is_release(key: str) -> bool:
     return key.startswith(RELEASE_FAMILIES)
 
@@ -72,7 +79,7 @@ def superseded(caches: list[dict]) -> list[dict]:
         m = SHA_SUFFIX.match(c["key"])
         if not m:
             continue
-        fam = m.group("family")
+        fam = fold(m.group("family"))
         if fam not in newest or c["created_at"] > newest[fam]["created_at"]:
             newest[fam] = c
     keep = {c["id"] for c in newest.values()}
@@ -185,6 +192,11 @@ def self_test() -> int:
         c(9, "playwright-Linux-" + "c" * 64, ref="refs/heads/x", accessed="2026-11-23T11:00:00Z"),
         c(10, "go-mod-Linux-" + "d" * 64, accessed="2026-11-01T00:00:00Z"),
     ]
+    lint = caches + [c(14, "golangci-lint-Linux-lint-framework-" + "1" * 64 + "-" + sha(14), created="2026-11-22T09:00:00Z"),
+                     c(15, "golangci-lint-Linux-lint-framework-" + "2" * 64 + "-" + sha(15), created="2026-11-22T12:00:00Z")]
+    got = sorted(x["id"] for x in superseded(lint))
+    if got != [1, 3, 14]:
+        failures.append(f"a family under an old config hash is superseded by the new one: want [1, 3, 14], got {got}")
     gone = sorted(x["id"] for x in off_main(caches + branch))
     if gone != [5, 8, 9]:
         failures.append(f"every cache off main should go, read recently or not: [5, 8, 9], got {gone}")

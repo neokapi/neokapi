@@ -159,9 +159,23 @@ def check_format_ops(root: str, rel: str, today: dt.date) -> dict:
             "read": read, "details": due}
 
 
+class ListError(Exception):
+    """docs/internals/gardening.yaml is missing or malformed."""
+
+
 def load_items(root: str) -> list[dict]:
-    with open(os.path.join(root, LIST)) as fh:
-        return (yaml.safe_load(fh) or {}).get("items") or []
+    try:
+        with open(os.path.join(root, LIST)) as fh:
+            doc = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError) as err:
+        raise ListError(f"cannot read {LIST}: {err}") from err
+    items = doc.get("items") if isinstance(doc, dict) else None
+    if not isinstance(items, list) or not items:
+        raise ListError(f"{LIST} has no items list")
+    for n, item in enumerate(items, 1):
+        if not isinstance(item, dict) or not str(item.get("id", "")).strip():
+            raise ListError(f"{LIST}: item {n} has no id")
+    return items
 
 
 def report(root: str, today: dt.date) -> list[dict]:
@@ -364,8 +378,8 @@ def release_gate(root: str, item_id: str, today: dt.date) -> tuple[bool, str]:
     """Whether a release may proceed, and the line saying why."""
     try:
         items = {i["id"]: i for i in load_items(root)}
-    except (OSError, yaml.YAMLError) as err:
-        return False, f"cannot read {LIST}: {err}"
+    except ListError as err:
+        return False, str(err)
     item = items.get(item_id)
     if item is None or "release_gate_days" not in item:
         return False, f"{item_id} has no release_gate_days in {LIST}"
@@ -414,6 +428,12 @@ def gate_self_test() -> list[str]:
         ok, line = release_gate(root, "badgate", today)
         if ok or "not a whole number" not in line:
             failures.append(f"a non-integer release_gate_days refuses with a plain message: {line}")
+        for text, want in (("other: 1\n", "has no items list"), ("items:\n  - run: x\n", "item 1 has no id")):
+            with open(os.path.join(root, LIST), "w") as fh:
+                fh.write(text)
+            ok, line = release_gate(root, "cat", today)
+            if ok or want not in line:
+                failures.append(f"a gardening.yaml with {want!r} refuses with a plain message: {line}")
         os.remove(os.path.join(root, LIST))
         ok, line = release_gate(root, "cat", today)
         if ok or "cannot read" not in line:
@@ -579,6 +599,14 @@ def main() -> int:
     if args.self_test:
         return self_test()
     today = dt.date.fromisoformat(args.today) if args.today else dt.date.today()
+    try:
+        load_items(args.root)
+    except ListError as err:
+        if args.release_gate and args.report_only:
+            print(f"::warning::{err} (a build-only run does not stop)")
+            return 0
+        print(f"::error::{err}")
+        return 1
     if args.release_gate:
         ok, line = release_gate(args.root, args.release_gate, today)
         if ok:

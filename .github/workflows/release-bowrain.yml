@@ -754,10 +754,16 @@ jobs:
 
       - name: Point latest at this release
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          moved=()
           for IMAGE in bowrain-server bowrain-worker bowrain-web bravo-agent bravo-sandbox-node bravo-sandbox-python bowrain-keycloak; do
-            docker buildx imagetools create -t "ghcr.io/neokapi/$IMAGE:latest" "ghcr.io/neokapi/$IMAGE:$VERSION"
+            if ! docker buildx imagetools create -t "ghcr.io/neokapi/$IMAGE:latest" "ghcr.io/neokapi/$IMAGE:$VERSION"; then
+              echo "::error::could not move ghcr.io/neokapi/$IMAGE:latest to $VERSION; already moved: ${moved[*]:-none}"
+              exit 1
+            fi
+            moved+=("$IMAGE")
           done
+          echo "latest now points at $VERSION for: ${moved[*]}"
 
   # What shipped, on the release: each image's digest, its package list
   # (CycloneDX) and its scan, per platform, uploaded as release assets. The
