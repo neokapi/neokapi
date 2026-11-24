@@ -1522,7 +1522,7 @@ export class AvailablePlugin {
             /**
              * Available is true when the registry has a stable, kapi-compatible build
              * of this plugin for the running OS/arch. When false the UI disables the
-             * Install button — e.g. a plugin with no windows/arm64 tarball.
+             * Install button: e.g. a plugin with no windows/arm64 tarball.
              * @member
              * @type {boolean}
              */

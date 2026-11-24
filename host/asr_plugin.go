@@ -19,11 +19,24 @@ import (
 // stdin/stdout. Keeping whisper + models out of the kapi binary is deliberate
 // (same rationale as kapi-vision/kapi-sat). The host knows the wire format but
 // does not import the plugin module, so the CLI stays free of the plugin's build
-// requirements — the small structs below mirror plugins/asr/asrproto
+// requirements, the small structs below mirror plugins/asr/asrproto
 // (asrproto-line-json-v1). Audio crosses to the plugin by path, never as bytes.
 func init() {
-	asr.RegisterEngine("asr", newASREngine)
+	asr.RegisterEngineWithProbe("asr", newASREngine, asrPluginInstalled)
 }
+
+// asrPluginInstalled reports whether the kapi-asr plugin can be found. When it
+// cannot, an audio or video file is read as media without transcription, and
+// the person is told so once.
+func asrPluginInstalled() bool {
+	if _, _, err := findASRPlugin(); err != nil {
+		noteEngineMissing(&asrMissingNote, err.Error())
+		return false
+	}
+	return true
+}
+
+var asrMissingNote sync.Once
 
 const asrPluginName = "asr"
 
@@ -63,9 +76,14 @@ func (e *asrEngine) Close() error {
 }
 
 func (e *asrEngine) dial() (*asrProcess, error) {
-	bin, err := findASRPlugin()
+	bin, p, err := findASRPlugin()
 	if err != nil {
 		return nil, err
+	}
+	if p != nil {
+		if err := pluginhost.CheckLaunch(p); err != nil {
+			return nil, err
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	proc, err := startASRProcess(ctx, bin)
@@ -78,20 +96,18 @@ func (e *asrEngine) dial() (*asrProcess, error) {
 }
 
 // findASRPlugin resolves the kapi-asr binary: an explicit KAPI_ASR_PLUGIN path
-// (dev/local override) wins; otherwise the unified plugin discovery locates it
-// by manifest name, like kapi-vision.
-func findASRPlugin() (string, error) {
+// (dev/local override, the person's own choice) wins; otherwise the run's
+// plugin discovery locates it by manifest name, like kapi-vision, and returns
+// the plugin so its launch can be checked.
+func findASRPlugin() (string, *pluginhost.Plugin, error) {
 	if p := os.Getenv("KAPI_ASR_PLUGIN"); p != "" {
-		return p, nil
+		return p, nil, nil
 	}
-	for _, p := range pluginhost.Discover(pluginhost.DiscoverOptions{EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR")}) {
-		if p.Name() == asrPluginName {
-			return p.BinaryPath, nil
-		}
+	p, err := findMediaPlugin(asrPluginName, "speech is not transcribed")
+	if err != nil {
+		return "", nil, err
 	}
-	return "", fmt.Errorf(
-		"audio transcription requires the %q plugin; install it with `kapi plugins install asr` "+
-			"or set KAPI_ASR_PLUGIN to a built kapi-asr binary", asrPluginName)
+	return p.BinaryPath, p, nil
 }
 
 // --- wire format (mirrors plugins/asr/asrproto, intentionally duplicated) ---

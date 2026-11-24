@@ -20,10 +20,29 @@ import (
 // visionproto protocol on stdin/stdout. Keeping the models + onnxruntime out of
 // the kapi binary is deliberate (same rationale as the SaT plugin). The host
 // knows the wire format but does not import the plugin module, so the CLI stays
-// free of the native build requirements — the small framing + structs below
+// free of the native build requirements, the small framing + structs below
 // mirror plugins/vision/visionproto (visionproto-framed-v1).
 func init() {
-	vision.RegisterEngine("vision", newVisionEngine)
+	vision.RegisterEngineWithProbe("vision", newVisionEngine, visionPluginInstalled)
+}
+
+// visionPluginInstalled reports whether the kapi-vision plugin can be found.
+// When it cannot, an image or video frame is read as media without OCR, and
+// the person is told so once.
+func visionPluginInstalled() bool {
+	if _, err := findVisionPlugin(); err != nil {
+		noteEngineMissing(&visionMissingNote, err.Error())
+		return false
+	}
+	return true
+}
+
+var visionMissingNote sync.Once
+
+// noteEngineMissing writes msg to standard error the first time once is
+// used, so a run over many media files says once that an engine was skipped.
+func noteEngineMissing(once *sync.Once, msg string) {
+	once.Do(func() { fmt.Fprintln(os.Stderr, "kapi: note: "+msg) })
 }
 
 const visionPluginName = "vision"
@@ -101,6 +120,9 @@ func (e *visionEngine) dial() (visionTransport, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := pluginhost.CheckLaunch(p); err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	proc, err := startVisionProcess(ctx, p.BinaryPath)
 	if err != nil {
@@ -112,18 +134,7 @@ func (e *visionEngine) dial() (visionTransport, error) {
 }
 
 func findVisionPlugin() (*pluginhost.Plugin, error) {
-	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
-		EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR"),
-	})
-	for _, p := range plugins {
-		if p.Name() == visionPluginName {
-			return p, nil
-		}
-	}
-	return nil, fmt.Errorf(
-		"vision (OCR) requires the %q plugin; install it with `kapi plugins install vision` "+
-			"or build it locally (see plugins/vision/README.md)",
-		visionPluginName)
+	return findMediaPlugin(visionPluginName, "text in images is not read")
 }
 
 // --- wire format (mirrors plugins/vision/visionproto, intentionally duplicated) ---

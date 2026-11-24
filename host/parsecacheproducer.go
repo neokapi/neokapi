@@ -3,6 +3,7 @@ package host
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -16,13 +17,26 @@ import (
 // cacheable is false for a plugin whose version cannot be determined: such a
 // file is parsed every time, never served from the cache, and kapi says so
 // once per plugin.
+//
+// A built-in format whose reader enriches a file through engine plugins
+// (mediaFormatEngines) names each engine instead: its plugin's name, version
+// and fingerprint, or that it is absent. Such a file is parsed again when an
+// engine is installed, upgraded or removed; no other format's key names one.
 func (a *App) formatProducer(fmtName string) (identity string, cacheable bool) {
-	if a.PluginHost == nil || fmtName == "" {
+	if fmtName == "" {
 		return "", true
 	}
 	names := []string{fmtName}
 	if name, _, err := a.resolveFormatRef(fmtName); err == nil && name != fmtName {
 		names = append(names, name)
+	}
+	for _, name := range names {
+		if engines, ok := mediaFormatEngines[name]; ok {
+			return a.engineProducer(engines)
+		}
+	}
+	if a.PluginHost == nil {
+		return "", true
 	}
 	for _, name := range names {
 		route := a.PluginHost.FormatRoute(name)
@@ -101,4 +115,45 @@ func (a *App) noteUncachedPlugin(name, why string) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "kapi: the files the %s plugin reads are parsed every time rather than served from the parse cache: %s\n", name, why)
+}
+
+// mediaFormatEngines names the engine plugins each media format's reader
+// enriches a file through.
+var mediaFormatEngines = map[string][]string{
+	"audio": {asrPluginName},
+	"image": {visionPluginName},
+	"video": {asrPluginName, visionPluginName},
+}
+
+// engineProducer names the engines a media format reads through, for the
+// parse cache key: each as "engine=plugin@version#fingerprint", the same
+// identity a format plugin gets, or "engine=absent" when it is not loaded.
+// cacheable is false when an engine's identity cannot be read, or when
+// KAPI_ASR_PLUGIN names the recognizer's binary outright.
+func (a *App) engineProducer(engines []string) (string, bool) {
+	parts := make([]string, 0, len(engines))
+	for _, engine := range engines {
+		if engine == asrPluginName && os.Getenv("KAPI_ASR_PLUGIN") != "" {
+			// A binary named outright has no version to key by: its files
+			// are parsed every time, as an unversioned plugin's are.
+			a.noteUncachedPlugin(engine, "KAPI_ASR_PLUGIN names its binary, which declares no version")
+			return "", false
+		}
+		p, ok := currentMediaPlugins().plugins[engine]
+		if !ok {
+			parts = append(parts, engine+"=absent")
+			continue
+		}
+		if p.Version() == "" {
+			a.noteUncachedPlugin(p.Name(), "it declares no version")
+			return "", false
+		}
+		fp, err := p.Fingerprint()
+		if err != nil {
+			a.noteUncachedPlugin(p.Name(), err.Error())
+			return "", false
+		}
+		parts = append(parts, engine+"="+p.Name()+"@"+p.Version()+"#"+fp)
+	}
+	return strings.Join(parts, ","), true
 }

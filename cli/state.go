@@ -78,16 +78,23 @@ checkout's state directory: for a checkout moved to another volume, restored
 from a backup, or cloned again. The files are shown first and confirmed at the
 terminal. With no terminal attached nothing is taken unless --yes is given.
 The work directory is rebuilt here rather than taken, and the state directory
-the files came from is removed once they are in place.`,
-		Example: `  kapi state relink --from ~/old/app -p ./app`,
-		Args:    cobra.NoArgs,
+the files came from is removed once they are in place and read back.
+
+kapi takes only this project's state. State recorded for another project is
+refused, so one project's vault and server sign-in stay out of another
+project's checkout. When kapi's record cannot say which project the state
+belongs to (an earlier kapi recorded it, or a recipe has no id), the vault and
+the sync state stay where they are unless --same-project is given.`,
+		Example: `  kapi state relink --from ~/old/app -p ./app
+  kapi state relink --from ~/old/app -p ./app --same-project`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			recipePath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
 			from, _ := cmd.Flags().GetString("from")
-			out, err := a.StateRelink(cmd, recipePath, from)
+			out, err := a.StateRelink(cmd, recipePath, from, BoolFlag(cmd, "same-project"))
 			if err != nil {
 				return err
 			}
@@ -96,6 +103,7 @@ the files came from is removed once they are in place.`,
 	}
 	AddProjectFlag(relinkCmd)
 	relinkCmd.Flags().String("from", "", "the location the checkout's state was recorded for")
+	relinkCmd.Flags().Bool("same-project", false, "state that the recorded state is this project's, so the vault and the sync state come across too")
 	_ = relinkCmd.MarkFlagRequired("from")
 
 	pathCmd := &cobra.Command{

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/registry"
@@ -16,18 +17,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// #1468 item 1, the core/flow half: RunFileWithReaderWriter and RunStream both
-// opened the skeleton store with `if store, err := …; err == nil` and ran on
-// without one when it failed. For a same-format pass the skeleton is the only
-// carrier of the structure the reader could not model, so running on silently
-// replaces the document with a reconstruction of itself — and the run reports
-// the file written.
-//
-// Failure is induced by a real filesystem condition: TMPDIR pointed at a
-// directory that does not exist. Note that the output write is unaffected by it
-// (runPipelineToWriter stages its temp file in the OUTPUT directory), so the
-// only thing a broken TMPDIR breaks here is the skeleton — which is exactly the
-// condition under test.
+// RunFileWithReaderWriter and RunStream fail a same-format run whose skeleton
+// store cannot be opened (#1468). For such a pass the skeleton is the only
+// carrier of the structure the reader could not model, so a run without one
+// would replace the document with a reconstruction and report it written.
+
+// The failure is induced by a real filesystem condition: TMPDIR pointed at a
+// directory that does not exist. The output is staged in the output
+// directory and the commit locks under the data root, so the skeleton is the
+// only thing the broken TMPDIR breaks.
 
 // markdownOnlyASkeletonPreserves uses a setext heading, a reference link and
 // irregular spacing; none of it survives a re-serialization from the content
@@ -43,6 +41,10 @@ Some  *emphasis*   and a [reference][1].
 func breakTempDir(t *testing.T) string {
 	t.Helper()
 	missing := filepath.Join(t.TempDir(), "no-such-tmpdir")
+	// A released binary's data root, where the commit locks, does not follow
+	// TMPDIR. A test binary's lies under TMPDIR unless the data root is named,
+	// so it is named here, as the data root of a released binary would be.
+	t.Setenv(dataroot.EnvDir, t.TempDir())
 	t.Setenv("TMPDIR", missing)
 	t.Setenv("TMP", missing)
 	t.Setenv("TEMP", missing)
@@ -112,8 +114,8 @@ func TestRunFileWithReaderWriter_RoundTripIsByteIdentical(t *testing.T) {
 // discriminating control: absent and present-but-unobtainable are different
 // facts. A cross-format run reconstructs from the content model by design and
 // never wires a skeleton, so it must keep working with the very same broken
-// TMPDIR that fails the same-format run — "fail whenever TMPDIR is broken" is
-// not an acceptable substitute for the fix.
+// TMPDIR that fails the same-format run. Failing every run with a broken
+// TMPDIR would pass the test above without the fix.
 func TestRunFileWithReaderWriter_CrossFormatRunsWithoutASkeleton(t *testing.T) {
 	runner, reg := skeletonTestRunner(t)
 	dir := t.TempDir()
@@ -138,7 +140,7 @@ func TestRunFileWithReaderWriter_CrossFormatRunsWithoutASkeleton(t *testing.T) {
 // TestRunStream_SkeletonStoreFailureFailsTheEntry covers the container-entry
 // twin of the site above. What a user saw: `kapi run translate bundle.zip` exit
 // 0, the archive repacked, and the member inside it replaced by a
-// reconstruction — the repack making the substitution harder to notice.
+// reconstruction, which the repack made harder to notice.
 func TestRunStream_SkeletonStoreFailureFailsTheEntry(t *testing.T) {
 	runner, _ := skeletonTestRunner(t)
 

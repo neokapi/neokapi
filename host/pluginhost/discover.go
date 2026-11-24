@@ -40,6 +40,10 @@ type DiscoverOptions struct {
 	// OnWarn is called for non-fatal discovery warnings (skipped manifests,
 	// invalid JSON, etc.). Optional.
 	OnWarn func(msg string)
+
+	// OnRefused is called for each plugin found and refused by the safety
+	// rule, with why. Optional; DiscoverAll collects them.
+	OnRefused func(Refusal)
 }
 
 // DefaultSystemDirs returns the platform-default list of system plugin
@@ -62,9 +66,9 @@ func DefaultSystemDirs() []string {
 }
 
 // Discover scans configured plugin roots and returns every successfully
-// parsed plugin. Manifests that fail to parse or fail Validate are
-// skipped with a warning; discovery never returns a fatal error
-// (missing dirs are silently ignored).
+// parsed plugin the safety rule lets kapi load (safety.go). Manifests that
+// fail to parse or fail Validate are skipped with a warning; discovery never
+// returns a fatal error (missing dirs are silently ignored).
 func Discover(opts DiscoverOptions) []*Plugin {
 	warn := opts.OnWarn
 	if warn == nil {
@@ -82,6 +86,11 @@ func Discover(opts DiscoverOptions) []*Plugin {
 			continue
 		}
 		for _, e := range entries {
+			// A hidden entry is no plugin: an adoption in progress copies
+			// into one (AdoptPluginDir).
+			if strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
 			pluginDir := filepath.Join(r.Path, e.Name())
 			if !isDirFollowingLinks(pluginDir, e) {
 				continue
@@ -113,7 +122,27 @@ func Discover(opts DiscoverOptions) []*Plugin {
 			})
 		}
 	}
-	return out
+	plugins, refused := safePlugins(out, warn)
+	if opts.OnRefused != nil {
+		for _, r := range refused {
+			opts.OnRefused(r)
+		}
+	}
+	return plugins
+}
+
+// DiscoverAll is Discover, also returning the plugins found and refused by
+// the safety rule, each with its reason, so a listing can show them.
+func DiscoverAll(opts DiscoverOptions) ([]*Plugin, []Refusal) {
+	var refused []Refusal
+	prev := opts.OnRefused
+	opts.OnRefused = func(r Refusal) {
+		refused = append(refused, r)
+		if prev != nil {
+			prev(r)
+		}
+	}
+	return Discover(opts), refused
 }
 
 // isDirFollowingLinks reports whether path is a directory, resolving symlinks.

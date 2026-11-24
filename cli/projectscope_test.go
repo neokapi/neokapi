@@ -32,8 +32,11 @@ func TestProjectDeclaration(t *testing.T) {
 	declaredOverP := NoProject(&cobra.Command{Use: "init", Run: run})
 	AddProjectFlag(declaredOverP)
 	undeclared := &cobra.Command{Use: "stray", Run: run}
+	complete := &cobra.Command{Use: cobra.ShellCompRequestCmd, Run: run, DisableFlagParsing: true}
+	nestedComplete := &cobra.Command{Use: cobra.ShellCompRequestCmd, Run: run}
+	undeclared.AddCommand(nestedComplete)
 
-	root.AddCommand(withP, group, persistent, served, declaredOverP, undeclared)
+	root.AddCommand(withP, group, persistent, served, declaredOverP, undeclared, complete)
 
 	for _, tt := range []struct {
 		cmd            *cobra.Command
@@ -48,6 +51,8 @@ func TestProjectDeclaration(t *testing.T) {
 		{served, false, true},
 		{declaredOverP, false, true},
 		{undeclared, false, false},
+		{complete, false, true},
+		{nestedComplete, false, false},
 	} {
 		uses, declared := ProjectDeclaration(tt.cmd)
 		assert.Equal(t, tt.uses, uses, "%s concerns a project", tt.cmd.CommandPath())

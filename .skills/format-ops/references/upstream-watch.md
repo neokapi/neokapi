@@ -55,6 +55,15 @@ from each `core/formats/<id>/dossier.yaml` `watch` entry (GitHub
    build matrix. Execution is its own approved follow-up — record the plan
    as a `followups[]` item + a GitHub issue, not in `pending[]` (the pending
    type enum has no slot for it; the tracker owns implementation plans).
+   The plan includes restoring the annotations withdrawn because the pin
+   lacked their tests: grep `Unreleased upstream:` under `core/formats/`.
+   Fourteen were withdrawn on 2026-11-24, eleven in
+   `core/formats/openxml/native_test.go` (`okapi-unmapped`) and three in
+   `core/formats/tmx/reader_test.go` (`okapi:` maps for relaxed language
+   matching). Each comment names the Okapi commit that added the test; once
+   the newly pinned release contains it, turn the comment back into its
+   annotation and refresh `scripts/contract-audit/baseline.json` from the
+   full run.
 3. **Per-spec watch**: for every dossier spec source with a `watch` feed,
    fetch the feed and compare the latest version against
    `watermarks.per_spec[<spec-id>]`. New version → a dated drift note in the

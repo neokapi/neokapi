@@ -19,11 +19,8 @@
 # 1, or with the command's own status when that is not zero. The directory is
 # removed either way.
 #
-# Three kinds of entry are reused by every run rather than added per run, so
+# Two kinds of entry are reused by every run rather than added per run, so
 # they do not count:
-#   kapi-locks-<uid>     the lock directory every kapi process of a user shares
-#                        (core/change/filehome.DefaultLockDir); its files are
-#                        empty, one per file path a write ordered.
 #   node-compile-cache   Node's own module compile cache.
 #   jest_<user>          Jest's transform cache.
 set -uo pipefail
@@ -32,7 +29,6 @@ set -uo pipefail
 # entries above.
 allowed() {
   case "$1" in
-    kapi-locks-[0-9]*) return 0 ;;
     node-compile-cache) return 0 ;;
     jest_*) return 0 ;;
   esac
@@ -81,8 +77,8 @@ self_test() {
   expect 0 "a command that leaves nothing" bash -c 'touch "$TMPDIR/x" && rm "$TMPDIR/x"'
   expect 1 "a leaked file" bash -c 'touch "$TMPDIR/neokapi-skeleton-1"'
   expect 1 "a leaked directory" bash -c 'mkdir "$TMPDIR/kapi-sourcecode-1"'
-  expect 1 "a leaked socket-like file beside an allowed entry" bash -c 'mkdir "$TMPDIR/kapi-locks-501" && touch "$TMPDIR/kapi-fake-1.sock"'
-  expect 0 "the shared lock directory" bash -c 'mkdir "$TMPDIR/kapi-locks-501" && touch "$TMPDIR/kapi-locks-501/a.lock"'
+  expect 1 "a leaked socket-like file beside an allowed entry" bash -c 'mkdir "$TMPDIR/node-compile-cache" && touch "$TMPDIR/kapi-fake-1.sock"'
+  expect 1 "a lock directory under the temporary directory" bash -c 'mkdir "$TMPDIR/kapi-locks-501" && touch "$TMPDIR/kapi-locks-501/a.lock"'
   expect 0 "tool caches" bash -c 'mkdir "$TMPDIR/node-compile-cache" "$TMPDIR/jest_dy"'
   expect 3 "a failing command keeps its status" bash -c 'exit 3'
   expect 3 "a failing command that also leaks keeps its status" bash -c 'touch "$TMPDIR/y"; exit 3'

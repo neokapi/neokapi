@@ -192,6 +192,10 @@ type ConvergeOutput struct {
 	// a format no installed reader opens (check.WarningFormatNoReader). The run
 	// set that content aside and converged the rest.
 	Warnings []check.Warning `json:"warnings,omitempty"`
+	// UnreadMedia names the files read without an engine their content needs
+	// (speech recognition, OCR). Their text is not translated, so a run with
+	// any is not up to date.
+	UnreadMedia []UnreadMedia `json:"unread_media,omitempty"`
 	// Findings holds the failing findings of a program step whose output
 	// changed a redaction placeholder (tools.RulePlaceholder). Each such block
 	// was left as it was, and the run exits with the code a failed check uses.
@@ -340,8 +344,11 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "%d block(s) had %d drafts rejected, so the loop drafts them no more. "+
 			"They wait for a person to write the translation, and do not ship until then.\n", held, tool.MaxRejections)
 	}
+	writeUnreadMedia(w, o.UnreadMedia)
 	if o.Findings != nil {
 		o.formatPlaceholderFindings(w)
+	} else if len(o.UnreadMedia) > 0 {
+		fmt.Fprintln(w, "Not up to date: files wait for an engine to read them.")
 	} else if o.Converged {
 		fmt.Fprintln(w, o.upToDateLine())
 	} else if o.StallReason == convergence.StallSourceNotReady {
@@ -492,6 +499,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		unread = a.newUnreadSetFor("converged")
 	}
 	var sources []string
+	targeted := false
 	kept := resolved[:0]
 	for _, rf := range resolved {
 		if rf.CommentsOnly() || a.setAside(unread, filepath.Dir(projectPath), rf) {
@@ -502,6 +510,14 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// language. It extracts and settles with the rest of the source, and
 		// no locale pass runs over it.
 		if rf.Item == nil || rf.Item.Target == "" {
+			continue
+		}
+		targeted = true
+		// A media file whose engine is missing now extracts and is stamped
+		// with the engine it waits for, and no locale pass runs over it: a
+		// target written from what was read would be a copy of the source
+		// claiming a translation of text nobody read. The run names it.
+		if len(missingMediaEngines(rf)) > 0 {
 			continue
 		}
 		sources = append(sources, rf.Path)
@@ -616,7 +632,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 
 	onEvent := opts.onEvent
 	emitter := convergence.NewEmitter(onEvent)
-	facts := &convergeFacts{monolingual: monolingual, noTargets: !monolingual && len(sources) == 0, unread: unread}
+	facts := &convergeFacts{monolingual: monolingual, noTargets: !monolingual && !targeted, unread: unread}
 	if a.specChecksRedactionTokens(spec) {
 		// A program step under a redaction policy records a failing finding on
 		// each block whose program output changes a placeholder, and the block
@@ -1478,6 +1494,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// content its file did not hold.
 	produced := a.writeTally.total()
 	out.Produced = &produced
+	if db, derr := a.ProjectDB(ctx, filepath.Dir(projectPath)); derr == nil {
+		if out.UnreadMedia = unreadMedia(ctx, db, a.collectionsOf(proj, projectPath)); len(out.UnreadMedia) > 0 {
+			out.Converged = false
+		}
+	}
 	if err := checkUnitCounts(cov, a.writeTally.byEdition(), facts.held); err != nil {
 		return err
 	}

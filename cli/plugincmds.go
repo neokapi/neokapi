@@ -71,6 +71,9 @@ func newPluginListCmd(a *App) *cobra.Command {
 				}
 				rows = append(rows, row)
 			}
+			for _, r := range a.PluginHost.Refused() {
+				rows = append(rows, output.PluginListRow{Name: r.Name, Source: r.Dir, Status: "refused", Refusal: r.Reason})
+			}
 			return output.Print(cmd, output.PluginListOutput{Plugins: rows, Total: len(rows)})
 		},
 	}
@@ -87,7 +90,7 @@ func newPluginInfoCmd(a *App) *cobra.Command {
 			}
 			p := a.PluginHost.Plugin(args[0])
 			if p == nil {
-				return fmt.Errorf("plugin %q is not installed", args[0])
+				return notLoadedError(a, args[0])
 			}
 			c := p.Manifest.Capabilities
 			return output.Print(cmd, output.PluginInfoOutput{
@@ -414,8 +417,8 @@ func newPluginRebuildCacheCmd(a *App) *cobra.Command {
 					fmt.Fprintln(cmd.ErrOrStderr(), "Warning:", s)
 				},
 			}
-			plugins := pluginhost.Discover(opts)
-			cache := pluginhost.BuildCache(opts, plugins)
+			plugins, refused := pluginhost.DiscoverAll(opts)
+			cache := pluginhost.BuildCache(opts, plugins, refused)
 			if err := pluginhost.SaveCache(pluginhost.CacheLocation(), cache); err != nil {
 				return err
 			}
@@ -436,7 +439,10 @@ func newPluginVerifyCmd(a *App) *cobra.Command {
 			}
 			p := a.PluginHost.Plugin(args[0])
 			if p == nil {
-				return fmt.Errorf("plugin %q is not installed", args[0])
+				return notLoadedError(a, args[0])
+			}
+			if err := pluginhost.CheckLaunch(p); err != nil {
+				return err
 			}
 			out, err := RunVersionProbe(cmd.Context(), p.BinaryPath)
 			if err != nil {
@@ -497,14 +503,18 @@ Examples:
 			if len(args) == 1 {
 				p := a.PluginHost.Plugin(args[0])
 				if p == nil {
-					return fmt.Errorf("plugin %q is not installed", args[0])
+					return notLoadedError(a, args[0])
 				}
 				targets = []*pluginhost.Plugin{p}
 			} else {
 				targets = a.PluginHost.Plugins()
 			}
 
-			if len(targets) == 0 {
+			refused := a.PluginHost.Refused()
+			if len(args) == 1 {
+				refused = nil
+			}
+			if len(targets) == 0 && len(refused) == 0 {
 				fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
 				return nil
 			}
@@ -529,12 +539,30 @@ Examples:
 				}
 				t.Row(p.Name(), p.Version(), health)
 			}
-			t.Render()
+			for _, r := range refused {
+				unhealthy++
+				t.Row(r.Name, "", s.Error.Render("✗ not loaded"))
+			}
+			if !verbose {
+				t.Render()
+			}
+			for _, r := range refused {
+				fmt.Fprintf(cmd.OutOrStdout(), "\n%s is not loaded: %s\n", r.Name, r.Reason)
+			}
 
 			if unhealthy > 0 {
-				return WithExitCode(1, fmt.Errorf("%d of %d plugin(s) unhealthy", unhealthy, len(targets)))
+				return WithExitCode(1, fmt.Errorf("%d of %d plugin(s) unhealthy", unhealthy, len(targets)+len(refused)))
 			}
 			return nil
 		},
 	}
+}
+
+// notLoadedError says why the plugin name is not available: refused, with the
+// reason and the fix, or not installed.
+func notLoadedError(a *App, name string) error {
+	if r, ok := a.PluginHost.RefusedPlugin(name); ok {
+		return fmt.Errorf("plugin %q is installed but not loaded: %s", name, r.Reason)
+	}
+	return fmt.Errorf("plugin %q is not installed", name)
 }

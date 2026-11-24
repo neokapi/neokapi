@@ -23,6 +23,10 @@ items:
     purpose: Keep the model catalog in step with the models each provider serves.
     run: make update-model-catalog
     cadence_days: 30
+    # A kapi or Bowrain release tag is refused when the catalog is older than
+    # this (release.yml, release-bowrain.yml); the founder asked for it on
+    # 2026-11-24.
+    release_gate_days: 60
     needs: the network and a Claude login; this check reads only the date
     source:
       kind: json-field

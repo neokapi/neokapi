@@ -108,6 +108,12 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 				return err
 			}
 		}
+		// A media file whose engine is not loaded gets no target, as in a
+		// convergence run: its speech or image text would never be read.
+		inputPaths, err := a.setAsideMediaWithoutEngine(cmd.ErrOrStderr(), inputPaths)
+		if err != nil {
+			return err
+		}
 		if len(inputPaths) == 1 {
 			return a.RunSingleFile(ctx, cmd, flowName, inputPaths[0])
 		}

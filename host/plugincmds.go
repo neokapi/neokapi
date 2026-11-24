@@ -38,9 +38,17 @@ func DiagnosePlugin(ctx context.Context, p *pluginhost.Plugin) doctorResult {
 	}
 	res.Checks = append(res.Checks, "✓ binary present")
 
+	// Doctor runs the binary, so it checks the launch the way every run does.
+	if err := pluginhost.CheckLaunch(p); err != nil {
+		res.Healthy = false
+		res.Summary = "not run: another user could replace it"
+		res.Checks = append(res.Checks, "✗ "+err.Error())
+		return res
+	}
+
 	// The version probe is an integrity hint, not a health gate: it runs across
-	// every installed plugin — including third-party ones whose `version`
-	// subcommand may print extra text or be absent — so a mismatch is surfaced
+	// every installed plugin, including third-party ones whose `version`
+	// subcommand may print extra text or be absent, so a mismatch is surfaced
 	// as a warning, never as "unhealthy". Unhealthy is reserved for a missing
 	// binary or a failing declared self-check.
 	out, err := RunVersionProbe(ctx, p.BinaryPath)
@@ -102,7 +110,7 @@ func runSelfCheckProbe(ctx context.Context, binPath string) ([]byte, error) {
 // DescriptionWidth returns the width available for the wrapped description
 // column: the terminal width minus prefixWidth. It returns 0 when w is not a
 // terminal (piped/redirected output) or the width can't be determined, or when
-// the remaining column would be too narrow to wrap usefully — callers treat 0 as
+// the remaining column would be too narrow to wrap usefully, callers treat 0 as
 // "don't wrap, print the description in full on one line".
 func DescriptionWidth(w io.Writer, prefixWidth int) int {
 	f, ok := w.(interface{ Fd() uintptr })

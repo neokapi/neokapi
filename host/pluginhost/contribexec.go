@@ -11,16 +11,18 @@ import (
 )
 
 // RunContributionSubprocess execs the plugin's contribution handler with the
-// engaged flags. ctx is the cobra command's context (carrying signal/
-// cancellation wiring); it is propagated to exec.CommandContext so that a
-// SIGTERM/SIGINT to the kapi process (which cobra translates into a cancelled
-// command context) terminates the plugin child instead of leaving it running
-// until it finishes on its own.
+// engaged flags. ctx is the cobra command's context, which carries the signal
+// and cancellation wiring. It is propagated to exec.CommandContext, so a
+// SIGTERM or SIGINT to kapi (which cobra turns into a cancelled context) ends
+// the plugin child instead of leaving it to run until it finishes.
 //
 //nolint:contextcheck // the nil-ctx guard is an API fallback for embedded/desktop callers; ctx is otherwise threaded straight into exec.CommandContext
 func RunContributionSubprocess(ctx context.Context, p *Plugin, args []string, dir string) error {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if err := CheckLaunch(p); err != nil {
+		return err
 	}
 	cmd := exec.CommandContext(ctx, p.BinaryPath, args...)
 	cmd.Stdin = os.Stdin

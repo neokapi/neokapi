@@ -1,4 +1,4 @@
-// Package asr is the framework seam for automatic speech recognition — turning
+// Package asr is the framework seam for automatic speech recognition, turning
 // recorded speech (audio) into timing-anchored text Blocks, the audio
 // counterpart of core/vision's OCR (AD-030). It defines the Engine interface and
 // a name-keyed engine registry, mirroring core/vision and core/segment.
@@ -59,7 +59,7 @@ type Engine interface {
 // (e.g. locating and launching the kapi-asr plugin).
 type Factory func() (Engine, error)
 
-// ErrNoEngine is returned by Open when no ASR engine is registered — the
+// ErrNoEngine is returned by Open when no ASR engine is registered, the
 // kapi-asr plugin is not installed, or no host wired one up.
 var ErrNoEngine = errors.New("asr: no engine registered (install the kapi-asr plugin)")
 
@@ -73,6 +73,14 @@ var registry = engine.NewRegistry[Engine]("asr", ErrNoEngine)
 // the engine that discovers and drives the plugin; framework-only builds
 // register none, so ASR is absent.
 func RegisterEngine(name string, f Factory) { registry.Register(name, f) }
+
+// RegisterEngineWithProbe registers a named engine factory whose engine is
+// usable only while probe reports true: a host whose engine drives a plugin
+// passes a probe that looks for the plugin, so Available is false when it is
+// not installed and a reader skips the engine instead of failing.
+func RegisterEngineWithProbe(name string, f Factory, probe func() bool) {
+	registry.RegisterWithProbe(name, f, probe)
+}
 
 // Available reports whether the named engine ("" = default) is registered.
 func Available(name string) bool { return registry.Available(name) }

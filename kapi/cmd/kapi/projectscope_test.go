@@ -70,22 +70,58 @@ func dataRootFiles(t *testing.T, data string) []string {
 }
 
 // runKapi runs the kapi root with args and returns what it wrote to its error
-// stream. Flags a run set are put back to their defaults afterwards, because
-// the tree is one value shared by every run in the process.
+// stream. The tree is one value shared by every run in the process, and a
+// process of the real binary runs it once. So each run is undone afterwards.
+// Flags it set go back to their defaults, and a command cobra added to the
+// root during it (the completion request command) is removed.
 func runKapi(t *testing.T, args ...string) (stderr string, err error) {
 	t.Helper()
+	stderr, added, err := executeKapi(args...)
+	rootCmd.RemoveCommand(added...)
+	return stderr, err
+}
+
+// executeKapi runs the kapi root with args, puts the flags back, and returns
+// the commands cobra added to the root during the run.
+func executeKapi(args ...string) (stderr string, added []*cobra.Command, err error) {
+	before := map[*cobra.Command]bool{}
+	for _, c := range rootCmd.Commands() {
+		before[c] = true
+	}
 	var out, errOut bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&errOut)
 	rootCmd.SetArgs(args)
-	defer func() {
-		rootCmd.SetOut(nil)
-		rootCmd.SetErr(nil)
-		rootCmd.SetArgs(nil)
-		resetFlags(rootCmd)
-	}()
 	err = rootCmd.Execute()
-	return errOut.String(), err
+	rootCmd.SetOut(nil)
+	rootCmd.SetErr(nil)
+	rootCmd.SetArgs(nil)
+	resetFlags(rootCmd)
+	for _, c := range rootCmd.Commands() {
+		if !before[c] {
+			added = append(added, c)
+		}
+	}
+	return errOut.String(), added, err
+}
+
+// rootAsInvoked completes the tree the way an invocation does before the walk
+// reads it. Inside Execute, cobra adds the help command. It adds the
+// completion request command (`__complete`) only when that is the command
+// being run. A completion request leaves both in the tree, so the walk meets
+// every command an invocation can reach, whatever ran before it. The
+// completion request command is removed again when the test ends.
+func rootAsInvoked(t *testing.T) {
+	t.Helper()
+	rootCmd.InitDefaultHelpCmd()
+	_, added, err := executeKapi(cobra.ShellCompRequestCmd, "")
+	require.NoError(t, err)
+	t.Cleanup(func() { rootCmd.RemoveCommand(added...) })
+	found := false
+	for _, c := range rootCmd.Commands() {
+		found = found || c.Name() == cobra.ShellCompRequestCmd
+	}
+	require.True(t, found, "the tree the walk reads holds the completion request command")
 }
 
 // resetFlags puts every flag in the tree that a run changed back to its
@@ -143,7 +179,7 @@ func projectDeclarations(root *cobra.Command) (none []*cobra.Command, undeclared
 // fails the test for a runnable command that declares neither way.
 func noProjectCommands(t *testing.T) []*cobra.Command {
 	t.Helper()
-	rootCmd.InitDefaultHelpCmd()
+	rootAsInvoked(t)
 	none, undeclared, helpResolves := projectDeclarations(rootCmd)
 	assert.Emptyf(t, undeclared, "each command declares whether it concerns a project: AddProjectFlag for one that takes -p, "+
 		"cli.UsesProject for one that finds its project without -p, cli.NoProject for one that resolves none")
@@ -175,22 +211,40 @@ func TestACommandWithoutADeclarationFailsTheTree(t *testing.T) {
 // a person at a terminal in a checkout that is owed every notice. Each such
 // command's own run is replaced by one that does nothing, so this measures what
 // kapi does around a command: its prerun, its notices and its postrun.
+//
+// Two outcomes besides success are expected. cobra checks required flags after
+// the prerun, so a command with one (`kapi credentials add --provider`) runs
+// the prerun and then stops; it is listed. The completion request command is
+// not run here: cobra builds a new one for every request, so the stub would
+// never run, and TestCommandsAboutKapiRunWholeWriteNothing runs it whole.
 func TestCommandsThatConcernNoProjectLeaveTheDataRootEmpty(t *testing.T) {
 	_, data := stateNoticeFixture(t)
 	t.Cleanup(cli.AssumeTerminal())
 
+	var stoppedAtRequiredFlags, notRun []string
 	for _, c := range noProjectCommands(t) {
+		if c.Name() == cobra.ShellCompRequestCmd {
+			notRun = append(notRun, c.CommandPath())
+			continue
+		}
 		run, runE, argsFn := c.Run, c.RunE, c.Args
 		c.Run, c.RunE, c.Args = func(*cobra.Command, []string) {}, nil, cobra.ArbitraryArgs
 		path := strings.Fields(c.CommandPath())[1:]
 		stderr, err := runKapi(t, path...)
 		c.Run, c.RunE, c.Args = run, runE, argsFn
-		if err != nil {
-			t.Logf("%s: %v", c.CommandPath(), err)
+		switch {
+		case err == nil:
+		case strings.HasPrefix(err.Error(), "required flag(s)"):
+			stoppedAtRequiredFlags = append(stoppedAtRequiredFlags, c.CommandPath())
+		default:
+			t.Errorf("%s: %v", c.CommandPath(), err)
 		}
 		assert.NotContainsf(t, stderr, "in this checkout", "%s gave a notice about the checkout", c.CommandPath())
 		require.Emptyf(t, dataRootFiles(t, data), "%s wrote into the data root", c.CommandPath())
 	}
+	t.Logf("ran the prerun, then stopped at a required flag: %s", strings.Join(stoppedAtRequiredFlags, ", "))
+	t.Logf("not run here, run whole elsewhere: %s", strings.Join(notRun, ", "))
+	assert.Equal(t, []string{"kapi " + cobra.ShellCompRequestCmd}, notRun)
 }
 
 // The commands that answer about kapi itself, run whole: help at every level,

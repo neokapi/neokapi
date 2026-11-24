@@ -16,6 +16,9 @@ type PluginListRow struct {
 	Status string `json:"status,omitempty"`
 	// Retirement is the multi-line retirement notice, set only for retired rows.
 	Retirement string `json:"retirement,omitempty"`
+	// Refusal is why a plugin found in a root is not loaded, and the fix, set
+	// only for rows with Status "refused".
+	Refusal string `json:"refusal,omitempty"`
 }
 
 // PluginListOutput lists installed plugins.
@@ -33,7 +36,7 @@ func (o PluginListOutput) FormatText(w io.Writer) error {
 	t := NewTable(w).Accent(0).Headers("NAME", "VERSION", "LICENSE", "SOURCE", "STATUS")
 	s := t.Styles()
 
-	var retired []PluginListRow
+	var retired, refused []PluginListRow
 	for _, p := range o.Plugins {
 		status := s.Success.Render("active")
 		if p.Status != "" && p.Status != "active" {
@@ -43,11 +46,17 @@ func (o PluginListOutput) FormatText(w io.Writer) error {
 		if p.Retirement != "" {
 			retired = append(retired, p)
 		}
+		if p.Refusal != "" {
+			refused = append(refused, p)
+		}
 	}
 	t.Render()
 
 	for _, p := range retired {
 		fmt.Fprintf(w, "\n%s\n", s.Warn.Render("⚠ "+p.Retirement))
+	}
+	for _, p := range refused {
+		fmt.Fprintf(w, "\n%s\n", s.Warn.Render("⚠ "+p.Name+" is not loaded: "+p.Refusal))
 	}
 	return nil
 }

@@ -111,14 +111,14 @@ func TestFingerprint_IsNotServedFromTheDiscoveryCache(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi-demo"), []byte("bin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "installed.json"), []byte(`{"archive_sha256":"abc"}`), 0o644))
 	opts := pluginhost.DiscoverOptions{EnvPluginsDir: root, HomeDir: "/nonexistent", SystemDirs: []string{}}
-	cache := pluginhost.BuildCache(opts, pluginhost.Discover(opts))
+	cache := pluginhost.BuildCache(opts, pluginhost.Discover(opts), nil)
 
-	cached := pluginhost.PluginsFromCache(cache)
+	cached := pluginhost.PluginsFromCache(cache, opts)
 	require.Len(t, cached, 1)
 	withRecord, err := cached[0].Fingerprint()
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "installed.json"), []byte(`{}`), 0o644))
-	withoutRecord, err := pluginhost.PluginsFromCache(cache)[0].Fingerprint()
+	withoutRecord, err := pluginhost.PluginsFromCache(cache, opts)[0].Fingerprint()
 	require.NoError(t, err)
 	assert.NotEqual(t, withRecord, withoutRecord)
 }

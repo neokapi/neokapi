@@ -983,7 +983,7 @@ func TestConfig_LangAndXmlLang(t *testing.T) {
 
 // okapi: HtmlConfigurationTest#inputAttributes
 func TestConfig_InputAttributes(t *testing.T) {
-	// type="hidden" — value should NOT be extracted.
+	// type="hidden": the value is not extracted.
 	htmlHidden := `<html><body>` +
 		`<input type="hidden" value="hidden-value" title="hidden-title">` +
 		`<p>Other text</p>` +
@@ -996,7 +996,7 @@ func TestConfig_InputAttributes(t *testing.T) {
 	assert.NotContains(t, texts, "hidden-value")
 	assert.Contains(t, texts, "hidden-title")
 
-	// type="submit" — value SHOULD be extracted.
+	// type="submit": the value is extracted.
 	htmlSubmit := `<html><body>` +
 		`<input type="submit" value="Submit Form" title="submit-title" alt="submit-alt">` +
 		`<p>Other text</p>` +
@@ -1009,7 +1009,7 @@ func TestConfig_InputAttributes(t *testing.T) {
 	assert.Contains(t, texts2, "Submit Form")
 	assert.Contains(t, texts2, "submit-title")
 
-	// type="button" — value SHOULD be extracted.
+	// type="button": the value is extracted.
 	htmlButton := `<html><body>` +
 		`<input type="button" value="Click Me" title="button-title">` +
 		`<p>Other text</p>` +
@@ -1582,7 +1582,7 @@ func TestFullFile_OpenTwiceWithStream(t *testing.T) {
 
 // --- Extraction Comparison Tests ---
 
-// okapi: ExtractionComparisionTest#testStartDocument
+// okapi: net.sf.okapi.filters.html.integration.ExtractionComparisionTest#testStartDocument
 func TestExtraction_StartDocument(t *testing.T) {
 	parts := readHTML(t, `<html><body><p>text</p></body></html>`)
 	require.NotEmpty(t, parts)
@@ -1592,7 +1592,7 @@ func TestExtraction_StartDocument(t *testing.T) {
 	assert.NotEmpty(t, layer.ID)
 }
 
-// okapi: ExtractionComparisionTest#testOpenTwice
+// okapi: net.sf.okapi.filters.html.integration.ExtractionComparisionTest#testOpenTwice
 func TestExtraction_OpenTwice(t *testing.T) {
 	content := `<html><body><p>Hello</p></body></html>`
 	blocks1 := translatableBlocks(readHTML(t, content))
@@ -1601,13 +1601,13 @@ func TestExtraction_OpenTwice(t *testing.T) {
 	assert.Equal(t, blockTexts(blocks1), blockTexts(blocks2))
 }
 
-// okapi: ExtractionComparisionTest#testDoubleExtractionSingle
+// okapi: net.sf.okapi.filters.html.integration.ExtractionComparisionTest#testDoubleExtractionSingle
 func TestExtraction_DoubleExtractionSingle(t *testing.T) {
 	content := `<html><body><p>Test paragraph</p><ul><li>Item</li></ul></body></html>`
 	assertRoundtripPreserved(t, content)
 }
 
-// okapi: ExtractionComparisionTest#testDoubleExtraction
+// okapi: net.sf.okapi.filters.html.integration.ExtractionComparisionTest#testDoubleExtraction
 // okapi: HtmlXliffCompareIT#htmlXliffCompareFiles
 func TestExtraction_DoubleExtraction(t *testing.T) {
 	cases := []string{
@@ -1620,7 +1620,7 @@ func TestExtraction_DoubleExtraction(t *testing.T) {
 	}
 }
 
-// okapi: ExtractionComparisionTest#testDoubleExtraction2
+// okapi: net.sf.okapi.filters.html.integration.ExtractionComparisionTest#testDoubleExtraction2
 func TestExtraction_DoubleExtraction2(t *testing.T) {
 	// ASP-style content should parse as HTML
 	content := `<html><body><p>ASP content</p></body></html>`
@@ -1772,7 +1772,7 @@ func TestBom_DetectAndRemoveBom(t *testing.T) {
 // okapi-skip: RoundTripHtmlIT#htmlFilesSerialized — Okapi serialized-skeleton variant; native uses its own skeleton store
 // okapi-unmapped: RoundTripSimplifyHtmlIT — simplifier integration test requires Okapi simplifier step.
 // okapi-unmapped: HtmlMemoryLeakTestIT — memory leak test is a Java-specific concern.
-// okapi-unmapped: ExtractionComparisionTest#testReconstructFile — skeleton-writer file reconstruction (read → skeleton-write → byte-exact, including the Content-Type meta injection) is covered by TestSkeletonRoundtrip_ByteExact.
+// okapi-unmapped: net.sf.okapi.filters.html.integration.ExtractionComparisionTest#testReconstructFile — skeleton-writer file reconstruction (read → skeleton-write → byte-exact, including the Content-Type meta injection) is covered by TestSkeletonRoundtrip_ByteExact.
 
 // --- Roundtrip Tests ---
 

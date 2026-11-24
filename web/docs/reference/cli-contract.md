@@ -69,6 +69,19 @@ A single-file run reports the flow and the paths involved; a batch run reports t
 }
 ```
 
+### `kapi up` and `kapi status`
+
+`kapi up --json` reports the run, and `kapi status --json` the project's standing. Both carry `unread_media` when a file in a media format (audio, image, video) was last read without the engine plugin its content needs. Each entry names the file, its collection and the engines it waits for. Such a file gets no target; once the engine is installed, the next run reads it again. A run with any `unread_media` reports `converged: false` and exits 0, as for a file whose reader plugin is not installed: a missing engine on a build machine does not fail the build.
+
+```json
+{
+  "converged": false,
+  "unread_media": [
+    { "file": "media/en/logo.png", "collection": "images", "engines": ["vision"] }
+  ]
+}
+```
+
 ### `kapi extract`
 
 One document per batch: identity (`batch_id`, `manifest`), the extraction inputs (`format`, `targets`, `sources`), one entry per target-locale pass under `pairs` (file/block counts and content-memory leverage), the aggregate `leverage`, incremental `reused` count, and `failures` when source/target pairs failed (details stream to stderr as they happen).
@@ -177,10 +190,12 @@ The directory is found by the checkout's location and the identity of its folder
 - **The same folder typed in another spelling** on a volume that ignores case (`~/src/App` and `~/src/app`): the same state.
 - **A copied checkout, a restored backup or a checkout moved to another volume:** no state. kapi rebuilds `work/`. Bring the vault, the sync state and the filters across with `kapi state relink --from <old location>`.
 - **A volume mounted again with new device numbers:** fresh state, and kapi says once that the earlier state at that location was kept; the vault and the sync state wait for `kapi state relink --from <location>`.
-- **Another folder at a location where a checkout was** (one deleted and another cloned in its place): no state, and kapi says once that the earlier state was kept, with the `kapi state relink` command for it.
+- **Another folder at a location where a checkout was** (one deleted and another cloned in its place): no state, and kapi says once that the earlier state was kept. When that state belongs to this project, kapi gives the `kapi state relink` command for it; when it belongs to another project, kapi says so and keeps it where it is.
 - **State an earlier kapi left in the checkout's `.kapi/`:** kapi says once that `.kapi/work` is no longer used, and that the vault, sync state or filters there need `kapi state import -p <project>`.
 
 `kapi state import` and `kapi state relink` list every file with its size and the server any sync state was issued by, ask you to confirm (or take `--yes`), take exactly what they listed, and refuse a link or an irregular file. `import` leaves the copies in `.kapi/` unless you pass `--remove`. An agent cannot run either.
+
+`kapi state relink` takes only this project's state. kapi records the project (the recipe's `id:`, and its name) beside each checkout's state, and refuses state recorded for another project, naming both, so one project's vault and server sign-in stay out of another project's checkout. When the record cannot say which project the state belongs to (an earlier kapi wrote it, or a recipe has no `id:`), relink brings the saved filters and leaves the vault and the sync state where they are; pass `--same-project` to take those too. Relink removes the directory it took from only once every file is in place and read back, and says so before you confirm. `kapi init --mint-id` gives a recipe an id.
 
 A claim token in the sync state is sent only to the server and project the sync state records it for. A sync state that records none sends no token, and kapi says why.
 

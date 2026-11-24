@@ -14,14 +14,18 @@ newest one.
 
 prune deletes two kinds of cache nobody will read:
 
-  * on refs/heads/main, every cache of a sha-keyed family except the newest;
-  * on any other ref (a branch's manual runs, a pull request), every cache
-    not read for STALE_HOURS. Only runs on that same ref can restore it.
+  * on refs/heads/main, every cache of a family keyed by a commit sha or a
+    content hash (40 or 64 hex digits) except the newest;
+  * every cache on any other ref. Only main saves caches
+    (scripts/check-ci-caches.py), so one elsewhere is a leftover.
 
 It needs a token with `actions: write` and runs from main.
 
-check fails when the total size passes BUDGET_BYTES (9 GiB), which leaves
-1 GiB before eviction starts. The scheduled cache-budget workflow runs it, and
+check fails when the ordinary caches pass ORDINARY_BYTES (7.5 GiB) or the
+total passes BUDGET_BYTES (9 GiB). The warm release caches (go-release-*,
+icu-static-*, about 1.8 GiB) are read only at release time, so GitHub's
+least-recently-used eviction past 10 GiB takes them first; the ordinary
+budget leaves them room. The scheduled cache-budget workflow runs check, and
 a failure there opens an issue through scheduled-failure-issue.yml.
 
 The listing comes from `gh api repos/{repo}/actions/caches`; GH_REPO names the
@@ -31,7 +35,6 @@ repository.
 from __future__ import annotations
 
 import collections
-import datetime
 import json
 import os
 import re
@@ -39,10 +42,15 @@ import subprocess
 import sys
 
 BUDGET_BYTES = 9 * 1024**3
-STALE_HOURS = 24
+ORDINARY_BYTES = int(7.5 * 1024**3)
 LIMIT_BYTES = 10 * 1024**3
 MAIN = "refs/heads/main"
-SHA_SUFFIX = re.compile(r"^(?P<family>.+)-[0-9a-f]{40}$")
+SHA_SUFFIX = re.compile(r"^(?P<family>.+)-(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+RELEASE_FAMILIES = ("go-release-", "icu-static-")
+
+
+def is_release(key: str) -> bool:
+    return key.startswith(RELEASE_FAMILIES)
 
 
 def gh(*args: str) -> str:
@@ -76,17 +84,9 @@ def superseded(caches: list[dict]) -> list[dict]:
     return out
 
 
-def stale_elsewhere(caches: list[dict], now: datetime.datetime) -> list[dict]:
-    """Return the caches off main that nothing read for STALE_HOURS."""
-    cutoff = now - datetime.timedelta(hours=STALE_HOURS)
-    out = []
-    for c in caches:
-        if c["ref"] == MAIN:
-            continue
-        seen = datetime.datetime.fromisoformat(c.get("last_accessed_at") or c["created_at"])
-        if seen < cutoff:
-            out.append(c)
-    return out
+def off_main(caches: list[dict]) -> list[dict]:
+    """Return every cache not on main: only main saves, so these are leftovers."""
+    return [c for c in caches if c["ref"] != MAIN]
 
 
 def family_of(key: str) -> str:
@@ -112,7 +112,7 @@ def report(caches: list[dict]) -> str:
 
 def main_prune(repo: str) -> int:
     caches = list_caches(repo)
-    doomed = superseded(caches) + stale_elsewhere(caches, datetime.datetime.now(datetime.timezone.utc))
+    doomed = superseded(caches) + off_main(caches)
     failed = 0
     for c in doomed:
         try:
@@ -124,20 +124,33 @@ def main_prune(repo: str) -> int:
                 continue
             print(f"::error::could not delete {c['key']}: {err.stderr.strip()}", file=sys.stderr)
             failed += 1
-    print(f"ci-cache-budget: {len(doomed)} superseded or stale caches")
+    print(f"ci-cache-budget: {len(doomed)} superseded or off-main caches")
     return 1 if failed else 0
+
+
+def over_budget(caches: list[dict]) -> list[str]:
+    """The budget lines a cache listing breaks; empty when it keeps both."""
+    total = sum(c["size_in_bytes"] for c in caches)
+    ordinary = sum(c["size_in_bytes"] for c in caches if not is_release(c["key"]))
+    out = []
+    if ordinary > ORDINARY_BYTES:
+        out.append(f"the ordinary caches hold {ordinary / 1024**3:.2f} GiB, past the {ORDINARY_BYTES / 1024**3:.1f} GiB "
+                   f"that leaves the warm release caches room below GitHub's {LIMIT_BYTES / 1024**3:.0f} GiB")
+    if total > BUDGET_BYTES:
+        out.append(f"Actions caches hold {total / 1024**3:.2f} GiB, past the {BUDGET_BYTES / 1024**3:.0f} GiB budget; "
+                   f"GitHub evicts past {LIMIT_BYTES / 1024**3:.0f} GiB")
+    return out
 
 
 def main_check(repo: str) -> int:
     caches = list_caches(repo)
     print(report(caches))
-    total = sum(c["size_in_bytes"] for c in caches)
-    if total > BUDGET_BYTES:
-        print(f"::error::Actions caches hold {total / 1024**3:.2f} GiB, past the "
-              f"{BUDGET_BYTES / 1024**3:.0f} GiB budget; GitHub evicts past "
-              f"{LIMIT_BYTES / 1024**3:.0f} GiB. Find the family that grew above.")
-        return 1
-    return 0
+    ordinary = sum(c["size_in_bytes"] for c in caches if not is_release(c["key"]))
+    print(f"{ordinary / 1024**3:9.2f} GiB ordinary, {(sum(c['size_in_bytes'] for c in caches) - ordinary) / 1024**3:.2f} GiB warm release caches")
+    problems = over_budget(caches)
+    for problem in problems:
+        print(f"::error::{problem}. Find the family that grew above.")
+    return 1 if problems else 0
 
 
 def self_test() -> int:
@@ -159,15 +172,33 @@ def self_test() -> int:
     failures = []
     if got != [1, 3]:
         failures.append(f"superseded should be [1, 3] (older pr copies on main), got {got}")
-    now = datetime.datetime(2026, 11, 23, 12, tzinfo=datetime.timezone.utc)
+    # A family keyed by a 64-digit content hash keeps its newest copy too;
+    # buildkit blobs ("...sha256:<hash>") are not a family of copies.
+    hashed = caches + [c(11, "vite-plus-Linux-x64-pnpm-" + "e" * 64, created="2026-11-22T12:00:00Z"),
+                       c(12, "vite-plus-Linux-x64-pnpm-" + "f" * 64, created="2026-11-22T13:00:00Z"),
+                       c(13, "buildkit-blob-1-sha256:" + "9" * 64)]
+    got = sorted(x["id"] for x in superseded(hashed))
+    if got != [1, 3, 11]:
+        failures.append(f"superseded should be [1, 3, 11] (the older vite-plus copy too), got {got}")
     branch = [
         c(8, "playwright-Linux-" + "c" * 64, ref="refs/pull/9/merge", accessed="2026-11-21T12:00:00Z"),
         c(9, "playwright-Linux-" + "c" * 64, ref="refs/heads/x", accessed="2026-11-23T11:00:00Z"),
         c(10, "go-mod-Linux-" + "d" * 64, accessed="2026-11-01T00:00:00Z"),
     ]
-    stale = sorted(x["id"] for x in stale_elsewhere(caches + branch, now))
-    if stale != [5, 8]:
-        failures.append(f"stale off main should be [5, 8] (not read for a day, not on main), got {stale}")
+    gone = sorted(x["id"] for x in off_main(caches + branch))
+    if gone != [5, 8, 9]:
+        failures.append(f"every cache off main should go, read recently or not: [5, 8, 9], got {gone}")
+    gib = 1024**3
+    ordinary_full = [c(20, "go-build-x-" + sha(20), size=int(7.6 * gib))]
+    if not any("ordinary" in x for x in over_budget(ordinary_full)):
+        failures.append("ordinary caches past 7.5 GiB must fail")
+    with_release = [c(21, "go-build-x-" + sha(21), size=int(7.0 * gib)),
+                    c(22, "go-release-Linux-X64-" + sha(22), size=int(1.8 * gib))]
+    if over_budget(with_release):
+        failures.append(f"7.0 GiB ordinary plus 1.8 GiB warm release caches is within budget: {over_budget(with_release)}")
+    total_full = with_release + [c(23, "go-release-macOS-ARM64-" + sha(23), size=int(0.5 * gib))]
+    if not any("past the 9 GiB budget" in x for x in over_budget(total_full)):
+        failures.append("a total past 9 GiB must fail")
     if "-<sha>" not in report(caches):
         failures.append("report should fold sha suffixes into one family")
     if failures:

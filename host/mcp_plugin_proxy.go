@@ -27,8 +27,8 @@ func init() {
 // A plugin declares the tools it contributes to the agent surface in its
 // manifest under `mcp_tools`, and serves them from its own MCP-over-stdio
 // server. `kapi mcp` spawns that server once per session and forwards calls to
-// it, so an agent connected to kapi reaches a plugin's tools without being told
-// to configure a second server. What a surface offers an agent is what it
+// it. An agent connected to kapi therefore reaches a plugin's tools with no
+// second server to configure. What a surface offers an agent is what it
 // offers a human, and `kapi push` has a human form already.
 //
 // kapi links no plugin's code. The proxy talks to a subprocess over stdio, so a
@@ -154,6 +154,9 @@ func pluginMCPHandler(session *pluginMCPSession, name string) mcp.ToolHandler {
 // Binding the subprocess to the startup deadline would kill every plugin server
 // fifteen seconds into the session.
 func (a *App) dialPluginMCP(ctx context.Context, p *pluginhost.Plugin) (*pluginMCPSession, map[string]*mcp.Tool, error) {
+	if err := pluginhost.CheckLaunch(p); err != nil {
+		return nil, nil, err
+	}
 	procCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	cmd := exec.CommandContext(procCtx, p.BinaryPath, pluginMCPSubcommand)
