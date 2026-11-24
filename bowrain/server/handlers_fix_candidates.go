@@ -184,7 +184,7 @@ func (s *Server) fixAIChain(ctx context.Context, proj *store.Project, stream, it
 			return nil, nil, errors.New("no AI provider is configured for this workspace")
 		}
 		cfg := editorTranslateConfig(ctx, s.ContentStore, s.editorVoiceContext(), proj, proj.ID, stream, itemName, wsID, ws,
-			TranslateRequest{TargetLocale: string(target), BatchSize: 1})
+			TranslateRequest{TargetLocale: string(target), BatchSize: 1}, nil)
 		cfg.Instruction = instruction
 		cfg.SourceLocale = proj.DefaultSourceLanguage
 		cfg.TargetLocale = target

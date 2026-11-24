@@ -1327,6 +1327,18 @@ var storeMigrations = []storage.Migration{
 			})
 		},
 	},
+	{
+		Version:     50,
+		Description: "the rejections of drafts of a unit's source",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 66; Apply adds the columns.`,
+		Revision:    "1",
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "unit_decisions", []string{
+				"rejection_basis TEXT NOT NULL DEFAULT ''",
+				"rejection_count INTEGER NOT NULL DEFAULT 0",
+			})
+		},
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

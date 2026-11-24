@@ -1227,6 +1227,8 @@ unit_decisions.note text NOT NULL DEFAULT ''::text
 unit_decisions.parked boolean NOT NULL DEFAULT false
 unit_decisions.project_id text NOT NULL
 unit_decisions.reasons jsonb NOT NULL DEFAULT '[]'::jsonb
+unit_decisions.rejection_basis text NOT NULL DEFAULT ''::text
+unit_decisions.rejection_count integer NOT NULL DEFAULT 0
 unit_decisions.review_state text NOT NULL DEFAULT ''::text
 unit_decisions.revision text NOT NULL DEFAULT ''::text
 unit_decisions.status text NOT NULL DEFAULT ''::text

@@ -789,7 +789,13 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	prov := resolved.LLM
 	limiter := resolved.Limiter
 
-	cfg := jobTranslateConfig(ctx, deps, job, proj)
+	cfg := jobTranslateConfig(ctx, deps, job, proj, storedBlocks)
+	repeats := watchRepeats(&cfg.ReviewFeedback)
+	if n := len(cfg.ReviewFeedback.Units); n > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Drafting %d rejected units with the reviewers' reasons and notes", n),
+			map[string]string{"rejected_units": strconv.Itoa(n)})
+	}
 	if cfg.Profile != nil || len(cfg.TermRules) > 0 {
 		profileName := ""
 		if cfg.Profile != nil {
@@ -903,8 +909,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 			// The stream home stamped each draft's basis on its edition; a
 			// decided unit's row also gets the mark of the source it was
 			// drafted against, so it waits on a reviewer rather than being
-			// drafted again.
-			recordDraftMarks(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, blocks, tgtLocale)
+			// drafted again. A unit whose draft repeated a rejected one was
+			// not drafted, and stays owed.
+			recordDraftMarks(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID,
+				repeats.without(blocks, unitByBlockID, tgtLocale), tgtLocale)
 			// Score the AI drafts against the standing voice profile (deterministic
 			// vocabulary check, zero AI) so the dashboard's compliance rate is
 			// voice-informed for every drafted block.
@@ -926,6 +934,12 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		emitLog(deps, job.StepID, "info",
 			fmt.Sprintf("Translated blocks %d-%d of %d (%d tokens)", i+1, end, totalBlocks, chunkTokens),
 			map[string]string{"done": strconv.Itoa(end), "total": strconv.Itoa(totalBlocks)})
+	}
+
+	if n := repeats.count(); n > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("%d drafts came back in wording a reviewer had rejected, so none of them was kept. Those units stay owed, and each such draft counts towards the stop after %d rejections.", n, tool.MaxRejections),
+			map[string]string{"repeated_drafts": strconv.Itoa(n)})
 	}
 
 	// Update total token usage on the job.
@@ -1073,7 +1087,7 @@ func estimateTokens(blocks []*venue.StoredBlock) int {
 // the shared assembly binds (BuildTranslateConfig), so a queued translation and
 // an interactive one carry the same voice, terminology, protected terms,
 // content memory, neighbourhood and point.
-func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) tools.AITranslateConfig {
+func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project, blocks []*venue.StoredBlock) tools.AITranslateConfig {
 	// Default batch/concurrency for automation jobs if not explicitly set.
 	batchSz := 20
 	if job.BatchSize > 0 {
@@ -1087,6 +1101,7 @@ func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	b := jobTranslateBinding(deps, job, proj)
 	b.BatchSize = batchSz
 	b.BatchConcurrency = concurrency
+	b.Blocks = blocks
 	return BuildTranslateConfig(ctx, b)
 }
 

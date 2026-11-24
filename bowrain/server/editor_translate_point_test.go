@@ -110,7 +110,7 @@ func TestEditorTranslateConfigCarriesEveryContextField(t *testing.T) {
 	cs, voiceCtx, proj, _ := translatePointFixture(t)
 
 	cfg := editorTranslateConfig(t.Context(), cs, voiceCtx, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"}, nil)
 
 	require.NotNil(t, cfg.Profile)
 	assert.Equal(t, "bp-docs", cfg.Profile.ID,
@@ -137,7 +137,7 @@ func TestEditorTranslateConfigMemoryAnswersAtThePoint(t *testing.T) {
 	cs, voiceCtx, proj, tm := translatePointFixture(t)
 
 	cfg := editorTranslateConfig(ctx, cs, voiceCtx, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"}, nil)
 	require.NotNil(t, cfg.Memory)
 
 	// What the tool will compute for this profile + these rules, and therefore
@@ -192,7 +192,7 @@ func TestEditorAndWorkerAssembleOneConfig(t *testing.T) {
 	cs, voiceCtx, proj, tm := translatePointFixture(t)
 
 	fromEditor := editorTranslateConfig(ctx, cs, voiceCtx, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"}, nil)
 
 	fromWorker := jobs.BuildTranslateConfig(ctx, jobs.TranslateBinding{
 		Store:            cs,
@@ -247,7 +247,7 @@ func TestPlatformConfigMatchesAFlowRunConfig(t *testing.T) {
 	cs, voiceCtx, proj, _ := translatePointFixture(t)
 
 	platform := editorTranslateConfig(ctx, cs, voiceCtx, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"}, nil)
 
 	var flow tools.AITranslateConfig
 	require.NoError(t, schema.ApplyConfig(map[string]any{

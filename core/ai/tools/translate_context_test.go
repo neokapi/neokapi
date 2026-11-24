@@ -15,7 +15,7 @@ func TestContextDefaultsToKey(t *testing.T) {
 	tool := NewAITranslateTool(nil, AITranslateConfig{Provider: "anthropic"})
 	assert.Equal(t, ContextKey, tool.contextPolicy)
 
-	got := tool.contextFor(t.Context(), "tu1", "app.settings.save", "")
+	got := tool.contextFor(t.Context(), "tu1", "app.settings.save", "", "")
 	assert.Equal(t, "app.settings.save", got.Key)
 	assert.Empty(t, got.Before, "neighbours are opt-in: they cost tokens and widen the cache key")
 	assert.Empty(t, got.After)
@@ -24,7 +24,7 @@ func TestContextDefaultsToKey(t *testing.T) {
 func TestContextNoneSendsNothing(t *testing.T) {
 	tool := NewAITranslateTool(nil, AITranslateConfig{Provider: "anthropic", Context: ContextNone})
 
-	assert.True(t, tool.contextFor(t.Context(), "tu1", "app.settings.save", "").Empty(),
+	assert.True(t, tool.contextFor(t.Context(), "tu1", "app.settings.save", "", "").Empty(),
 		"context: none must send nothing about the block but the block")
 }
 
@@ -45,7 +45,7 @@ func TestNeighboursComeFromDocumentOrder(t *testing.T) {
 		tool.docEntries[i] = blockEntry{index: i, block: b, sourceText: txt}
 	}
 
-	got := tool.contextFor(t.Context(), "tu3", "key.Save", "") // the middle block
+	got := tool.contextFor(t.Context(), "tu3", "key.Save", "", "") // the middle block
 	assert.Equal(t, "key.Save", got.Key)
 	assert.Equal(t, []string{"Unsaved changes", "Discard"}, got.Before)
 	assert.Equal(t, []string{"Cancel", "Settings"}, got.After)

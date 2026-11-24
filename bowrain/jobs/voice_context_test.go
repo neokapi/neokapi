@@ -233,7 +233,7 @@ func TestJobTranslateConfig_BareWithoutVoiceDeps(t *testing.T) {
 	}
 	job := &TranslationJob{ID: "j1", ProjectID: "p", TargetLocale: "fr"}
 
-	cfg := jobTranslateConfig(t.Context(), &WorkerDeps{}, job, proj)
+	cfg := jobTranslateConfig(t.Context(), &WorkerDeps{}, job, proj, nil)
 	assert.Nil(t, cfg.Profile)
 	assert.Nil(t, cfg.TermRules)
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
@@ -264,7 +264,7 @@ func TestJobTranslateConfig_CarriesVoiceContext(t *testing.T) {
 	proj := &store.Project{ID: "p", DefaultSourceLanguage: "en"}
 	job := &TranslationJob{ID: "j1", WorkspaceID: "ws-1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
-	cfg := jobTranslateConfig(t.Context(), deps, job, proj)
+	cfg := jobTranslateConfig(t.Context(), deps, job, proj, nil)
 
 	require.NotNil(t, cfg.Profile)
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)

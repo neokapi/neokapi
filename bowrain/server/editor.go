@@ -838,6 +838,7 @@ func editorTranslateConfig(
 	proj *store.Project,
 	projectID, stream, itemName, workspaceID, workspaceSlug string,
 	req TranslateRequest,
+	blocks []*venue.StoredBlock,
 ) tools.AITranslateConfig {
 	b := jobs.TranslateBinding{
 		Store:            cs,
@@ -851,6 +852,7 @@ func editorTranslateConfig(
 		TargetLocale:     model.LocaleID(req.TargetLocale),
 		BatchSize:        req.BatchSize,
 		BatchConcurrency: req.Concurrency,
+		Blocks:           blocks,
 	}
 	b.Terms = editorTerms(ctx, voiceCtx, workspaceSlug, projectID)
 	b.Memory = editorMemory(ctx, voiceCtx, workspaceSlug)
@@ -988,7 +990,7 @@ func editorAITranslate(
 	}
 
 	translateTool := tools.NewAITranslateTool(prov,
-		editorTranslateConfig(ctx, cs, voiceCtx, proj, projectID, stream, itemName, workspaceID, workspaceSlug, req))
+		editorTranslateConfig(ctx, cs, voiceCtx, proj, projectID, stream, itemName, workspaceID, workspaceSlug, req, storedBlocks))
 
 	outParts, err := tool.RunOnParts(ctx, translateTool, parts)
 	if err != nil {
