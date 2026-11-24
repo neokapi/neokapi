@@ -4,6 +4,9 @@
     scripts/gardening-due.py                 print what is due (exit 0)
     scripts/gardening-due.py --json          the same, as JSON
     scripts/gardening-due.py --sync-issues   keep one `gardening` issue per item
+    scripts/gardening-due.py --release-gate <id> [--report-only]
+                                             refuse a release when <id> is older
+                                             than its release_gate_days
     scripts/gardening-due.py --self-test     prove the rules on fixtures
 
 Reads docs/internals/gardening.yaml. Each item says where its "last done"
@@ -26,7 +29,10 @@ edit an issue body the workflow wrote; that is accepted. --no-close opens and
 comments only. GARDENER names a login to
 assign new issues to; empty assigns nobody.
 
-This is a report: it never fails on what is due.
+This is a report: it never fails on what is due. --release-gate is the one
+exception: release.yml runs it on a kapi release, and it exits 1 when the
+item's date is more than its release_gate_days old or cannot be read.
+--report-only (a build-only dispatch) prints the same and exits 0.
 """
 
 from __future__ import annotations
@@ -351,7 +357,53 @@ def sync_issues(results: list[dict], close: bool, gardener: str, origin: str, to
     return 0
 
 
+# ── release gate ─────────────────────────────────────────────────────────
+
+
+def release_gate(root: str, item_id: str, today: dt.date) -> tuple[bool, str]:
+    """Whether a release may proceed, and the line saying why."""
+    items = {i["id"]: i for i in load_items(root)}
+    item = items.get(item_id)
+    if item is None or "release_gate_days" not in item:
+        return False, f"{item_id} has no release_gate_days in {LIST}"
+    limit = int(item["release_gate_days"])
+    verdict = check_item(root, {**item, "cadence_days": limit}, today)
+    verdict["reason"] = verdict["reason"].replace(f"; the cadence is {limit} days", "")
+    if verdict["due"]:
+        return False, (f"{item_id} is too old to release with: {verdict['reason']}; the release gate allows "
+                       f"{limit} days. Refresh it with `{item['run']}` and commit the result.")
+    return True, f"{item_id}: {verdict['reason']}; within the release gate of {limit} days"
+
+
 # ── self-test ────────────────────────────────────────────────────────────
+
+
+def gate_self_test() -> list[str]:
+    import tempfile
+    failures = []
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, "docs", "internals"))
+        with open(os.path.join(root, LIST), "w") as fh:
+            fh.write("items:\n  - id: cat\n    run: make update-model-catalog\n    cadence_days: 30\n"
+                     "    release_gate_days: 60\n    source:\n      kind: json-field\n      file: m.json\n      field: as_of\n"
+                     "  - id: nogate\n    run: x\n    cadence_days: 30\n    source:\n      kind: json-field\n      file: m.json\n      field: as_of\n")
+        today = dt.date(2026, 11, 24)
+        for days, want in ((59, True), (60, True), (61, False)):
+            with open(os.path.join(root, "m.json"), "w") as fh:
+                json.dump({"as_of": (today - dt.timedelta(days=days)).isoformat()}, fh)
+            ok, line = release_gate(root, "cat", today)
+            if ok != want:
+                failures.append(f"release gate at {days} days: {ok}, want {want} ({line})")
+        ok, line = release_gate(root, "cat", today)
+        if "make update-model-catalog" not in line:
+            failures.append(f"the refusal names the refresh command: {line}")
+        with open(os.path.join(root, "m.json"), "w") as fh:
+            json.dump({"note": "no date"}, fh)
+        if release_gate(root, "cat", today)[0]:
+            failures.append("a missing date must refuse the release")
+        if release_gate(root, "nogate", today)[0]:
+            failures.append("an item with no release_gate_days must refuse, not pass")
+    return failures
 
 
 def self_test() -> int:
@@ -412,6 +464,7 @@ def self_test() -> int:
         if not gone["due"] or "missing" not in gone["read"]:
             failures.append(f"format-ops missing ledger must be due: {gone}")
     failures += plan_self_test()
+    failures += gate_self_test()
     if failures:
         print("gardening-due self-test: FAIL")
         for f in failures:
@@ -503,12 +556,24 @@ def main() -> int:
     ap.add_argument("--sync-issues", action="store_true")
     ap.add_argument("--no-close", action="store_true")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--release-gate", metavar="ID")
+    ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--today", help="YYYY-MM-DD, for tests")
     ap.add_argument("--root", default=ROOT)
     args = ap.parse_args()
     if args.self_test:
         return self_test()
     today = dt.date.fromisoformat(args.today) if args.today else dt.date.today()
+    if args.release_gate:
+        ok, line = release_gate(args.root, args.release_gate, today)
+        if ok:
+            print(line)
+            return 0
+        if args.report_only:
+            print(f"::warning::{line} (a build-only run does not stop)")
+            return 0
+        print(f"::error::{line}")
+        return 1
     results = report(args.root, today)
     if args.json:
         print(json.dumps(results, indent=2))

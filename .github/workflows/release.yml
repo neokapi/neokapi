@@ -87,6 +87,27 @@ jobs:
             echo "build_only=$build_only"
           } >> "$GITHUB_OUTPUT"
 
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            docs/internals/gardening.yaml
+            providers/ai/models.json
+            scripts/gardening-due.py
+          sparse-checkout-cone-mode: false
+
+      # A release ships the model catalog, so a catalog older than the gate
+      # in docs/internals/gardening.yaml refuses the release. A build-only
+      # dispatch reports the age and goes on.
+      - name: Check the model catalog is fresh enough to release
+        env:
+          BUILD_ONLY: ${{ steps.r.outputs.build_only }}
+        run: |
+          if [ "$BUILD_ONLY" = true ]; then
+            python3 scripts/gardening-due.py --release-gate model-catalog --report-only
+          else
+            python3 scripts/gardening-due.py --release-gate model-catalog
+          fi
+
   # Build the kapi CLI natively per OS/arch with cgo, statically linked ICU
   # and the fts5 tag, matching the framework the desktop apps use. cgo rules
   # out cross-compiling, so each target builds on its own runner and uploads
