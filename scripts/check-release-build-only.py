@@ -250,30 +250,34 @@ def check_workflow(root: str, rel: str, doc: dict) -> list[str]:
     return problems
 
 
-LATEST_PUBLISHERS = (
-    ".github/workflows/release-bowrain.yml",
-    ".github/workflows/rebuild-release-images.yml",
-    # The kapi CLI image: its release tags :latest on a final release.
-    ".github/workflows/release.yml",
-)
-# A tag written as one of these is known not to be `latest`: a commit or
-# image tag, or a version.
-SAFE_TAGS = {
-    "${{ inputs.image-tag }}",
-    "${{ github.sha }}",
-    "${{ steps.meta.outputs.tag }}",
-    "$(VERSION)",
+# The files that may move `latest`, each with the image it may move: None for
+# any image. release.yml (the kapi CLI release) may move only the kapi image's,
+# in a job whose IMAGE env names it; every other job there is checked.
+LATEST_PUBLISHERS = {
+    ".github/workflows/release-bowrain.yml": None,
+    ".github/workflows/rebuild-release-images.yml": None,
+    ".github/workflows/release.yml": re.compile(r"^ghcr\.io/(\$\{\{ github\.repository_owner \}\}|neokapi)/kapi$"),
+}
+# A tag written as this cannot be `latest`.
+SAFE_TAGS = {"${{ github.sha }}"}
+# A tag written as one of these is safe only in a file that refuses `latest`
+# for it at run time, in the form given.
+REFUSED_TAGS = {
+    "${{ inputs.image-tag }}": re.compile(r"name: Refuse latest as the image tag\b"),
+    "${{ steps.meta.outputs.tag }}": re.compile(r"name: Refuse latest as the image tag\b"),
+    "$(VERSION)": re.compile(r"^ifeq \(\$\(VERSION\),latest\)", re.M),
 }
 # Whole image references held in a variable, per file, that cannot be `latest`.
 SAFE_REFS = {
     ("scripts/mirror-image.sh", "$target"),  # the script refuses tag latest
 }
-SKIP_DIRS = {".git", "node_modules", ".claude", "dist", "build", "target", "vendor"}
+SKIP_DIRS = {".git", "node_modules", ".claude", ".venv", "dist", "build", "target", "vendor"}
 WHOLE_EXPR = re.compile(r"\$\{\{.*?\}\}", re.S)
 
 
-def ref_problem(ref: str, path: str) -> str | None:
-    """Why pushing this reference may push `latest`; None when it cannot."""
+def ref_problem(ref: str, path: str, text: str = "") -> str | None:
+    """Why pushing this reference may push `latest`; None when it cannot.
+    text is the file's content, read for a refusal of a REFUSED_TAGS tag."""
     ref = ref.strip().strip("'\"")
     if not ref:
         return None
@@ -297,6 +301,10 @@ def ref_problem(ref: str, path: str) -> str | None:
     tag = ref[colon + 1:]
     if tag in SAFE_TAGS or not re.search(r"\$", tag):
         return None
+    if tag in REFUSED_TAGS:
+        if REFUSED_TAGS[tag].search(text):
+            return None
+        return f"pushes {ref}, and nothing in {path} refuses latest for {tag}"
     return f"pushes {ref}, whose tag {tag} is not a known safe value"
 
 
@@ -317,14 +325,16 @@ def _commands(text: str) -> list[list[str]]:
     return out
 
 
-def shell_pushes(text: str, path: str) -> list[str]:
-    """Pushes of a possibly-`latest` tag in shell or make recipe text."""
+def shell_pushes(text: str, path: str, context: str = "") -> list[str]:
+    """Pushes of a possibly-`latest` tag in shell or make recipe text; context
+    is the whole file, read for a refusal."""
+    context = context or text
     found = []
     commands = _commands(text)
     pushes_later = any(w[:2] == ["docker", "push"] for w in commands)
 
     def flag(ref, what):
-        problem = ref_problem(ref, path)
+        problem = ref_problem(ref, path, context)
         if problem:
             found.append(f"{what}: {problem}")
 
@@ -340,7 +350,8 @@ def shell_pushes(text: str, path: str) -> list[str]:
                     flag(w[i + 1], "imagetools create")
                 elif x.startswith("--tag="):
                     flag(x.split("=", 1)[1], "imagetools create")
-        elif w[0] == "docker" and "build" in w and "--push" in w:
+        elif w[0] == "docker" and "build" in w and ("--push" in w or any(
+                re.search(r"(^|,)(push=true|type=registry)(,|$)", x) for x in w)):
             for i, x in enumerate(w):
                 if x in ("-t", "--tag") and i + 1 < len(w):
                     flag(w[i + 1], "docker build --push")
@@ -363,34 +374,42 @@ def latest_pushes(root: str) -> list[str]:
     for path in sorted(glob.glob(os.path.join(root, ".github", "workflows", "*.yml"))
                        + glob.glob(os.path.join(root, ".github", "actions", "**", "action.yml"), recursive=True)):
         rel = os.path.relpath(path, root).replace(os.sep, "/")
-        if rel in LATEST_PUBLISHERS:
+        allowed = LATEST_PUBLISHERS.get(rel, False)
+        if rel in LATEST_PUBLISHERS and allowed is None:
             continue
         try:
             with open(path) as fh:
-                doc = yaml.safe_load(fh) or {}
+                text = fh.read()
+            doc = yaml.safe_load(text) or {}
         except (OSError, yaml.YAMLError) as err:
             raise Unreadable(f"{rel}: {err}") from err
         steps = list((doc.get("runs") or {}).get("steps") or [])
         for job in (doc.get("jobs") or {}).values():
-            if isinstance(job, dict):
-                steps += job.get("steps") or []
+            if not isinstance(job, dict):
+                continue
+            image = str((job.get("env") or {}).get("IMAGE", ""))
+            if allowed and allowed.search(image):
+                continue  # the one image this file may move latest for
+            steps += job.get("steps") or []
         for step in steps:
             if not isinstance(step, dict):
                 continue
             label = f"{rel} step {step.get('name') or step.get('uses') or '?'}"
             uses = str(step.get("uses", ""))
             with_ = step.get("with") or {}
-            if uses.startswith("docker/build-push-action") and str(with_.get("push", "")).lower() not in ("false", ""):
+            pushes = str(with_.get("push", "")).lower() not in ("false", "") or re.search(
+                r"(^|[,\s])(push=true|type=registry)([,\s]|$)", str(with_.get("outputs", "")))
+            if uses.startswith("docker/build-push-action") and pushes:
                 for ref in re.split(r"[\n,]", str(with_.get("tags", ""))):
-                    problem = ref_problem(ref, rel)
+                    problem = ref_problem(ref, rel, text)
                     if problem:
                         out.append(f"{label}: {problem}")
             if uses.startswith("docker/metadata-action") and "latest=false" not in str(with_.get("flavor", "")).replace(" ", ""):
                 out.append(f"{label}: docker/metadata-action adds latest unless its flavor says latest=false")
-            for problem in shell_pushes(str(step.get("run", "")), rel):
+            for problem in shell_pushes(str(step.get("run", "")), rel, text):
                 out.append(f"{label}: {problem}")
     for dirpath, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for name in files:
             if not (name == "Makefile" or name.endswith((".mk", ".sh"))):
                 continue
@@ -407,7 +426,7 @@ def latest_pushes(root: str) -> list[str]:
 
 
 def check(root: str) -> list[str]:
-    problems = [f"{p}; only {' and '.join(LATEST_PUBLISHERS)} move latest, which means the last release"
+    problems = [f"{p}; only the release and rebuild workflows move latest, which means the last release"
                 for p in latest_pushes(root)]
     for name in WORKFLOWS:
         path = os.path.join(root, ".github", "workflows", name)
@@ -611,12 +630,14 @@ def self_test() -> int:
         with open(os.path.join(wf, "rebuild-release-images.yml"), "w") as fh:
             fh.write("jobs:\n  p:\n    steps:\n      - run: docker buildx imagetools create -t ghcr.io/neokapi/x:latest x\n")
         with open(os.path.join(root, "bowrain", "Makefile"), "w") as fh:
-            fh.write("push:\n\tdocker push $(IMAGE):$(VERSION)\n\tdocker push $(IMAGE):latest\n# docker push $(IMAGE):latest in a comment\n")
+            fh.write("ifeq ($(VERSION),latest)\n$(error no)\nendif\n"
+                     "push:\n\tdocker push $(IMAGE):$(VERSION)\n\tdocker push $(IMAGE):latest\n# docker push $(IMAGE):latest in a comment\n")
         os.makedirs(os.path.join(root, "bowrain", "deploy", "sub"))
         with open(os.path.join(root, "bowrain", "deploy", "sub", "Makefile"), "w") as fh:
             fh.write("p:\n\tdocker buildx build -t $(IMG):latest --push .\n")
         with open(os.path.join(root, "bowrain", "images.mk"), "w") as fh:
-            fh.write("p:\n\tdocker tag $(IMG):$(VERSION) $(IMG):latest\n\tdocker push $(IMG):$(VERSION)\n")
+            fh.write("ifeq ($(VERSION),latest)\n$(error no)\nendif\n"
+                     "p:\n\tdocker tag $(IMG):$(VERSION) $(IMG):latest\n\tdocker push $(IMG):$(VERSION)\n")
         os.makedirs(os.path.join(root, "tools"))
         with open(os.path.join(root, "tools", "push.sh"), "w") as fh:
             fh.write("#!/bin/sh\n"
@@ -638,6 +659,8 @@ def self_test() -> int:
         with:
           images: ghcr.io/neokapi/x
           flavor: latest=false
+      - name: Refuse latest as the image tag
+        run: test "$TAG" != latest
       - name: main only
         uses: docker/build-push-action@v7
         with:
@@ -668,7 +691,64 @@ def self_test() -> int:
                       "step main only", "build latest locally"):
             if any(quiet in f for f in found):
                 failures.append(f"{quiet!r} pushes no latest, or may: {found}")
-        if sum("bowrain/Makefile" in f for f in found) != 1:
+        # Follow-ups: refused tags, the release.yml image scope, .github
+        # scripts, and pushes through outputs.
+        with open(os.path.join(wf, "deploy-z.yml"), "w") as fh:
+            fh.write("""jobs:
+  refused:
+    steps:
+      - name: Refuse latest as the image tag
+        run: test "$TAG" != latest
+      - name: input tag, refused
+        uses: docker/build-push-action@v7
+        with:
+          push: true
+          tags: ghcr.io/neokapi/r:${{ inputs.image-tag }}
+""")
+        with open(os.path.join(wf, "deploy-u.yml"), "w") as fh:
+            fh.write("""jobs:
+  unrefused:
+    steps:
+      - name: input tag, not refused
+        uses: docker/build-push-action@v7
+        with:
+          push: true
+          tags: ghcr.io/neokapi/u:${{ inputs.image-tag }}
+      - name: registry output
+        uses: docker/build-push-action@v7
+        with:
+          outputs: type=registry
+          tags: ghcr.io/neokapi/o:latest
+      - name: buildx output push
+        run: docker buildx build --output type=image,push=true -t ghcr.io/neokapi/p:latest .
+""")
+        with open(os.path.join(wf, "release.yml"), "w") as fh:
+            fh.write("""jobs:
+  publish-cli-image:
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/kapi
+    steps:
+      - name: kapi latest
+        run: docker buildx imagetools create -t ghcr.io/neokapi/kapi:latest x
+  other:
+    steps:
+      - name: other image from release.yml
+        run: docker buildx imagetools create -t ghcr.io/neokapi/notkapi:latest x
+""")
+        os.makedirs(os.path.join(root, ".github", "scripts"))
+        with open(os.path.join(root, ".github", "scripts", "push.sh"), "w") as fh:
+            fh.write("docker push ghcr.io/neokapi/g:latest\n")
+        with open(os.path.join(root, "bowrain", "versioned.mk"), "w") as fh:
+            fh.write("ifeq ($(VERSION),latest)\n$(error no)\nendif\np:\n\tdocker push $(IMG):$(VERSION)\n")
+        found = latest_pushes(root)
+        for want in ("step input tag, not refused", "step registry output", "step buildx output push",
+                     "step other image from release.yml", ".github/scripts/push.sh"):
+            if not any(want in f for f in found):
+                failures.append(f"follow-up form not caught: {want!r} in {found}")
+        for quiet in ("step input tag, refused", "step kapi latest", "versioned.mk"):
+            if any(quiet in f for f in found):
+                failures.append(f"{quiet!r} is allowed, but was flagged: {found}")
+        if sum(f.startswith("bowrain/Makefile") for f in found) != 1:
             failures.append(f"the Makefile's version push and its comment are not flagged: {found}")
     if failures:
         print("check-release-build-only self-test: FAIL")

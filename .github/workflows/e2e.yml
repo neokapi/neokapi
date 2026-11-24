@@ -4,16 +4,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *" # Nightly at 2 AM UTC
-  # The Docker suites stay nightly — they need four images and a database, and a
+  # The Docker suites stay nightly, they need four images and a database, and a
   # PR should not wait on them. Use workflow_dispatch to run the whole lane.
   #
-  # The two self-contained suites are pre-merge, and both earned it the same
-  # way. The Kapi CLI job went red on 2026-07-26 and stayed red because #1462
-  # rewrote a CLI flag inside it. The Playwright job went red when #1775 moved
-  # the desktop adapter onto its REST proxy transport and the mock backend did
-  # not follow: every spec died on the launch probe, and because the job was
-  # nightly-only, nothing said so. Both are failures a path-gated pre-merge run
-  # would have put in front of a reviewer instead of in a log nobody opens.
+  # The two self-contained suites, the Kapi CLI and Playwright jobs, run
+  # pre-merge: each once went red as a nightly-only job and stayed red unseen
+  # (#1462, #1775), where a path-gated pre-merge run would have shown it.
   #
   # Each job filters on the surface it actually exercises (see the `changes`
   # job), so a CLI-only PR does not pay for browsers and a frontend-only PR does
@@ -41,7 +37,7 @@ jobs:
   changes:
     name: Detect touched surfaces
     # Only a pull request has a base to diff against. Nightly and dispatch runs
-    # skip this and the suites below fall through to running unconditionally —
+    # skip this and the suites below fall through to running unconditionally , 
     # which is why those conditions lead with the event check and are wrapped in
     # !cancelled(): a skipped `needs` would otherwise skip its dependents, and
     # silently disabling the nightly lane is the exact failure this file is
@@ -82,11 +78,9 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       # Through the make target, not a raw `go test`: the Makefile owns the tag
-      # set, and `go` does not union repeated -tags flags — the last one wins.
-      # Spelling the tags here had already dropped fts5, which no test would
-      # have reported, because fts5 is a runtime SQL capability rather than a
-      # compile gate. The target also builds the i18n catalogs the suite reads
-      # and selects ./kapi/e2e/..., so CI and a local run test the same thing.
+      # set (`go` keeps only the last -tags flag, and fts5 fails only at run
+      # time), builds the i18n catalogs and selects ./kapi/e2e/..., so CI and a
+      # local run test the same thing.
       #
       # This job is also what holds the MCP surface: kapi/e2e's conformance
       # suite drives a real `kapi mcp` over stdio and compares every check
@@ -120,7 +114,7 @@ jobs:
         run: vp run build
 
       # Bindings are committed and already patched (sed fix for $0. bug).
-      # Do NOT regenerate with wails3 — it would overwrite the fixed files.
+      # Do NOT regenerate with wails3, it would overwrite the fixed files.
 
       # A run on main saves the browsers; any other ref restores them.
       - name: Restore Playwright browsers
@@ -156,7 +150,7 @@ jobs:
   # ── Build Docker images (prerequisites for Docker E2E) ───────────────────
   build-images:
     name: Build E2E Images
-    if: github.event_name != 'pull_request' # heavy: four Docker images — nightly only
+    if: github.event_name != 'pull_request' # heavy: four Docker images, so nightly only
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -178,6 +172,17 @@ jobs:
             echo "commit=${GH_SHA::7}"
             echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
+
+      # scripts/check-release-build-only.py relies on this step: the tag the
+      # e2e images push is the commit, never latest.
+      - name: Refuse latest as the image tag
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          if [ "$TAG" = latest ] || [ -z "$TAG" ]; then
+            echo "::error::the e2e image tag must be the commit, not '$TAG'"
+            exit 1
+          fi
 
       - name: Login to ghcr.io
         uses: ./.github/actions/registry-login
@@ -272,11 +277,11 @@ jobs:
   # Rehabilitated (#867) and BLOCKING: the async bowrain-worker (+redis) now
   # runs in the E2E compose so sync push completes, and the web-app Playwright
   # suite (bowrain/apps/web/e2e: claim-flow, routing, open-in-desktop,
-  # editor-happy-path) runs against the stack. This is the launch smoke test —
+  # editor-happy-path) runs against the stack. This is the launch smoke test , 
   # it gates the workflow.
   bowrain-e2e:
     name: Bowrain E2E (Docker)
-    if: github.event_name != 'pull_request' # heavy: full Docker stack — nightly only
+    if: github.event_name != 'pull_request' # heavy: full Docker stack, so nightly only
     runs-on: ubuntu-latest
     needs: build-images
     timeout-minutes: 15
@@ -295,7 +300,7 @@ jobs:
       - name: Start E2E stack
         id: stack
         env:
-          # Pin to the per-commit tag pushed by build-images — the mutable :e2e
+          # Pin to the per-commit tag pushed by build-images, the mutable :e2e
           # tag races when two workflow runs overlap.
           IMAGE_TAG: ${{ github.sha }}
         run: |
@@ -310,12 +315,10 @@ jobs:
       # not an earlier suite failed. The suites are independent, so a failure
       # in one reports alongside the others' results instead of skipping them.
       #
-      # The stack is already up from the step above, so this cannot go through
-      # `make test-e2e-bowrain` (which owns setup and teardown) and must spell
-      # its own tags. Both must be in ONE comma-joined flag: `go` does not union
-      # repeated -tags, the last occurrence wins. The suite's test binary links
-      # go-sqlite3, so dropping fts5 compiles a build without FTS5 that fails
-      # only when a query reaches it — silently, and far from here.
+      # The stack is already up, so this cannot go through
+      # `make test-e2e-bowrain` (which owns setup and teardown) and spells its
+      # own tags, in ONE comma-joined flag: `go` keeps only the last -tags, and
+      # a build without fts5 fails only when a query reaches it.
       - name: Run Bowrain server E2E tests
         run: go test -tags "fts5,e2e" -count=1 -v ./bowrain/e2e/server/
         timeout-minutes: 5
@@ -385,13 +388,13 @@ jobs:
         # alone sets test.setTimeout(180_000), so one slow test may legitimately
         # spend 3 of the 5 minutes, and the layout-scroll matrix costs 13s each.
         # On 2026-07-29 the step was killed mid-run and reported a timeout rather
-        # than the two specs that actually failed — a cap that truncates the
+        # than the two specs that actually failed, a cap that truncates the
         # report hides the defect it was supposed to surface. The job's own
         # timeout-minutes: 15 remains the real backstop.
         timeout-minutes: 10
 
       # The Playwright job has always uploaded its report; this one never did,
-      # so a failure here left only the console tail — no trace, no screenshot,
+      # so a failure here left only the console tail, no trace, no screenshot,
       # no error-context. That is a large part of why these two specs stayed
       # unexplained for a fortnight.
       - name: Upload web app test results
