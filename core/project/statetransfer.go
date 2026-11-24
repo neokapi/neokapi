@@ -179,9 +179,9 @@ func PlanRelink(l Layout, from string, opts RelinkOptions) (StateTransfer, error
 	}
 	for _, f := range files {
 		// The work directory is rebuilt where the checkout is now; what
-		// cannot be rebuilt is what comes across. The record stays with the
-		// directory it describes.
-		if f.path == dataroot.CheckoutRecordFilename || strings.HasPrefix(filepath.ToSlash(f.path), WorkDirName+"/") {
+		// cannot be rebuilt is what comes across. The record, and a temporary
+		// file a stopped write of it left, stay with the directory.
+		if f.path == dataroot.CheckoutRecordFilename || dataroot.IsRecordTemp(f.path) || strings.HasPrefix(filepath.ToSlash(f.path), WorkDirName+"/") {
 			continue
 		}
 		p := filepath.ToSlash(f.path)

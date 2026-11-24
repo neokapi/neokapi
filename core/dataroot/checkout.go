@@ -334,7 +334,8 @@ func writeRecord(dir string, rec CheckoutRecord) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(dir, "."+CheckoutRecordFilename+".*.tmp")
+	removeStaleRecordTemps(dir)
+	f, err := os.CreateTemp(dir, recordTempPattern)
 	if err != nil {
 		return err
 	}
@@ -352,11 +353,48 @@ func writeRecord(dir string, rec CheckoutRecord) error {
 	return nil
 }
 
+// recordTempPattern names the temporary files a record is written through.
+const recordTempPattern = "." + CheckoutRecordFilename + ".*.tmp"
+
+// IsRecordTemp reports whether name is a temporary file a record was written
+// through: one a process that stopped between creating and renaming it left
+// behind. No plan takes one as state.
+func IsRecordTemp(name string) bool {
+	ok, _ := filepath.Match(recordTempPattern, name)
+	return ok
+}
+
+// staleRecordTemp is the age past which a record's temporary file is taken
+// for one a stopped process left: a write lasts milliseconds.
+const staleRecordTemp = 24 * time.Hour
+
+// removeStaleRecordTemps removes the record temporary files in dir older than
+// staleRecordTemp.
+func removeStaleRecordTemps(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if !e.Type().IsRegular() || !IsRecordTemp(e.Name()) {
+			continue
+		}
+		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > staleRecordTemp {
+			_ = os.Remove(filepath.Join(dir, e.Name()))
+		}
+	}
+}
+
+// recordMu orders the record writes of this process: the desktop app records
+// notices from several goroutines.
+var recordMu sync.Mutex
+
 // updateRecord reads the record in dir, lets change edit it, and writes it
-// back when change reports an edit.
+// back when change reports an edit. The writes of one process take turns
+// (recordMu).
 //
-// It takes no lock. Two kapi processes on one checkout (a CLI run and Kapi
-// Desktop) can each rewrite the record at once, and then the later rename
+// It takes no lock between processes. Two kapi processes on one checkout (a
+// CLI run and Kapi Desktop) can each rewrite the record at once, and then the later rename
 // keeps one writer's edit and drops the other's. Each record is still whole,
 // since every write goes through a temporary file of its own and a rename.
 // What can be lost is safe to lose: a lost project reads as a record that
@@ -364,6 +402,8 @@ func writeRecord(dir string, rec CheckoutRecord) error {
 // vault and the sync state in place, and a lost notice is shown once more.
 // The record's other fields are the same in every writer.
 func updateRecord(dir string, change func(*CheckoutRecord) bool) error {
+	recordMu.Lock()
+	defer recordMu.Unlock()
 	rec, err := ReadRecord(dir)
 	if err != nil {
 		return err

@@ -216,11 +216,13 @@ different names are different projects, and the relink is refused naming both.
 A record that cannot say (written before kapi recorded the project, or a recipe
 with no id) brings the saved filters and leaves the vault and the sync state in
 place, with the state directory, unless the person passes `--same-project`. The
-sync state is bound to one server project (its cache's `server_url` and
-`project_id`), and a relink brings it only when the recipe's venue block
-connects to that project; to a recipe that connects to none, only with
-`--same-project`, and never to a recipe that connects to another
-(`project.syncWithheld`). The plan
+sync state is bound to one server project (its cache's `server_url`,
+`workspace` and `project_id`, compared through the host's server URL
+normalisation). A relink brings it only when the recipe's venue block names
+every one of those fields and each equals the cache's. A field that differs
+means another server project, and the sync state stays whatever the person
+states; a field either side does not name cannot say, and the sync state
+stays unless the person passes `--same-project` (`project.bindingVerdict`). The plan
 shows the servers the sync state was issued by. A relink removes the directory it took from only once every file is
 in place and read back, and the plan says so.
 
