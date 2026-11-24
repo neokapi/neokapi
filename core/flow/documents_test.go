@@ -211,7 +211,7 @@ func TestRunFile_LocksInTheDataRoot(t *testing.T) {
 	commit(firstTmp)
 	commit(secondTmp)
 
-	locks, err := os.ReadDir(filepath.Join(data, "locks"))
+	locks, err := filepath.Glob(filepath.Join(data, "locks", "*.lock"))
 	require.NoError(t, err, "the commits lock under the data root")
 	assert.Len(t, locks, 1, "both commits take the one lock file of the target")
 	for _, tmp := range []string{firstTmp, secondTmp} {
@@ -247,7 +247,7 @@ func TestRunFile_CreatingAndReplacingAFileTakeOneLock(t *testing.T) {
 	commit(filepath.Join(link, "out", "notes.md")) // creates the file and its directory
 	commit(filepath.Join(real, "out", "notes.md")) // replaces it
 
-	locks, err := os.ReadDir(filepath.Join(data, "locks"))
+	locks, err := filepath.Glob(filepath.Join(data, "locks", "*.lock"))
 	require.NoError(t, err)
 	assert.Len(t, locks, 1, "both commits take the one lock file of the target")
 }

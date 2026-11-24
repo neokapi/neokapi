@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
@@ -577,20 +578,35 @@ func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) 
 
 func (s *session) Close() error { return nil }
 
-// openLock opens the lock file at path, creating the lock directory, which
-// belongs to this user alone, when it is not there.
-func (h *Home) openLock(path string) (*filelock.Lock, error) {
+// takeLock takes the lock on the lock file at path, creating the lock
+// directory, which belongs to this user alone, when it is not there, and
+// sweeping it at most once a day.
+func (h *Home) takeLock(ctx context.Context, path string) (*filelock.Lock, error) {
 	if h.prepareLocks != nil {
 		h.prepared.Do(func() { h.prepareErr = h.prepareLocks() })
 		if h.prepareErr != nil {
 			return nil, fmt.Errorf("prepare the lock directory: %w", h.prepareErr)
 		}
 	}
-	if err := ensureLockDir(filepath.Dir(path)); err != nil {
+	dir := filepath.Dir(path)
+	if err := ensureLockDir(dir); err != nil {
 		return nil, err
 	}
-	return filelock.Open(path)
+	filelock.SweepDue(dir, sweepEvery, lockFileMaxAge, sweepLimit)
+	return filelock.Acquire(ctx, path)
 }
+
+// The lock directory holds one lock file for every file a commit ever took a
+// lock on. A sweep removes the ones untouched for lockFileMaxAge, at most once
+// every sweepEvery and looking at no more than sweepLimit of them. The
+// directory then stays bounded by what was written lately. filelock.Sweep
+// removes a file only while it holds the lock on it, and filelock.Acquire
+// takes the lock again on a file a sweep removed while it waited.
+const (
+	lockFileMaxAge = 30 * 24 * time.Hour
+	sweepEvery     = 24 * time.Hour
+	sweepLimit     = 1000
+)
 
 // ensureLockDir creates dir with mode 0700. It refuses a lock directory this
 // user does not hold alone: a link, something other than a directory, a

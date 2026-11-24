@@ -137,16 +137,12 @@ func (p *Produced) Commit(ctx context.Context) error {
 		_ = tmp.Discard()
 		return err
 	}
-	l, err := p.h.openLock(key)
+	l, err := p.h.takeLock(ctx, key)
 	if err != nil {
 		_ = tmp.Discard()
 		return err
 	}
 	defer l.Close()
-	if err := l.Lock(ctx); err != nil {
-		_ = tmp.Discard()
-		return err
-	}
 	defer l.Unlock()
 	now, err := p.h.hashFile(p.path)
 	if err != nil {

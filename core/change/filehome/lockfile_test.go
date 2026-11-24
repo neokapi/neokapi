@@ -142,7 +142,49 @@ func TestFileHome_CreatingAndReplacingUnderTwoSpellingsTakeOneLock(t *testing.T)
 	write("Report.json", `{"a": "1"}`+"\n")
 	write("report.json", `{"a": "2"}`+"\n")
 
-	locks, err := os.ReadDir(filepath.Join(data, "locks"))
+	locks, err := filepath.Glob(filepath.Join(data, "locks", "*.lock"))
 	require.NoError(t, err)
 	assert.Len(t, locks, 1, "both commits take one lock file")
+}
+
+// TestFileHome_SweepsLockFilesUnusedForAMonth pins that a commit removes
+// lock files nobody has used for a month, at most once a day: the first
+// commit sweeps, and a stale file that appears before a day has passed waits
+// for the next sweep.
+func TestFileHome_SweepsLockFilesUnusedForAMonth(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv(dataroot.EnvDir, data)
+	locks := filehome.LockDir()
+	require.NoError(t, os.MkdirAll(locks, 0o700))
+	stale := func(name string) string {
+		t.Helper()
+		p := filepath.Join(locks, name)
+		require.NoError(t, os.WriteFile(p, nil, 0o600))
+		old := time.Now().Add(-40 * 24 * time.Hour)
+		require.NoError(t, os.Chtimes(p, old, old))
+		return p
+	}
+	first := stale("first.lock")
+
+	dir := t.TempDir()
+	home := filehome.New(nil, filehome.Options{})
+	write := func(body string) {
+		t.Helper()
+		path := filepath.Join(dir, "a.json")
+		before, err := filehome.Digest(path)
+		require.NoError(t, err)
+		p, err := home.Produce(context.Background(), path, before, produceBytes(body))
+		require.NoError(t, err)
+		require.NoError(t, p.Commit(context.Background()))
+		require.NoError(t, p.Release())
+	}
+	write(`{"a": "1"}` + "\n")
+	assert.NoFileExists(t, first, "the first commit sweeps a lock file unused for a month")
+	own, err := filehome.LockFile(filepath.Join(dir, "a.json"))
+	require.NoError(t, err)
+	assert.FileExists(t, own, "and keeps the one it took")
+
+	second := stale("second.lock")
+	write(`{"a": "2"}` + "\n")
+	assert.FileExists(t, second, "a second commit the same day does not sweep again")
 }
