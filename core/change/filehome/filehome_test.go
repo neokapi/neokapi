@@ -44,12 +44,9 @@ func newFixture(t *testing.T, files map[string]string, opts ...filehome.Options)
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o640))
 	}
 	reg := newRegistry()
-	o := filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks")}
+	o := filehome.Options{}
 	if len(opts) > 0 {
 		o = opts[0]
-		if o.LockDir == "" {
-			o.LockDir = filepath.Join(t.TempDir(), "locks")
-		}
 	}
 	home := filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, o)
 	svc := change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
@@ -80,7 +77,7 @@ func TestFileHome_Conformance(t *testing.T) {
 		})
 		f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(
 			targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en", TargetLocale: "fr"}},
-			filehome.Options{LockDir: t.TempDir(), BeforeSettle: func(doc string) {
+			filehome.Options{BeforeSettle: func(doc string) {
 				if hook != nil {
 					hook(doc)
 				}
@@ -240,46 +237,36 @@ func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 		t.Skip("mode bits do not describe who may write a directory on Windows")
 	}
 	tests := []struct {
-		name    string
-		lockDir func(t *testing.T, base string) string
+		name string
+		// prepare readies the lock directory dir before the commit.
+		prepare func(t *testing.T, dir string)
 		// reason is what a refusal says, empty when the directory is used.
 		reason string
 	}{
-		{name: "one it creates", lockDir: func(t *testing.T, base string) string { return filepath.Join(base, "kapi-locks") }},
-		{name: "one others may write", reason: "can be written by other users", lockDir: func(t *testing.T, base string) string {
-			dir := filepath.Join(base, "kapi-locks")
+		{name: "one it creates", prepare: func(*testing.T, string) {}},
+		{name: "one others may write", reason: "can be written by other users", prepare: func(t *testing.T, dir string) {
 			require.NoError(t, os.Mkdir(dir, 0o700))
 			require.NoError(t, os.Chmod(dir, 0o777))
-			return dir
 		}},
-		{name: "one its group may write", reason: "can be written by other users", lockDir: func(t *testing.T, base string) string {
-			dir := filepath.Join(base, "kapi-locks")
+		{name: "one its group may write", reason: "can be written by other users", prepare: func(t *testing.T, dir string) {
 			require.NoError(t, os.Mkdir(dir, 0o700))
 			require.NoError(t, os.Chmod(dir, 0o770))
-			return dir
 		}},
-		{name: "a link to a directory", reason: "is a symbolic link", lockDir: func(t *testing.T, base string) string {
-			real := filepath.Join(base, "elsewhere")
+		{name: "a link to a directory", reason: "is a symbolic link", prepare: func(t *testing.T, dir string) {
+			real := filepath.Join(filepath.Dir(dir), "elsewhere")
 			require.NoError(t, os.Mkdir(real, 0o700))
-			link := filepath.Join(base, "kapi-locks")
-			if err := os.Symlink(real, link); err != nil {
+			if err := os.Symlink(real, dir); err != nil {
 				t.Skipf("symlinks: %v", err)
 			}
-			return link
 		}},
-	}
-	if ownersAreUsers {
-		tests = append(tests, struct {
-			name    string
-			lockDir func(t *testing.T, base string) string
-			reason  string
-		}{name: "one another user owns", reason: "is owned by another user", lockDir: otherUsersDir})
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := tc.lockDir(t, t.TempDir())
+			t.Setenv(dataroot.EnvDir, t.TempDir())
+			dir := filehome.LockDir()
+			tc.prepare(t, dir)
 			body := `{"greeting": "Hello there"}` + "\n"
-			f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{LockDir: dir})
+			f := newFixture(t, map[string]string{"a.json": body})
 			ctx := context.Background()
 			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
 			require.NoError(t, err)
@@ -299,6 +286,15 @@ func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 			assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
 		})
 	}
+	if ownersAreUsers {
+		t.Run("one another user owns", func(t *testing.T) {
+			dir := otherUsersDir(t, t.TempDir())
+			err := filehome.EnsureLockDir(dir)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), dir, "the refusal names the directory")
+			assert.Contains(t, err.Error(), "is owned by another user")
+		})
+	}
 }
 
 // otherUsersDir returns a directory another user owns that this process
@@ -309,29 +305,29 @@ func otherUsersDir(t *testing.T, base string) string {
 	if os.Getuid() != 0 {
 		return string(filepath.Separator)
 	}
-	dir := filepath.Join(base, "kapi-locks")
+	dir := filepath.Join(base, "locks")
 	require.NoError(t, os.Mkdir(dir, 0o700))
 	require.NoError(t, os.Chown(dir, 65534, 65534))
 	return dir
 }
 
 // TestFileHome_UnwritableDataRootSaysWhatToDo pins the refusal of a commit
-// whose default lock directory cannot be created: it names the directory and
-// the variable that moves the data root, and writes nothing.
+// whose lock directory cannot be created: it names the directory and the
+// variable that moves the data root, and writes nothing.
 func TestFileHome_UnwritableDataRootSaysWhatToDo(t *testing.T) {
 	notADir := filepath.Join(t.TempDir(), "file")
 	require.NoError(t, os.WriteFile(notADir, nil, 0o600))
 	t.Setenv(dataroot.EnvDir, filepath.Join(notADir, "data"))
 
 	body := `{"greeting": "Hello there"}` + "\n"
-	f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{LockDir: filehome.DefaultLockDir()})
+	f := newFixture(t, map[string]string{"a.json": body})
 	ctx := context.Background()
 	page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
 	require.NoError(t, err)
 	b := page.Blocks[0]
 	_, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(b.Ref, b.Rev, "Hello")}}, person)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), filehome.DefaultLockDir(), "the refusal names the directory")
+	assert.Contains(t, err.Error(), filehome.LockDir(), "the refusal names the directory")
 	assert.Contains(t, err.Error(), dataroot.EnvDir, "and the variable that moves it")
 	assert.Equal(t, body, f.read(t, "a.json"), "nothing is written")
 }
@@ -344,8 +340,9 @@ func TestFileHome_PreparesTheLockDirectoryAtTheFirstCommit(t *testing.T) {
 	ctx := context.Background()
 	t.Run("once, at the first commit", func(t *testing.T) {
 		calls := 0
-		dir := filepath.Join(t.TempDir(), "locks")
-		f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{LockDir: dir, PrepareLocks: func() error { calls++; return nil }})
+		t.Setenv(dataroot.EnvDir, t.TempDir())
+		dir := filehome.LockDir()
+		f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{PrepareLocks: func() error { calls++; return nil }})
 		page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
 		require.NoError(t, err)
 		assert.Zero(t, calls, "a read prepares nothing")

@@ -151,7 +151,7 @@ func TestChangeService_DeleteBlockReachesTheCommitCheckAndTheRecord(t *testing.T
 		require.NoError(t, err)
 		spy := &spyCheck{inner: a.CommitCheck(projectCommand(ctx, "change", recipe))}
 		svc := change.NewService(filehome.Formats{Registry: a.FormatReg},
-			change.OneHome(filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: h.prepare})),
+			change.OneHome(filehome.New(h.layout, filehome.Options{PrepareLocks: h.prepare})),
 			change.WithOrigin("test"), change.WithCommitCheck(spy))
 
 		legacy := readLegacy(t, svc)

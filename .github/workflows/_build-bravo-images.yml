@@ -36,7 +36,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/neokapi/bravo-agent:${{ inputs.image-tag }}
-            ghcr.io/neokapi/bravo-agent:latest
+            ${{ github.ref == 'refs/heads/main' && 'ghcr.io/neokapi/bravo-agent:main' || '' }}
           cache-from: type=gha,scope=bravo-agent
           # Only a run on main saves the layer cache; any other ref reads it.
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bravo-agent' || '' }}
@@ -49,7 +49,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/neokapi/bravo-sandbox-node:${{ inputs.image-tag }}
-            ghcr.io/neokapi/bravo-sandbox-node:latest
+            ${{ github.ref == 'refs/heads/main' && 'ghcr.io/neokapi/bravo-sandbox-node:main' || '' }}
           cache-from: type=gha,scope=bravo-sandbox-node
           # Only a run on main saves the layer cache; any other ref reads it.
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bravo-sandbox-node' || '' }}
@@ -62,7 +62,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/neokapi/bravo-sandbox-python:${{ inputs.image-tag }}
-            ghcr.io/neokapi/bravo-sandbox-python:latest
+            ${{ github.ref == 'refs/heads/main' && 'ghcr.io/neokapi/bravo-sandbox-python:main' || '' }}
           cache-from: type=gha,scope=bravo-sandbox-python
           # Only a run on main saves the layer cache; any other ref reads it.
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bravo-sandbox-python' || '' }}

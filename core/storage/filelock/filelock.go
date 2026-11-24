@@ -32,6 +32,9 @@ type Lock struct {
 	mu   sync.Mutex
 	path string
 	file *os.File
+	// holder is the lock's key in the record of what Acquire holds, empty
+	// for a Lock taken another way.
+	holder string
 }
 
 // Open opens the lock file at path, creating it if absent, and returns a Lock
@@ -88,6 +91,7 @@ func (l *Lock) Unlock() {
 	if l == nil || l.file == nil {
 		return
 	}
+	l.forgetHolder()
 	_ = unlockFile(l.file)
 	l.mu.Unlock()
 }
@@ -98,6 +102,7 @@ func (l *Lock) Close() error {
 	if l == nil || l.file == nil {
 		return nil
 	}
+	l.forgetHolder()
 	f := l.file
 	l.file = nil
 	releaseOnClose(f)

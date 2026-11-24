@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -138,9 +139,9 @@ func TestToolRun_InAProjectCommitsAndRecordsAsKapiApplyDoes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(ran), string(applied), "kapi apply of what was printed writes the run's bytes")
 
-	locks, err := os.ReadDir(filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
-	require.NoError(t, err, "the run locks the page where kapi apply in the project locks it")
-	assert.NotEmpty(t, locks)
+	lock, err := filehome.LockFile(filepath.Join(root, "docs", "page.html"))
+	require.NoError(t, err)
+	assert.FileExists(t, lock, "the run locks the page where kapi apply in the project locks it")
 	db, err := a.ProjectDB(t.Context(), root)
 	require.NoError(t, err)
 	rows, err := db.History().Document(t.Context(), a.documentIndexOrEmpty(t.Context(), root).Key("docs/page.html"))

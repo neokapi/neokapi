@@ -77,12 +77,9 @@ type DocumentRun interface {
 }
 
 // home is the file home the run commits through: the configured one, else a
-// home over the default lock directory.
-//
-// The default home is built on each call, so its lock directory
-// (filehome.DefaultLockDir, under the user's data root) is the one the data
-// root names when the run commits. The locks themselves are files, so two
-// homes over one directory exclude each other.
+// home with no options. Every home takes the lock of a file from
+// filehome.LockFile, so a run and any other writer of the file exclude each
+// other, whichever home each commits through.
 func (r *FileRunner) home() *filehome.Home {
 	if r.cfg.Home != nil {
 		return r.cfg.Home

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -143,4 +144,25 @@ func TestConcurrentRecordWritesLeaveAWholeRecord(t *testing.T) {
 	for _, e := range entries {
 		assert.False(t, strings.HasSuffix(e.Name(), ".tmp"), "a temporary file was left: %s", e.Name())
 	}
+}
+
+// A record's temporary file a stopped write left is removed when the record is
+// next written, once it is a day old; a fresh one may be another writer's.
+func TestARecordWriteRemovesStaleTemporaryFiles(t *testing.T) {
+	isolate(t)
+	dir, _, err := EnsureCheckoutDir(t.TempDir())
+	require.NoError(t, err)
+	stale := filepath.Join(dir, ".checkout.json.111.tmp")
+	fresh := filepath.Join(dir, ".checkout.json.222.tmp")
+	for _, p := range []string{stale, fresh} {
+		require.NoError(t, os.WriteFile(p, []byte("{"), 0o600))
+	}
+	old := time.Now().Add(-48 * time.Hour)
+	require.NoError(t, os.Chtimes(stale, old, old))
+	_, err = MarkTold(dir, "n")
+	require.NoError(t, err)
+	assert.NoFileExists(t, stale)
+	assert.FileExists(t, fresh)
+	assert.True(t, IsRecordTemp(".checkout.json.222.tmp"))
+	assert.False(t, IsRecordTemp("checkout.json"))
 }

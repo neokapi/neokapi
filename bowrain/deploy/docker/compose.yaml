@@ -1,19 +1,19 @@
 # Self-hosting Docker Compose for Bowrain (skeleton).
 #
-# This is a minimal reference for self-hosting Bowrain from published images.
-# For LOCAL DEVELOPMENT (build-from-source, demo translation provider, no
-# secrets to fill in), use bowrain/compose.full.yaml instead.
+# A minimal reference for self-hosting Bowrain from published images. For
+# local development, use bowrain/compose.full.yaml instead.
 #
-# The server requires PostgreSQL (there is no SQLite/file backend) and an async
-# worker that shares the job queue (SQS-compatible, ElasticMQ here) and the blob
-# volume. Auto-translate on push runs in the worker; configure its upstream
-# provider via the env below.
+# The server needs PostgreSQL and an async worker that shares the job queue
+# (ElasticMQ here) and the blob volume; configure the worker's translation
+# provider in the env below.
 #
-# Before `up`, set the placeholders marked REQUIRED (OIDC + JWT secret + a real
-# translation provider). Traefik routes:
+# Before `up`, set the placeholders marked REQUIRED. Traefik routes:
 #   /api/*     → bowrain-server:8080
 #   /neokapi.* → bowrain-server:8080  (gRPC)
 #   /*         → bowrain-web:80        (SPA)
+#
+# Images: `latest` is the last release, rebuilt weekly with base-image fixes.
+# To choose when to upgrade, pin one version (say 1.4.0) for every image.
 #
 # Usage:
 #   docker compose -f deploy/docker/compose.yaml up -d
@@ -32,7 +32,7 @@ services:
       - "--providers.file.watch=true"
     restart: unless-stopped
 
-  # Standard PostgreSQL — the brand knowledge graph runs on the plain-SQL
+  # Standard PostgreSQL. The brand knowledge graph runs on the plain-SQL
   # graph backend (no extension required), so this works unchanged on managed
   # PostgreSQL such as RDS/Aurora. See bowrain/graph/NOTES.md.
   postgres:

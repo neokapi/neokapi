@@ -468,7 +468,7 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 		if err != nil {
 			return "", err
 		}
-		home = filehome.New(nil, filehome.Options{Root: writeRoot, LockDir: filepath.Join(host.DataDir(), "locks")})
+		home = filehome.New(nil, filehome.Options{Root: writeRoot})
 	}
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,

@@ -46,7 +46,6 @@ func newTargetFixture(t *testing.T, files map[string]string, opts ...filehome.Op
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	o.LockDir = t.TempDir()
 	home := filehome.New(targetLayout{filehome.DirLayout{Root: f.dir, Formats: reg, SourceLocale: "en"}}, o)
 	f.svc = change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 	return f
@@ -118,7 +117,7 @@ func TestFileHome_TheRecordReadsAnEditionInItsOwnFileAsTheChangeLeftIt(t *testin
 		"de/guide.json": `{"title": "Willkommen"}` + "\n",
 	})
 	rec := &capturedRecords{}
-	home := filehome.New(targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}, filehome.Options{LockDir: t.TempDir()})
+	home := filehome.New(targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}, filehome.Options{})
 	svc := change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(home), change.WithRecorder(rec))
 	ctx := context.Background()
 	de := mustEdition(t, "de")
@@ -180,7 +179,7 @@ func TestFileHome_AnEditToTheDocumentNamesTheEditionsItLeavesStale(t *testing.T)
 		"guide.json":    `{"title": "Welcome"}` + "\n",
 		"de/guide.json": `{"title": "Willkommen"}` + "\n",
 	})
-	f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(derivedLayout{targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}}, filehome.Options{LockDir: t.TempDir()})))
+	f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(derivedLayout{targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}}, filehome.Options{})))
 	ctx := context.Background()
 	page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "guide.json"})
 	require.NoError(t, err)
@@ -218,7 +217,7 @@ func TestFileHome_AnArchiveMemberIsEditedInPlace(t *testing.T) {
 
 	reg := newRegistry()
 	svc := change.NewService(filehome.Formats{Registry: reg},
-		change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, filehome.Options{LockDir: t.TempDir()})))
+		change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, filehome.Options{})))
 	ctx := context.Background()
 	page, err := svc.Read(ctx, change.ReadRequest{Doc: "bundle.zip!locales/en.json"})
 	require.NoError(t, err)
@@ -284,7 +283,6 @@ func TestFileHome_ADocumentThatKeepsMovingIsDocChanged(t *testing.T) {
 	// read that applies the edit again under the lock, and again during it.
 	layout := movingLayout{Root: dir, Formats: reg, SourceLocale: "en", reads: &reads, moveOn: []int{3}}
 	svc := change.NewService(filehome.Formats{Registry: reg}, change.OneHome(filehome.New(layout, filehome.Options{
-		LockDir: t.TempDir(),
 		BeforeSettle: func(string) {
 			body, _ := os.ReadFile(path)
 			require.NoError(t, os.WriteFile(path, append(body, '\n'), 0o644))
@@ -311,7 +309,7 @@ func TestFileHome_ADocumentThatMovedOnceIsAppliedAgain(t *testing.T) {
 	reg := newRegistry()
 	svc := change.NewService(filehome.Formats{Registry: reg}, change.OneHome(filehome.New(
 		filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"},
-		filehome.Options{LockDir: t.TempDir(), BeforeSettle: func(string) {
+		filehome.Options{BeforeSettle: func(string) {
 			// A person saves another message between the stage and the commit.
 			require.NoError(t, os.WriteFile(path, []byte(`{"title": "Hello", "body": "Saved"}`), 0o644))
 		}})))

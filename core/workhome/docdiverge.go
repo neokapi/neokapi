@@ -17,20 +17,19 @@ import (
 )
 
 // A document the home keeps whole diverges when two writers wrote it from one
-// head and their logs met: the write that sorts later is listed beside the
-// head (DocHead.Divergent) and a read reports it (change.Page.Divergent). A
+// head and their logs met. The write that sorts later is listed beside the
+// head (DocHead.Divergent), and a read reports it (change.Page.Divergent). A
 // person or an agent settles it in one of two ways, each recorded as a write
-// that names the divergent write as its cause:
+// that names the divergent write as its cause.
+
+// The two ways to settle a divergent write:
 //
-//   - Rebase reads the document at the head again and applies the divergent
-//     write's changes to it through the change service, block by block, each
-//     guarded by the revision the block had where the write began. A block
-//     the write added or removed is inserted or removed the same way. A block
-//     the head changed too, or whose surrounding structure the head changed,
-//     stays contested and is listed on the divergent
-//     write, for a person to decide with an ordinary change set guarded by
-//     the head's revision; keeping the head's wording decides it too
-//     (change.ContestedSession).
+//   - Rebase applies the divergent write's changes to the head through the
+//     change service, block by block, each guarded by the revision the block
+//     had where the write began. Added and removed blocks are inserted and
+//     removed the same way. A block the head changed too, or whose structure
+//     it changed, stays contested on the divergent write, for a person to
+//     decide (change.ContestedSession).
 //   - Discard drops the divergent write and keeps the head as it stands.
 
 // ErrNotDivergent is what Rebase and Discard return for a write that is not
@@ -102,20 +101,15 @@ type DocRebase struct {
 	Contested []DocBlock
 }
 
-// Rebase carries the divergent write op to document key over onto the head:
-// the head is read again, and each change the write made, block by block and
-// edition by edition, is sent through svc as an operation guarded by the
-// revision the block had where the write began, as actor. A block the write
-// added is inserted (insert_block), anchored on a neighbour the write's base
-// and the head both hold, and a block it removed is removed (delete_block),
-// guarded by the revisions it had at the base. A block the head changed too
-// is left contested, and so is a block whose structure conflicts: the format
-// adds or removes no block, the head holds neither neighbour of an added
-// block, holds a block of the same key with other content, or changed a
-// removed block. Once the operations land, a write that
-// names op as its cause records the blocks left contested, or settles the
-// write when none is. A change set the service refuses (a stale block, a
-// failing gate) is returned in the result and settles nothing.
+// Rebase carries the divergent write op to document key over onto the head.
+// Each change the write made, block by block and edition by edition, is sent
+// through svc as actor, guarded by the revision the block had where the write
+// began. An added block is inserted, anchored on a neighbour the base and the
+// head both hold; a removed block is removed. A block the head changed too is
+// left contested, and so is a block whose structure conflicts. Once the
+// operations land, a write naming op as its cause records the contested
+// blocks, or settles the write when none is. A refused change set is returned
+// in the result and settles nothing.
 //
 // svc routes the document's reference (Prefix+key) to this home. A write a
 // rebase has carried over already is not carried again; its contested blocks
@@ -375,7 +369,7 @@ func (d *Documents) workingCopy(ctx context.Context, key, format string, data []
 	if info := d.Formats.FormatInfo(registry.FormatID(format)); info != nil && info.Interchange {
 		located.Editions, located.TargetLocale = change.EditionsInFile, d.TargetLocale
 	}
-	inner := filehome.New(oneDoc{located}, filehome.Options{LockDir: filepath.Join(dir, "locks")})
+	inner := filehome.New(oneDoc{located}, filehome.Options{})
 	sess, err := inner.Open(ctx, ref)
 	if err != nil {
 		_ = os.RemoveAll(dir)
@@ -394,11 +388,12 @@ func (d *Documents) editionName(k model.EditionKey) string {
 }
 
 // insertOp is the insert_block that adds block k, which the divergent write
-// added at position i of its document, to the head: anchored before the
+// added at position i of its document, to the head. It is anchored before the
 // next block the write's base held, or after the previous one, whichever the
-// head still holds. ok is false when the format adds no block, the block
-// holds an edition an insert does not write, or the head holds neither
-// neighbour: the structure around the block conflicts.
+// head still holds. ok is false when the structure around the block
+// conflicts. That is so when the format adds no block, when the block holds
+// an edition an insert does not write, or when the head holds neither
+// neighbour.
 func (d *Documents) insertOp(ref, k string, a *model.Block, order []string, i int, base, held map[string]*model.Block, structural []change.Kind) (change.Op, bool) {
 	if !slices.Contains(structural, change.KindInsertBlock) {
 		return change.Op{}, false

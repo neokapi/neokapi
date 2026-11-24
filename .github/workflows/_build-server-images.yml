@@ -51,7 +51,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-server:${{ inputs.image-tag }}
-            ghcr.io/neokapi/bowrain-server:latest
+            ${{ github.ref == 'refs/heads/main' && 'ghcr.io/neokapi/bowrain-server:main' || '' }}
           build-args: |
             VERSION=${{ inputs.version }}
             COMMIT=${{ inputs.commit }}
@@ -70,7 +70,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-worker:${{ inputs.image-tag }}
-            ghcr.io/neokapi/bowrain-worker:latest
+            ${{ github.ref == 'refs/heads/main' && 'ghcr.io/neokapi/bowrain-worker:main' || '' }}
           build-args: |
             VERSION=${{ inputs.version }}
             COMMIT=${{ inputs.commit }}

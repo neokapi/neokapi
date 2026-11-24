@@ -3,7 +3,7 @@ package main
 // allowCore lists the places in its area that may reach a file by path.
 var allowCore = map[string]string{
 	// The file home's lock directory and a destination outside its root.
-	"core/change/filehome/home.go:ensureLockDir":  "the lock directory, under the OS temp dir, the kapi data dir or the project state directory, refused unless it is a directory this user alone can write",
+	"core/change/filehome/home.go:ensureLockDir":  "the lock directory, locks under the kapi data dir (filehome.LockDir), refused unless it is a directory this user alone owns and can write",
 	"core/change/filehome/stage.go:backUpAsNamed": "a destination outside the home's root, which a person named (PermitOutside)",
 
 	// Output destinations: diagnosis only, the write goes through the file home.
