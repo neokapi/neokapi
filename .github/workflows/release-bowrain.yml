@@ -85,6 +85,27 @@ jobs:
             echo "build_only=$build_only"
           } >> "$GITHUB_OUTPUT"
 
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            docs/internals/gardening.yaml
+            providers/ai/models.json
+            scripts/gardening-due.py
+          sparse-checkout-cone-mode: false
+
+      # Bowrain reads the same model catalog (bowrain/platformconfig,
+      # bowrain/billing), so the release gate in docs/internals/gardening.yaml
+      # applies here as in release.yml. A build-only dispatch reports the age.
+      - name: Check the model catalog is fresh enough to release
+        env:
+          BUILD_ONLY: ${{ steps.r.outputs.build_only }}
+        run: |
+          if [ "$BUILD_ONLY" = true ]; then
+            python3 scripts/gardening-due.py --release-gate model-catalog --report-only
+          else
+            python3 scripts/gardening-due.py --release-gate model-catalog
+          fi
+
   # Build the kapi-bowrain plugin binary natively per OS/arch with cgo +
   # statically-linked ICU + the fts5 tag, matching the framework the desktop
   # apps use. Mirrors release.yml's build-cli, but builds ONLY kapi-bowrain (the
