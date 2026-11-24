@@ -362,11 +362,17 @@ def sync_issues(results: list[dict], close: bool, gardener: str, origin: str, to
 
 def release_gate(root: str, item_id: str, today: dt.date) -> tuple[bool, str]:
     """Whether a release may proceed, and the line saying why."""
-    items = {i["id"]: i for i in load_items(root)}
+    try:
+        items = {i["id"]: i for i in load_items(root)}
+    except (OSError, yaml.YAMLError) as err:
+        return False, f"cannot read {LIST}: {err}"
     item = items.get(item_id)
     if item is None or "release_gate_days" not in item:
         return False, f"{item_id} has no release_gate_days in {LIST}"
-    limit = int(item["release_gate_days"])
+    try:
+        limit = int(item["release_gate_days"])
+    except (TypeError, ValueError):
+        return False, f"{item_id}'s release_gate_days in {LIST} is not a whole number of days: {item['release_gate_days']!r}"
     verdict = check_item(root, {**item, "cadence_days": limit}, today)
     verdict["reason"] = verdict["reason"].replace(f"; the cadence is {limit} days", "")
     if verdict["due"]:
@@ -403,6 +409,15 @@ def gate_self_test() -> list[str]:
             failures.append("a missing date must refuse the release")
         if release_gate(root, "nogate", today)[0]:
             failures.append("an item with no release_gate_days must refuse, not pass")
+        with open(os.path.join(root, LIST), "a") as fh:
+            fh.write("  - id: badgate\n    run: x\n    release_gate_days: sixty\n    source:\n      kind: json-field\n      file: m.json\n      field: as_of\n")
+        ok, line = release_gate(root, "badgate", today)
+        if ok or "not a whole number" not in line:
+            failures.append(f"a non-integer release_gate_days refuses with a plain message: {line}")
+        os.remove(os.path.join(root, LIST))
+        ok, line = release_gate(root, "cat", today)
+        if ok or "cannot read" not in line:
+            failures.append(f"a missing gardening.yaml refuses with a plain message: {line}")
     return failures
 
 
