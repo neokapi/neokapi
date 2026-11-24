@@ -32,9 +32,14 @@ type StateTransferOutput struct {
 	// Unverified is set when kapi's record cannot say the state is this
 	// project's.
 	Unverified bool `json:"unverified,omitempty"`
-	// Withheld are the vault and sync state files an unverified relink leaves
-	// where they are; --same-project takes them.
-	Withheld []StateFileOutput `json:"withheld,omitempty"`
+	// Withheld are the files a relink leaves where they are, and WithheldWhy
+	// says why, one line for each group.
+	Withheld    []StateFileOutput `json:"withheld,omitempty"`
+	WithheldWhy []string          `json:"withheld_why,omitempty"`
+	// SyncServer and SyncProject name the server project the sync state among
+	// the files is bound to, when its sync cache names one.
+	SyncServer  string `json:"sync_server,omitempty"`
+	SyncProject string `json:"sync_project,omitempty"`
 	// RemovesSource is set when a relink removes the directory it takes from,
 	// once every file is in place and read back.
 	RemovesSource bool `json:"removes_source,omitempty"`
@@ -56,7 +61,10 @@ func (o StateTransferOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "The copies in %s are left as they were; kapi no longer reads them, and you can delete them.\n", o.From)
 	}
 	if len(o.Withheld) > 0 {
-		fmt.Fprintf(w, "The vault and the sync state stay in %s; if that state is this project's, run the relink again with --same-project.\n", o.From)
+		fmt.Fprintf(w, "%d file(s) stay in %s:\n", len(o.Withheld), o.From)
+		for _, why := range o.WithheldWhy {
+			fmt.Fprintf(w, "  %s\n", why)
+		}
 	}
 	return nil
 }

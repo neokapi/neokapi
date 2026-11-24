@@ -5,6 +5,7 @@ package dataroot
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -103,4 +104,43 @@ func TestARestoredStateDirectoryGetsItsRecord(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NormalizePath(root), rec.Path)
 	assert.DirExists(t, filepath.Join(dir, "work", "cache", "docs"), "what was restored is kept")
+}
+
+// Writers of one checkout's record writing at once leave a whole record each
+// time, and no temporary file behind. An edit can be lost to a concurrent
+// writer (updateRecord takes no lock), so the test asserts the record holds
+// only fields one of the writers wrote.
+func TestConcurrentRecordWritesLeaveAWholeRecord(t *testing.T) {
+	isolate(t)
+	root := t.TempDir()
+	dir, _, err := EnsureCheckoutDir(root)
+	require.NoError(t, err)
+
+	const n = 24
+	done := make(chan error, n+1)
+	for i := range n {
+		go func() {
+			_, err := MarkTold(dir, "notice-"+strconv.Itoa(i))
+			done <- err
+		}()
+	}
+	go func() { done <- SetRecordProject(dir, CheckoutProject{ID: "prj_x", Name: "x"}) }()
+	for range n + 1 {
+		require.NoError(t, <-done)
+	}
+	rec, err := ReadRecord(dir)
+	require.NoError(t, err)
+	assert.NotEmpty(t, rec.Told, "the record is whole and holds notices")
+	for name := range rec.Told {
+		assert.True(t, strings.HasPrefix(name, "notice-"), name)
+	}
+	if rec.Project != nil {
+		assert.Equal(t, "prj_x", rec.Project.ID)
+	}
+	assert.Equal(t, NormalizePath(root), rec.Path)
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	for _, e := range entries {
+		assert.False(t, strings.HasSuffix(e.Name(), ".tmp"), "a temporary file was left: %s", e.Name())
+	}
 }

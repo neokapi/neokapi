@@ -298,7 +298,8 @@ func TestImportTakesExactlyWhatItShowed(t *testing.T) {
 		withVault(t, l, `{"already":"here"}`)
 		plan, err := PlanImport(l)
 		require.NoError(t, err)
-		require.ErrorContains(t, ApplyTransfer(l, plan, false), "already keeps vault/redaction.json")
+		err = ApplyTransfer(l, plan, false)
+		require.ErrorContains(t, err, filepath.Join("vault", "redaction.json")+", with other content, so nothing was taken")
 	})
 }
 

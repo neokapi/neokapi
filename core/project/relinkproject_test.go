@@ -25,7 +25,7 @@ func earlierCheckout(t *testing.T, root, recipe string) string {
 	withVault(t, l, `{"originals":"of the earlier project"}`)
 	_, err := EnsureLocalDir(l, SyncDirName)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(l.SyncDir(), "sync-cache.json"), []byte(`{"claim_token":"clm_earlier","server_url":"https://app.example"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(l.SyncDir(), "sync-cache.json"), []byte(`{"claim_token":"clm_earlier","server_url":"https://app.example","project_id":"p1"}`), 0o600))
 	require.NoError(t, os.WriteFile(l.LocalFiltersPath(), []byte(`{"active":"mine"}`), 0o600))
 	dir := l.LocalStateDir()
 	require.NoError(t, os.RemoveAll(root))
@@ -55,13 +55,13 @@ func TestRelinkTakesOnlyThisProjectsState(t *testing.T) {
 
 	t.Run("the same project is relinked and the earlier directory removed", func(t *testing.T) {
 		root := filepath.Join(t.TempDir(), "app")
-		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\nbowrain:\n  url: https://app.example/team/p1\n")
 		rec, err := dataroot.ReadRecord(earlier)
 		require.NoError(t, err)
 		require.NotNil(t, rec.Project, "the record names the project")
 		assert.Equal(t, dataroot.CheckoutProject{ID: "prj_same", Name: "app"}, *rec.Project)
 
-		later := laterCheckout(t, root, "version: v1\nname: app renamed\nid: prj_same\n")
+		later := laterCheckout(t, root, "version: v1\nname: app renamed\nid: prj_same\nbowrain:\n  url: https://APP.example/team/p1/\n")
 		plan, err := PlanRelink(later, root, RelinkOptions{})
 		require.NoError(t, err)
 		assert.False(t, plan.Unverified)
@@ -140,4 +140,98 @@ func TestRelinkTakesOnlyThisProjectsState(t *testing.T) {
 		assert.FileExists(t, later.RedactionVaultPath())
 		assert.NoDirExists(t, earlier)
 	})
+}
+
+// The sync state is bound to one server project. Two checkouts that share a
+// recipe id bring it across only when the recipe connects to the server
+// project it is bound to.
+func TestRelinkBringsTheSyncStateOnlyToItsServerProject(t *testing.T) {
+	captureStateNotices(t)
+	targets := func(files []StateFile) []string {
+		var out []string
+		for _, f := range files {
+			out = append(out, f.Target)
+		}
+		return out
+	}
+
+	t.Run("a recipe that connects to another server project leaves the sync state, whatever the person states", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "app")
+		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\nbowrain:\n  url: https://app.example/team/p1\n")
+		later := laterCheckout(t, root, "version: v1\nname: app fork\nid: prj_same\nbowrain:\n  url: https://app.example/team/p2\n")
+		for _, opts := range []RelinkOptions{{}, {SameProject: true}} {
+			plan, err := PlanRelink(later, root, opts)
+			require.NoError(t, err)
+			assert.False(t, plan.Unverified, "the ids match")
+			assert.Equal(t, []string{"sync/sync-cache.json"}, targets(plan.Withheld))
+			assert.Contains(t, targets(plan.Files), "vault/redaction.json", "the vault of the same project comes across")
+			require.NotNil(t, plan.SyncProject)
+			assert.Equal(t, "https://app.example project p1", plan.SyncProject.String())
+			require.Len(t, plan.WithheldWhy, 1)
+			assert.Contains(t, plan.WithheldWhy[0], "bound to https://app.example project p1, and this recipe connects to https://app.example project p2")
+			assert.False(t, plan.RemovesSource)
+		}
+		plan, err := PlanRelink(later, root, RelinkOptions{SameProject: true})
+		require.NoError(t, err)
+		require.NoError(t, ApplyTransfer(later, plan, false))
+		assert.FileExists(t, later.RedactionVaultPath())
+		assert.NoFileExists(t, filepath.Join(later.SyncDir(), "sync-cache.json"), "the sync state did not cross")
+		assert.FileExists(t, filepath.Join(earlier, SyncDirName, "sync-cache.json"))
+	})
+
+	t.Run("a recipe that connects to no server project leaves the sync state unless asked", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "app")
+		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+		later := laterCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+		plan, err := PlanRelink(later, root, RelinkOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"sync/sync-cache.json"}, targets(plan.Withheld))
+		require.Len(t, plan.WithheldWhy, 1)
+		assert.Contains(t, plan.WithheldWhy[0], "connects to no server project")
+		require.NoError(t, ApplyTransfer(later, plan, false))
+		assert.NoFileExists(t, filepath.Join(later.SyncDir(), "sync-cache.json"))
+		assert.FileExists(t, filepath.Join(earlier, SyncDirName, "sync-cache.json"))
+
+		asked, err := PlanRelink(later, root, RelinkOptions{SameProject: true})
+		require.NoError(t, err)
+		assert.Empty(t, asked.Withheld)
+		require.NoError(t, ApplyTransfer(later, asked, false))
+		assert.FileExists(t, filepath.Join(later.SyncDir(), "sync-cache.json"))
+	})
+}
+
+// A transfer that fails part way leaves the checkout's state as it was and
+// says what to do; running it again starts over.
+func TestATransferThatStopsPartWayRemovesWhatItWrote(t *testing.T) {
+	captureStateNotices(t)
+	root := filepath.Join(t.TempDir(), "app")
+	l := laterCheckout(t, root, "version: v1\nname: app\n")
+	in := filepath.Join(root, StateDirName)
+	require.NoError(t, os.MkdirAll(filepath.Join(in, VaultDirName), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(in, VaultDirName, "redaction.json"), []byte(`{"v":1}`), 0o600))
+	require.NoError(t, os.MkdirAll(filepath.Join(in, SyncDirName), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(in, SyncDirName, "sync-cache.json"), []byte(`{"s":1}`), 0o600))
+	plan, err := PlanImport(l)
+	require.NoError(t, err)
+	require.Len(t, plan.Files, 2)
+	require.NoError(t, EnsureLayout(l))
+	// The sync directory of the state cannot be written, so the second file
+	// fails after the first was written.
+	syncDir := filepath.Join(l.LocalStateDir(), SyncDirName)
+	require.NoError(t, os.MkdirAll(syncDir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(syncDir, 0o700) })
+
+	err = ApplyTransfer(l, plan, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not be written")
+	assert.Contains(t, err.Error(), "nothing was taken")
+	assert.Contains(t, err.Error(), "run the command again")
+	assert.NoFileExists(t, l.RedactionVaultPath(), "the copy already written was removed")
+	assert.FileExists(t, filepath.Join(in, VaultDirName, "redaction.json"), "the source is kept")
+
+	require.NoError(t, os.Chmod(syncDir, 0o700))
+	again, err := PlanImport(l)
+	require.NoError(t, err)
+	require.NoError(t, ApplyTransfer(l, again, false), "running it again starts over")
+	assert.FileExists(t, l.RedactionVaultPath())
 }

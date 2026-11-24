@@ -51,6 +51,11 @@ type StateTransfer struct {
 	// where they are, unless the person states that the state is this
 	// project's (RelinkOptions.SameProject).
 	Withheld []StateFile `json:"withheld,omitempty"`
+	// WithheldWhy says why each group of Withheld stays, for the person.
+	WithheldWhy []string `json:"withheld_why,omitempty"`
+	// SyncProject is the server project the sync state among the files is
+	// bound to, when its sync cache names one.
+	SyncProject *SyncBinding `json:"sync_project,omitempty"`
 	// RemovesSource reports a relink that removes the state directory it takes
 	// from, once every file is in place and read back.
 	RemovesSource bool `json:"removes_source,omitempty"`
@@ -65,7 +70,9 @@ type StateTransfer struct {
 type RelinkOptions struct {
 	// SameProject states that the earlier checkout's state belongs to this
 	// project when its record cannot say so, so the vault and the sync state
-	// come across too.
+	// come across too. It also brings the sync state of a checkout whose
+	// recipe names no server project to compare it with; it never brings
+	// sync state bound to another server project than the recipe names.
 	SameProject bool
 }
 
@@ -159,15 +166,28 @@ func PlanRelink(l Layout, from string, opts RelinkOptions) (StateTransfer, error
 	if err != nil {
 		return out, err
 	}
+	keepSecrets := out.Unverified && !opts.SameProject
+	if keepSecrets {
+		out.WithheldWhy = append(out.WithheldWhy, "kapi's record cannot say this state belongs to this project, so the vault and the sync state stay; pass --same-project if it does")
+	}
+	keepSync, why := syncWithheld(l, root, opts)
+	if keepSync && !keepSecrets {
+		out.WithheldWhy = append(out.WithheldWhy, why)
+	}
+	if b, ok := recordedSyncBinding(root); ok {
+		out.SyncProject = &b
+	}
 	for _, f := range files {
 		// The work directory is rebuilt where the checkout is now; what
-		// cannot be rebuilt is what comes across.
+		// cannot be rebuilt is what comes across. The record stays with the
+		// directory it describes.
 		if f.path == dataroot.CheckoutRecordFilename || strings.HasPrefix(filepath.ToSlash(f.path), WorkDirName+"/") {
 			continue
 		}
 		p := filepath.ToSlash(f.path)
 		file := StateFile{Source: p, Target: p, Size: f.size, Digest: f.digest}
-		if out.Unverified && !opts.SameProject && (strings.HasPrefix(p, VaultDirName+"/") || strings.HasPrefix(p, SyncDirName+"/")) {
+		isVault, isSync := strings.HasPrefix(p, VaultDirName+"/"), strings.HasPrefix(p, SyncDirName+"/")
+		if (keepSecrets && (isVault || isSync)) || (keepSync && isSync) {
 			out.Withheld = append(out.Withheld, file)
 			continue
 		}
@@ -229,24 +249,47 @@ func ApplyTransfer(l Layout, shown StateTransfer, removeSource bool) error {
 		}
 	}
 	if len(conflicts) > 0 {
-		return fmt.Errorf("project: this checkout already keeps %s, with other content; move it aside and run again", strings.Join(conflicts, ", "))
+		paths := make([]string, len(conflicts))
+		for i, c := range conflicts {
+			paths[i] = filepath.Join(l.LocalStateDir(), filepath.FromSlash(c))
+		}
+		return fmt.Errorf("project: this checkout already keeps %s, with other content, so nothing was taken; move it aside and run the command again", strings.Join(paths, ", "))
+	}
+	// The files this transfer writes where nothing was before. A transfer that
+	// stops part way removes them again, so the checkout's state is as it was
+	// and running the command again starts over.
+	var wrote []string
+	undo := func(what string) error {
+		var left []string
+		for _, rel := range wrote {
+			if err := dst.Remove(filepath.FromSlash(rel)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				left = append(left, filepath.Join(l.LocalStateDir(), filepath.FromSlash(rel)))
+			}
+		}
+		if len(left) > 0 {
+			return fmt.Errorf("project: %s, so nothing was taken and %s is kept; delete %s and run the command again", what, now.From, strings.Join(left, ", "))
+		}
+		return fmt.Errorf("project: %s, so nothing was taken: %s is kept and the copies already written were removed; run the command again", what, now.From)
 	}
 	for _, f := range now.Files {
 		data, err := src.ReadFile(filepath.FromSlash(f.Source))
 		if err != nil {
-			return err
+			return undo(fmt.Sprintf("%s could not be read (%v)", f.Source, err))
 		}
 		if digestOf(data) != f.Digest {
-			return fmt.Errorf("project: %s changed while it was taken; run the command again", f.Source)
+			return undo(f.Source + " changed while it was taken")
+		}
+		if _, err := dst.Lstat(filepath.FromSlash(f.Target)); errors.Is(err, fs.ErrNotExist) {
+			wrote = append(wrote, f.Target)
 		}
 		if err := writeStateFileIn(dst, filepath.FromSlash(f.Target), data); err != nil {
-			return err
+			return undo(fmt.Sprintf("%s could not be written (%v)", f.Target, err))
 		}
 	}
 	for _, f := range now.Files {
 		data, err := dst.ReadFile(filepath.FromSlash(f.Target))
 		if err != nil || digestOf(data) != f.Digest {
-			return fmt.Errorf("project: %s did not read back as it was written, so the source is kept; run the command again", f.Target)
+			return undo(filepath.Join(l.LocalStateDir(), filepath.FromSlash(f.Target)) + " did not read back as it was written")
 		}
 	}
 	switch {

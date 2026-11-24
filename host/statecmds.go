@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
@@ -69,6 +70,10 @@ func (a *App) stateTransfer(cmd Command, layout project.Layout, action string, p
 	for _, f := range plan.Withheld {
 		out.Withheld = append(out.Withheld, output.StateFileOutput{Source: f.Source, Target: f.Target, Size: f.Size})
 	}
+	out.WithheldWhy = plan.WithheldWhy
+	if plan.SyncProject != nil {
+		out.SyncServer, out.SyncProject = plan.SyncProject.Server, plan.SyncProject.Project
+	}
 	if a.agentRunning() {
 		return out, errors.New("an agent is running this command, and only a person can bring state into a checkout")
 	}
@@ -76,7 +81,7 @@ func (a *App) stateTransfer(cmd Command, layout project.Layout, action string, p
 		out.Reason = "there is no state to take"
 		if len(plan.Withheld) > 0 {
 			printStateTransfer(cmd.ErrOrStderr(), out)
-			out.Reason = "kapi's record cannot say this state is this project's, so the vault and the sync state stay; pass --same-project to take them"
+			out.Reason = strings.Join(plan.WithheldWhy, "; ")
 		}
 		return out, nil
 	}
@@ -112,8 +117,11 @@ func printStateTransfer(w io.Writer, o output.StateTransferOutput) {
 	for _, f := range o.Withheld {
 		fmt.Fprintf(w, "  stays: %s  (%d bytes)\n", f.Source, f.Size)
 	}
-	if len(o.Withheld) > 0 {
-		fmt.Fprintln(w, "The vault and the sync state stay where they are; if this state is this project's, run the relink again with --same-project.")
+	for _, why := range o.WithheldWhy {
+		fmt.Fprintf(w, "Why they stay: %s.\n", why)
+	}
+	if o.SyncProject != "" {
+		fmt.Fprintf(w, "The sync state is bound to %s project %s.\n", o.SyncServer, o.SyncProject)
 	}
 	for _, s := range o.Servers {
 		fmt.Fprintf(w, "The sync state among them was issued by %q, and kapi sends its claim token to that server only.\n", s)
