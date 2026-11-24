@@ -320,17 +320,13 @@ docker-all: docker-server docker-web docker-keycloak ## Build all Docker images
 
 docker-push-server: ## Push server and worker images
 	docker push $(DOCKER_IMAGE):$(VERSION)
-	docker push $(DOCKER_IMAGE):latest
 	docker push $(DOCKER_WORKER_IMAGE):$(VERSION)
-	docker push $(DOCKER_WORKER_IMAGE):latest
 
 docker-push-web: ## Push web UI image
 	docker push $(DOCKER_WEB_IMAGE):$(VERSION)
-	docker push $(DOCKER_WEB_IMAGE):latest
 
 docker-push-keycloak: ## Push keycloak image
 	docker push $(DOCKER_KEYCLOAK_IMAGE):$(VERSION)
-	docker push $(DOCKER_KEYCLOAK_IMAGE):latest
 
 docker-push: docker-push-server docker-push-web docker-push-keycloak ## Push all Docker images
 

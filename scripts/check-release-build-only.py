@@ -34,6 +34,13 @@ local composite actions with their inputs, and fails on any that:
   * reads a secret, GITHUB_TOKEN and github.token included, in its env, with
     or run, or in the job's or the workflow's env.
 
+It also holds the meaning of `latest`: the last release, kept patched by the
+weekly rebuild. Outside LATEST_PUBLISHERS (release-bowrain.yml and
+rebuild-release-images.yml), nothing pushes a `latest` tag to the registry:
+no docker/build-push-action tag, no `docker push` of one, no `imagetools
+create -t …:latest`, in any workflow, local action, Makefile or script. A build
+from main pushes `main` and its commit tag instead.
+
 Exit status: 0 a build-only run holds no write and publishes nothing, 1 it
 does, 2 a workflow, action or condition cannot be read.
 """
@@ -41,6 +48,7 @@ does, 2 a workflow, action or condition cannot be read.
 from __future__ import annotations
 
 import contextlib
+import glob
 import importlib.util
 import os
 import re
@@ -237,8 +245,58 @@ def check_workflow(root: str, rel: str, doc: dict) -> list[str]:
     return problems
 
 
+LATEST_PUBLISHERS = (".github/workflows/release-bowrain.yml", ".github/workflows/rebuild-release-images.yml")
+LATEST_TAG = re.compile(r":latest\b")
+LATEST_RUN = re.compile(r"docker\s+push\s+\S*:latest\b|imagetools\s+create\b[^\n]*-t\s+\S*:latest\b|--tag[= ]\S*:latest\b")
+
+
+def latest_pushes(root: str) -> list[str]:
+    """Places outside LATEST_PUBLISHERS that push a `latest` tag."""
+    out = []
+    files = sorted(glob.glob(os.path.join(root, ".github", "workflows", "*.yml"))
+                   + glob.glob(os.path.join(root, ".github", "actions", "**", "action.yml"), recursive=True))
+    for path in files:
+        rel = os.path.relpath(path, root).replace(os.sep, "/")
+        if rel in LATEST_PUBLISHERS:
+            continue
+        try:
+            with open(path) as fh:
+                doc = yaml.safe_load(fh) or {}
+        except (OSError, yaml.YAMLError) as err:
+            raise Unreadable(f"{rel}: {err}") from err
+        steps = list((doc.get("runs") or {}).get("steps") or [])
+        for job in (doc.get("jobs") or {}).values():
+            if isinstance(job, dict):
+                steps += job.get("steps") or []
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            label = f"{rel} step {step.get('name') or step.get('uses') or '?'}"
+            with_ = step.get("with") or {}
+            if str(step.get("uses", "")).startswith("docker/build-push-action") and LATEST_TAG.search(str(with_.get("tags", ""))):
+                out.append(f"{label}: pushes a latest tag")
+            hit = LATEST_RUN.search(str(step.get("run", "")))
+            if hit:
+                out.append(f"{label}: runs {hit.group(0)!r}")
+    others = [os.path.join(root, "Makefile")] + glob.glob(os.path.join(root, "*", "Makefile")) \
+        + glob.glob(os.path.join(root, "scripts", "**", "*.sh"), recursive=True)
+    for path in sorted(set(others)):
+        if not os.path.isfile(path):
+            continue
+        rel = os.path.relpath(path, root).replace(os.sep, "/")
+        with open(path, errors="replace") as fh:
+            for n, line in enumerate(fh, 1):
+                if line.lstrip().startswith("#"):
+                    continue
+                hit = LATEST_RUN.search(line)
+                if hit:
+                    out.append(f"{rel}:{n}: {hit.group(0)!r}")
+    return out
+
+
 def check(root: str) -> list[str]:
-    problems = []
+    problems = [f"{p}; only {' and '.join(LATEST_PUBLISHERS)} move latest, which means the last release"
+                for p in latest_pushes(root)]
     for name in WORKFLOWS:
         path = os.path.join(root, ".github", "workflows", name)
         try:
@@ -260,7 +318,8 @@ def main() -> int:
         print("check-release-build-only: a build-only release run holds write or publishes\n")
         for p in problems:
             print("  " + p)
-        print("\nGrant write only to a publishing job, skip it on a build-only run\n"
+        print("\nPush `main` and the commit tag from a build of main; `latest` is the release's.\n"
+              "Grant write only to a publishing job, skip it on a build-only run\n"
               "(`if: needs.setup.outputs.build_only != 'true'`), and keep secrets and\n"
               "publishing commands out of every job a build-only run reaches.")
         return 1
@@ -406,6 +465,42 @@ def self_test() -> int:
         no_input = yaml.safe_load(FIXTURE.replace("      build_only:\n        type: boolean\n        default: true\n", "      other:\n        type: string\n"))
         if not any("no build-only workflow_dispatch" in p for p in check_workflow(root, "release.yml", no_input)):
             failures.append("a release workflow without the build-only input must fail")
+    with tempfile.TemporaryDirectory() as root:
+        wf = os.path.join(root, ".github", "workflows")
+        os.makedirs(wf)
+        os.makedirs(os.path.join(root, "bowrain"))
+        with open(os.path.join(wf, "deploy-x.yml"), "w") as fh:
+            fh.write("""jobs:
+  build:
+    steps:
+      - name: push main
+        uses: docker/build-push-action@v7
+        with:
+          tags: |
+            ghcr.io/neokapi/x:main
+            ghcr.io/neokapi/x:abc123
+      - name: push latest
+        uses: docker/build-push-action@v7
+        with:
+          tags: ghcr.io/neokapi/x:latest
+      - name: retag latest
+        run: docker buildx imagetools create -t ghcr.io/neokapi/x:latest ghcr.io/neokapi/x:1.0
+      - name: scan latest
+        uses: aquasecurity/trivy-action@v1
+        with:
+          image-ref: ghcr.io/neokapi/x:latest
+""")
+        with open(os.path.join(wf, "rebuild-release-images.yml"), "w") as fh:
+            fh.write("jobs:\n  p:\n    steps:\n      - run: docker buildx imagetools create -t ghcr.io/neokapi/x:latest x\n")
+        with open(os.path.join(root, "bowrain", "Makefile"), "w") as fh:
+            fh.write("push:\n\tdocker push $(IMAGE):$(VERSION)\n\tdocker push $(IMAGE):latest\n# docker push $(IMAGE):latest in a comment\n")
+        found = latest_pushes(root)
+        for want in ("step push latest", "step retag latest", "bowrain/Makefile:3"):
+            if not any(want in f for f in found):
+                failures.append(f"latest push not caught: {want!r} in {found}")
+        for quiet in ("push main", "scan latest", "rebuild-release-images", "Makefile:4"):
+            if any(quiet in f for f in found):
+                failures.append(f"{quiet!r} pushes no latest, or may: {found}")
     if failures:
         print("check-release-build-only self-test: FAIL")
         for f in failures:
