@@ -145,7 +145,7 @@ func TestACopiedCheckoutRelinksItsState(t *testing.T) {
 	require.NoError(t, os.RemoveAll(root))
 	got, err := kapiAllowFail(t, "state", "relink", "--from", root, "--yes", "-p", copyRecipe)
 	require.NoError(t, err, got)
-	assert.Contains(t, got, "pass --same-project to take them")
+	assert.Contains(t, got, "pass --same-project if it does")
 	assert.NoFileExists(t, filepath.Join(statePath(t, copyRecipe), "vault", "redaction.json"))
 
 	got, err = kapiAllowFail(t, "state", "relink", "--from", root, "--yes", "--same-project", "-p", copyRecipe)

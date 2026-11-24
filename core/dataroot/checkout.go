@@ -65,15 +65,13 @@ type CheckoutProject struct {
 // SetRecordProject records the project the state in dir belongs to, when the
 // record says otherwise.
 func SetRecordProject(dir string, p CheckoutProject) error {
-	rec, err := ReadRecord(dir)
-	if err != nil {
-		return err
-	}
-	if rec.Project != nil && *rec.Project == p {
-		return nil
-	}
-	rec.Project = &p
-	return writeRecord(dir, rec)
+	return updateRecord(dir, func(rec *CheckoutRecord) bool {
+		if rec.Project != nil && *rec.Project == p {
+			return false
+		}
+		rec.Project = &p
+		return true
+	})
 }
 
 // Checkout is one checkout's state directory and its record.
@@ -274,18 +272,19 @@ func ReadRecord(dir string) (CheckoutRecord, error) {
 // MarkTold records that the one-time notice name was given for the checkout
 // whose state is in dir, and reports whether it had been given before.
 func MarkTold(dir, name string) (bool, error) {
-	rec, err := ReadRecord(dir)
-	if err != nil {
-		return false, err
-	}
-	if rec.Told[name] {
-		return true, nil
-	}
-	if rec.Told == nil {
-		rec.Told = map[string]bool{}
-	}
-	rec.Told[name] = true
-	return false, writeRecord(dir, rec)
+	var before bool
+	err := updateRecord(dir, func(rec *CheckoutRecord) bool {
+		if rec.Told[name] {
+			before = true
+			return false
+		}
+		if rec.Told == nil {
+			rec.Told = map[string]bool{}
+		}
+		rec.Told[name] = true
+		return true
+	})
+	return before, err
 }
 
 // CheckoutExists reports whether the state directory of the checkout at root
@@ -326,13 +325,24 @@ func CheckoutRootOf(dir string) (string, bool) {
 }
 
 // writeRecord writes a checkout's record whole, by rename.
+//
+// The record is written to a temporary file of its own and renamed over the
+// old one, so a reader sees one whole record or the other, and two writers
+// never share a temporary file.
 func writeRecord(dir string, rec CheckoutRecord) error {
 	data, err := json.MarshalIndent(rec, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := filepath.Join(dir, "."+CheckoutRecordFilename+".tmp")
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+	f, err := os.CreateTemp(dir, "."+CheckoutRecordFilename+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	_, werr := f.Write(append(data, '\n'))
+	cerr := f.Close()
+	if err := errors.Join(werr, cerr); err != nil {
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := os.Rename(tmp, filepath.Join(dir, CheckoutRecordFilename)); err != nil {
@@ -340,4 +350,26 @@ func writeRecord(dir string, rec CheckoutRecord) error {
 		return err
 	}
 	return nil
+}
+
+// updateRecord reads the record in dir, lets change edit it, and writes it
+// back when change reports an edit.
+//
+// It takes no lock. Two kapi processes on one checkout (a CLI run and Kapi
+// Desktop) can each rewrite the record at once, and then the later rename
+// keeps one writer's edit and drops the other's. Each record is still whole,
+// since every write goes through a temporary file of its own and a rename.
+// What can be lost is safe to lose: a lost project reads as a record that
+// cannot say which project its state belongs to, so a relink leaves the
+// vault and the sync state in place, and a lost notice is shown once more.
+// The record's other fields are the same in every writer.
+func updateRecord(dir string, change func(*CheckoutRecord) bool) error {
+	rec, err := ReadRecord(dir)
+	if err != nil {
+		return err
+	}
+	if !change(&rec) {
+		return nil
+	}
+	return writeRecord(dir, rec)
 }

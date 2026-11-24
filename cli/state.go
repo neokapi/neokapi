@@ -84,7 +84,10 @@ kapi takes only this project's state. State recorded for another project is
 refused, so one project's vault and server sign-in stay out of another
 project's checkout. When kapi's record cannot say which project the state
 belongs to (an earlier kapi recorded it, or a recipe has no id), the vault and
-the sync state stay where they are unless --same-project is given.`,
+the sync state stay where they are unless --same-project is given. The sync
+state is bound to one server project, and comes across only to a recipe that
+connects to that project; to a recipe that connects to none, only with
+--same-project.`,
 		Example: `  kapi state relink --from ~/old/app -p ./app
   kapi state relink --from ~/old/app -p ./app --same-project`,
 		Args: cobra.NoArgs,

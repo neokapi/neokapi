@@ -215,7 +215,12 @@ an id recorded where the recipe now has none, or two recipes with no id and
 different names are different projects, and the relink is refused naming both.
 A record that cannot say (written before kapi recorded the project, or a recipe
 with no id) brings the saved filters and leaves the vault and the sync state in
-place, with the state directory, unless the person passes `--same-project`. The plan
+place, with the state directory, unless the person passes `--same-project`. The
+sync state is bound to one server project (its cache's `server_url` and
+`project_id`), and a relink brings it only when the recipe's venue block
+connects to that project; to a recipe that connects to none, only with
+`--same-project`, and never to a recipe that connects to another
+(`project.syncWithheld`). The plan
 shows the servers the sync state was issued by. A relink removes the directory it took from only once every file is
 in place and read back, and the plan says so.
 
