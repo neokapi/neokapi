@@ -58,7 +58,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-keycloak:${{ inputs.image-tag }}
-            ghcr.io/neokapi/bowrain-keycloak:latest
+            ${{ github.ref == 'refs/heads/main' && 'ghcr.io/neokapi/bowrain-keycloak:main' || '' }}
           cache-from: type=gha,scope=bowrain-keycloak
           # Only a run on main saves the layer cache; any other ref reads it.
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-keycloak' || '' }}

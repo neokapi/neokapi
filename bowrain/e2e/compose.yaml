@@ -1,4 +1,8 @@
-# E2E test stack — all services from pre-built Docker images.
+# E2E test stack, all services from pre-built Docker images.
+#
+# Every image is `latest`, the last release, so the stack is one release
+# throughout. To try main's build instead (its Keycloak theme, say), replace
+# `latest` with `main` for that image.
 #
 # Usage:
 #   docker compose -f e2e/compose.yaml up -d --wait
@@ -28,7 +32,7 @@ services:
       BOWRAIN_JWT_SECRET: dev-secret-change-in-production
       # A real database URL is REQUIRED: the fail-fast boot validation refuses to
       # start (and the healthcheck below never passes) without it, and only
-      # BOWRAIN_DATABASE_URL builds the persistent stores — the old
+      # BOWRAIN_DATABASE_URL builds the persistent stores; the old
       # BOWRAIN_STORE (sqlite) knob was dead config.
       BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
       BOWRAIN_OIDC_ISSUER_URL: http://keycloak:8080/realms/bowrain
@@ -39,8 +43,8 @@ services:
       BOWRAIN_SMTP_FROM: noreply@bowrain.cloud
       BOWRAIN_GRPC_PORT: "9080"
       BOWRAIN_WEB_UI_DIR: /web
-      # The suites complete the device flow programmatically — no browser, no
-      # Keycloak login form — so they need the direct-approval path, which is
+      # The suites complete the device flow programmatically, with no browser and
+      # no Keycloak login form, so they need the direct-approval path, which is
       # off unless a server is explicitly marked as a development one. Never
       # set this on a real deployment: it approves a pending device for the
       # identity the request names, with no identity-provider check.
