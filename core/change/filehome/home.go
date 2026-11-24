@@ -39,6 +39,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/storage/filelock"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 )
 
 // Home is the file home.
@@ -112,18 +114,30 @@ func LockDir() string {
 }
 
 // LockFile is the lock file that orders the writers of the file at target:
-// one per file, in LockDir, named for the file's canonical path (the file a
-// link leads to, the nearest existing directory resolved for a file not
-// there yet). Every commit takes the lock of each file it writes or reads
-// from this function and from nothing else. It names the file and creates
-// nothing.
+// one per file, in LockDir, named for the file's canonical path (lockName).
+// Every commit takes the lock of each file it writes or reads from this
+// function and from nothing else. It names the file and creates nothing.
 func LockFile(target string) (string, error) {
 	resolved, _, _, err := atomicfile.Resolve(target)
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256([]byte(dataroot.NormalizePath(resolved)))
+	sum := sha256.Sum256([]byte(lockName(dataroot.NormalizePath(resolved))))
 	return filepath.Join(LockDir(), hex.EncodeToString(sum[:16])+".lock"), nil
+}
+
+// lockName is the name a lock file is keyed by for the absolute path abs,
+// with its links resolved: abs case-folded and in Unicode normal form C. A
+// case-insensitive file system (APFS and HFS+ as macOS formats them, NTFS)
+// reaches one file by Foo.txt and foo.txt, and a normalization-insensitive
+// one by either form of an accented name, so every spelling of one file has
+// to give one name, whether the file exists yet or not. On a file system
+// that tells the spellings apart, two such files share a lock, and their
+// writers wait for each other without need. That costs a wait and never
+// lets two writers of one file past each other, so the rule is the same on
+// every platform, and no file system is asked how it compares names.
+func lockName(abs string) string {
+	return norm.NFC.String(cases.Fold().String(abs))
 }
 
 // New returns a file home over layout. A home that only commits the

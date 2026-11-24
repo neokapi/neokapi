@@ -14,6 +14,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/dataroot"
 )
 
 // TestFileHome_TwoHomesOnOneFileWaitForEachOther pins that two homes built
@@ -91,4 +92,57 @@ func TestFileHome_TwoHomesOnOneFileWaitForEachOther(t *testing.T) {
 	require.NoError(t, secondErr)
 	assert.False(t, overlapped.Load(), "the second writer committed while the first held the lock of the same file")
 	assert.EqualValues(t, 2, calls.Load(), "both writers commit")
+}
+
+// TestLockFile_EverySpellingOfANameTakesOneLock pins that the lock of a file
+// does not depend on how a caller spells its name. Foo.txt and foo.txt, and
+// the two Unicode forms of an accented name, reach one file on a
+// case-insensitive or normalization-insensitive file system. They name one
+// lock file, whether the file exists yet or not.
+func TestLockFile_EverySpellingOfANameTakesOneLock(t *testing.T) {
+	t.Setenv(dataroot.EnvDir, t.TempDir())
+	dir := t.TempDir()
+	lockOf := func(name string) string {
+		t.Helper()
+		lock, err := filehome.LockFile(filepath.Join(dir, name))
+		require.NoError(t, err)
+		return lock
+	}
+	const composed, decomposed = "résumé.txt", "résumé.txt"
+
+	assert.Equal(t, lockOf("Foo.txt"), lockOf("foo.txt"), "a name not there yet, in either case")
+	assert.Equal(t, lockOf(composed), lockOf(decomposed), "an accented name not there yet, in either form")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Foo.txt"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, composed), nil, 0o644))
+	assert.Equal(t, lockOf("Foo.txt"), lockOf("FOO.TXT"), "a name that exists, in either case")
+	assert.Equal(t, lockOf(composed), lockOf(decomposed), "an accented name that exists, in either form")
+	assert.NotEqual(t, lockOf("Foo.txt"), lockOf("Bar.txt"), "two names stay two locks")
+}
+
+// TestFileHome_CreatingAndReplacingUnderTwoSpellingsTakeOneLock pins the
+// commit that creates Report.json and a later commit that replaces it under
+// the name report.json, which on a case-insensitive file system is the same
+// file: they take one lock file.
+func TestFileHome_CreatingAndReplacingUnderTwoSpellingsTakeOneLock(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv(dataroot.EnvDir, data)
+	dir := t.TempDir()
+	home := filehome.New(nil, filehome.Options{})
+	write := func(name, body string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		before, err := filehome.Digest(path)
+		require.NoError(t, err)
+		p, err := home.Produce(context.Background(), path, before, produceBytes(body))
+		require.NoError(t, err)
+		require.NoError(t, p.Commit(context.Background()))
+		require.NoError(t, p.Release())
+	}
+	write("Report.json", `{"a": "1"}`+"\n")
+	write("report.json", `{"a": "2"}`+"\n")
+
+	locks, err := os.ReadDir(filepath.Join(data, "locks"))
+	require.NoError(t, err)
+	assert.Len(t, locks, 1, "both commits take one lock file")
 }
