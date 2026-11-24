@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -95,8 +96,9 @@ func TestApply_ADryRunInAFreshProjectWritesNothing(t *testing.T) {
 // nothing.
 func TestApply_ADryRunReadsTheProjectsStore(t *testing.T) {
 	f := newCommitFixture(t)
-	locks := filepath.Join(project.LayoutAt(f.root).WorkDir(), "locks")
-	require.NoDirExists(t, locks)
+	lock, err := filehome.LockFile(filepath.Join(f.root, "docs", "guide.md"))
+	require.NoError(t, err)
+	require.NoFileExists(t, lock)
 	original := readFile(t, f.recipe, "docs/guide.md")
 	body := guideEdit(t, f.app, f.recipe, "We utilize the widget every day.")
 
@@ -108,6 +110,6 @@ func TestApply_ADryRunReadsTheProjectsStore(t *testing.T) {
 	assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
 	assert.Contains(t, findingRules(docFindings(&res)), "terms.vocabulary", "the terms the store holds govern a preview")
 	assert.Equal(t, original, readFile(t, f.recipe, "docs/guide.md"))
-	assert.NoDirExists(t, locks, "a preview takes no lock")
+	assert.NoFileExists(t, lock, "a preview takes no lock")
 	assert.Empty(t, editOps(t, f.app, f.root), "a preview records nothing")
 }

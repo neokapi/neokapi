@@ -38,10 +38,9 @@ func (l presentLayout) Locate(ctx context.Context, doc string) (filehome.Doc, er
 func newPresentFixture(t *testing.T, files map[string]string, opts ...filehome.Options) *fixture {
 	t.Helper()
 	f := newFixture(t, files)
-	o := filehome.Options{LockDir: t.TempDir()}
+	o := filehome.Options{}
 	if len(opts) > 0 {
 		o = opts[0]
-		o.LockDir = t.TempDir()
 	}
 	home := filehome.New(presentLayout{targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}}, o)
 	f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(home))

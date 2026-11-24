@@ -4,8 +4,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
@@ -507,9 +511,10 @@ func TestChangeService_AProjectCatalogsTranslationLivesInItsTargetFile(t *testin
 }
 
 // TestChangeService_KeepsItsLockFilesOutOfACommit pins that the lock files a
-// project's change service takes sit in the checkout's state directory, outside
-// the checkout, so no commit can carry them.
+// project's change service takes sit in the user's data root, outside the
+// checkout, so no commit can carry them.
 func TestChangeService_KeepsItsLockFilesOutOfACommit(t *testing.T) {
+	t.Setenv(dataroot.EnvDir, t.TempDir())
 	item := project.ContentItem{Path: "locales/en.json"}
 	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
 	root := filepath.Dir(recipe)
@@ -521,10 +526,89 @@ func TestChangeService_KeepsItsLockFilesOutOfACommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
-	locks, err := os.ReadDir(filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
+	lock, err := filehome.LockFile(filepath.Join(root, "locales", "en.json"))
 	require.NoError(t, err)
-	assert.NotEmpty(t, locks, "the lock files sit under work/locks in the checkout's state directory")
+	assert.FileExists(t, lock, "the lock file sits in the data root")
 	assert.NoDirExists(t, filepath.Join(root, project.StateDirName), "and nothing is written in the checkout")
+}
+
+// lockFilesIn lists the lock files directly in dir, none when dir is absent.
+func lockFilesIn(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	require.NoError(t, err)
+	var names []string
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".lock") {
+			names = append(names, e.Name())
+		}
+	}
+	return names
+}
+
+// TestChangeLocks_AProjectChangeSetAndAProjectWriteTakeOneLock pins that a
+// project's change set and a write the host commits within the project
+// (commitWithin: the agent's project writes, extract output, the source
+// venue) take one lock file for one file, so the two wait for each other.
+func TestChangeLocks_AProjectChangeSetAndAProjectWriteTakeOneLock(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv(dataroot.EnvDir, data)
+	item := project.ContentItem{Path: "locales/en.json"}
+	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
+	root := filepath.Dir(recipe)
+	path := filepath.Join(root, "locales", "en.json")
+
+	svc := changeService(t, a, recipe)
+	page, err := svc.Read(t.Context(), change.ReadRequest{Doc: "locales/en.json"})
+	require.NoError(t, err)
+	b := page.Blocks[0]
+	res, err := svc.Apply(t.Context(), change.Set{Ops: []change.Op{setTo(b.Ref, b.Rev, "Welcome aboard")}}, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	require.NoError(t, commitWithin(t.Context(), root, path, func(w io.Writer) error {
+		_, err := io.WriteString(w, `{"title": "Welcome back"}`+"\n")
+		return err
+	}))
+
+	lock, err := filehome.LockFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, []string{filepath.Base(lock)}, lockFilesIn(t, filepath.Join(data, "locks")), "both commits take the one lock file of the file")
+	assert.Empty(t, lockFilesIn(t, filepath.Join(project.LayoutAt(root).WorkDir(), "locks")), "and no other")
+}
+
+// TestChangeLocks_OneFileInsideAndOutsideAProjectTakesOneLock pins that a
+// file edited through its project and edited by a change service that names
+// no project takes one lock file.
+func TestChangeLocks_OneFileInsideAndOutsideAProjectTakesOneLock(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv(dataroot.EnvDir, data)
+	item := project.ContentItem{Path: "locales/en.json"}
+	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
+	root := filepath.Dir(recipe)
+	path := filepath.Join(root, "locales", "en.json")
+
+	apply := func(svc *change.Service, text string) {
+		t.Helper()
+		page, err := svc.Read(t.Context(), change.ReadRequest{Doc: "locales/en.json"})
+		require.NoError(t, err)
+		b := page.Blocks[0]
+		res, err := svc.Apply(t.Context(), change.Set{Ops: []change.Op{setTo(b.Ref, b.Rev, text)}}, changePerson)
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	}
+	apply(changeService(t, a, recipe), "Welcome aboard")
+	outside, err := a.ChangeService(t.Context(), ChangeServiceOptions{Root: root, Origin: "test"})
+	require.NoError(t, err)
+	apply(outside, "Welcome back")
+
+	lock, err := filehome.LockFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, []string{filepath.Base(lock)}, lockFilesIn(t, filepath.Join(data, "locks")), "both commits take the one lock file of the file")
+	assert.Empty(t, lockFilesIn(t, filepath.Join(project.LayoutAt(root).WorkDir(), "locks")), "and no other")
 }
 
 // TestChangeService_AReadWritesNothing pins that reading a project's document

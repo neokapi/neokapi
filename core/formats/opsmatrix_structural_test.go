@@ -494,7 +494,7 @@ func structuralMatrix() []structuralRow {
 func structuralService(t *testing.T, dir string, reg *registry.FormatRegistry, name registry.FormatID) *change.Service {
 	t.Helper()
 	home := filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en", Format: string(name)},
-		filehome.Options{LockDir: t.TempDir()})
+		filehome.Options{})
 	return change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 }
 

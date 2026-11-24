@@ -107,9 +107,6 @@ func newKeptFixture(t *testing.T, m *machine, files map[string]string, opts file
 	}
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
-	if opts.LockDir == "" {
-		opts.LockDir = filepath.Join(t.TempDir(), "locks")
-	}
 	home := filehome.New(keptLayout{root: dir, reg: reg, home: m.home}, opts)
 	svc := change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 	return &keptFixture{dir: dir, m: m, svc: svc}

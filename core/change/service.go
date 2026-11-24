@@ -21,9 +21,9 @@ import (
 //
 // Apply runs in two phases. It prepares every document a change set names
 // (reads it, applies the operations in memory, checks the result) and refuses
-// the whole set if any document refuses; only then does it commit each
-// document, and after that apply the decisions and asset operations, which
-// bind to the content that landed, and record the change.
+// the whole set if any document refuses. Only then does it commit each
+// document. After that it applies the decisions and asset operations, which
+// bind to the content that landed, and records the change.
 type Service struct {
 	formats   Formats
 	homes     Homes
@@ -531,7 +531,7 @@ func (r *applyRun) sharedFiles() {
 			for _, i := range p.ops {
 				if r.res.Ops[i].Status != OpRefused {
 					r.refuse(i, &Error{Code: CodeInvalid, Field: "at/doc",
-						Message: fmt.Sprintf("%s and %s are kept in one file, which one change set writes through one document; send the operations on %s in a change set of their own", q.info.Doc, p.info.Doc, p.info.Doc)})
+						Message: fmt.Sprintf("%s and %s would be written under one lock: they are one file, or their names differ only in case or Unicode form, and one change set writes them through one document; send the operations on %s in a change set of their own", q.info.Doc, p.info.Doc, p.info.Doc)})
 				}
 			}
 			break
