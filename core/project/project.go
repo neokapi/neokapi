@@ -39,6 +39,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/place"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/yamledit"
 
 	"gopkg.in/yaml.v3"
@@ -1165,10 +1166,51 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	return &proj, nil
 }
 
-// WriteOverOnSave makes the next Save write the recipe over whatever the file
-// holds, as for a project built in memory. A caller uses it to repair a
-// recipe file that no longer loads, which no read can give a basis for.
-func (p *KapiProject) WriteOverOnSave() { p.basis = nil }
+// Edit reads the recipe at path, applies edit to it, checks the result as
+// LoadWithOptions checks a recipe, and writes it back, all under the lock
+// every commit of the file takes, so nothing changes the file between the
+// read and the write. It returns the project as written.
+//
+// The recipe is read without the checks a load runs, and checked once the
+// edit is applied, so an edit can repair the part of a recipe that fails
+// them (a context: block naming no backend this build knows), keeping
+// everything else the file holds. A file that cannot be read or parsed, or a
+// result that still fails the checks, is returned as an error and nothing is
+// written.
+func Edit(path string, opts LoadOptions, edit func(*KapiProject) error) (*KapiProject, error) {
+	var out *KapiProject
+	err := filehome.WithLock(context.Background(), path, func() error {
+		data, err := readRecipeFile(path)
+		if err != nil {
+			return fmt.Errorf("read project file: %w", err)
+		}
+		var proj KapiProject
+		if err := yaml.Unmarshal(data, &proj); err != nil {
+			return fmt.Errorf("parse project file %s: %w", path, RecipeYAMLError(err))
+		}
+		if err := edit(&proj); err != nil {
+			return err
+		}
+		if proj.Version == "" {
+			proj.Version = CurrentVersion
+		}
+		if err := proj.validate(opts); err != nil {
+			return fmt.Errorf("invalid project file %s: %w", path, err)
+		}
+		if err := proj.checkPlaceShapes(filepath.Dir(path)); err != nil {
+			return fmt.Errorf("invalid project file %s: %w", path, err)
+		}
+		if err := writeRecipeLocked(path, &proj); err != nil {
+			return err
+		}
+		out = &proj
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
 
 // ErrRecipeChanged is what Save returns for a recipe whose file changed
 // after the project was loaded from it.
@@ -1194,7 +1236,7 @@ func Save(path string, proj *KapiProject) error {
 	}
 	return filehome.WithLock(context.Background(), path, func() error {
 		if proj.basis.guards(path) {
-			current, err := os.ReadFile(path)
+			current, err := readRecipeFile(path)
 			switch {
 			case errors.Is(err, fs.ErrNotExist):
 				// The file is gone: there is nothing to lose by writing it.
@@ -1204,16 +1246,29 @@ func Save(path string, proj *KapiProject) error {
 				return fmt.Errorf("write project file %s: %w; read it again and repeat the change", path, ErrRecipeChanged)
 			}
 		}
-		if _, err := yamledit.WriteFile(path, proj, 0o644); err != nil {
-			return fmt.Errorf("write project file: %w", err)
-		}
-		written, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read project file: %w", err)
-		}
-		proj.basis = newBasis(path, written)
-		return nil
+		return writeRecipeLocked(path, proj)
 	})
+}
+
+// readRecipeFile reads the recipe at path through its directory
+// (rootpath.ReadFile): a link that leads out of the directory, and anything
+// that is not a regular file, is refused.
+func readRecipeFile(path string) ([]byte, error) {
+	return rootpath.ReadFile(filepath.Dir(path), path)
+}
+
+// writeRecipeLocked writes proj to path, the caller holding the file's lock, and
+// records the written file as the project's basis.
+func writeRecipeLocked(path string, proj *KapiProject) error {
+	if _, err := yamledit.WriteFile(path, proj, 0o644); err != nil {
+		return fmt.Errorf("write project file: %w", err)
+	}
+	written, err := readRecipeFile(path)
+	if err != nil {
+		return fmt.Errorf("read project file: %w", err)
+	}
+	proj.basis = newBasis(path, written)
+	return nil
 }
 
 // Validate checks that the project file is well-formed. Equivalent to

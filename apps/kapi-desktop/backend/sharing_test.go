@@ -276,6 +276,69 @@ func TestShareView_NoPlaceStandsOnThisMac(t *testing.T) {
 	require.EqualError(t, err, `project tab "no-such-tab" not found`)
 }
 
+// TestSetProjectSharing_LeavesARecipeItCannotReadAsItIs pins that naming a
+// place over a recipe that cannot be parsed (another writer left it half
+// edited) or cannot be read is refused with the error, and writes nothing:
+// the tab's own copy of the recipe is never written in its place.
+func TestSetProjectSharing_LeavesARecipeItCannotReadAsItIs(t *testing.T) {
+	app := newWorkspaceApp(t)
+	shared := project.ContextBackend{Backend: project.ContextBackendFile, Path: filepath.Join(t.TempDir(), "team-share")}
+
+	t.Run("not parsable", func(t *testing.T) {
+		tab, recipe := openSharingProject(t, app, "Garbled")
+		garbage := []byte("name: [unclosed\n")
+		require.NoError(t, os.WriteFile(recipe, garbage, 0o644))
+		_, err := app.SetProjectSharing(tab, shared)
+		require.Error(t, err)
+		got, err := os.ReadFile(recipe)
+		require.NoError(t, err)
+		assert.Equal(t, garbage, got, "the recipe is left as it is")
+	})
+	t.Run("failing a check the new place does not repair", func(t *testing.T) {
+		tab, recipe := openSharingProject(t, app, "Newer")
+		data, err := os.ReadFile(recipe)
+		require.NoError(t, err)
+		newer := []byte(strings.Replace(string(data), "version: v1", "version: v9", 1) + "# written by a newer kapi\n")
+		require.NoError(t, os.WriteFile(recipe, newer, 0o644))
+		_, err = app.SetProjectSharing(tab, shared)
+		require.Error(t, err)
+		got, err := os.ReadFile(recipe)
+		require.NoError(t, err)
+		assert.Equal(t, newer, got, "the recipe is left as it is, not replaced by the tab's copy")
+	})
+	t.Run("not readable", func(t *testing.T) {
+		tab, recipe := openSharingProject(t, app, "Unreadable")
+		require.NoError(t, os.Remove(recipe))
+		require.NoError(t, os.Mkdir(recipe, 0o755))
+		_, err := app.SetProjectSharing(tab, shared)
+		require.Error(t, err)
+		info, err := os.Stat(recipe)
+		require.NoError(t, err)
+		assert.True(t, info.IsDir(), "nothing is written in its place")
+	})
+}
+
+// TestSetProjectSharing_KeepsAnEditMadeOutsideTheTab pins that a place named
+// in a tab is written into the recipe as it stands on disk: an edit another
+// writer made after the tab opened is kept.
+func TestSetProjectSharing_KeepsAnEditMadeOutsideTheTab(t *testing.T) {
+	app := newWorkspaceApp(t)
+	tab, recipe := openSharingProject(t, app, "Edited")
+	outside, err := project.Load(recipe)
+	require.NoError(t, err)
+	outside.Name = "renamed elsewhere"
+	require.NoError(t, project.Save(recipe, outside))
+
+	shared := filepath.Join(t.TempDir(), "team-share")
+	_, err = app.SetProjectSharing(tab, project.ContextBackend{Backend: project.ContextBackendFile, Path: shared})
+	require.NoError(t, err)
+	now, err := project.Load(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, "renamed elsewhere", now.Name, "the edit from outside is kept")
+	require.NotNil(t, now.Context)
+	assert.Equal(t, shared, now.Context.Path)
+}
+
 // TestShareView_ABrokenPlaceStandsOnThisMac: a `context:` block broken after
 // the project opened leaves the page on the first rung with the recipe
 // check's words, and naming a place again writes a block that reads.

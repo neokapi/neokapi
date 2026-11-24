@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -95,4 +96,72 @@ func TestSave_TwoConcurrentSavesBothLandOrOneIsRefused(t *testing.T) {
 	}
 	_, err := os.Stat(path + ".tmp")
 	assert.ErrorIs(t, err, os.ErrNotExist, "no staged file is left beside the recipe")
+}
+
+// TestEdit_RepairsABrokenContextBlockAndKeepsTheRest pins that an edit can
+// repair the part of a recipe that fails the checks, here a context: block
+// naming no backend, and keeps everything else the file holds, including an
+// edit another writer made.
+func TestEdit_RepairsABrokenContextBlockAndKeepsTheRest(t *testing.T) {
+	path := saveLockRecipe(t)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	broken := append(data, []byte("context:\n  backend: dropbox\n")...)
+	broken = []byte(strings.Replace(string(broken), "name: app", "name: edited elsewhere", 1))
+	require.NoError(t, os.WriteFile(path, broken, 0o644))
+	_, err = Load(path)
+	require.Error(t, err, "the recipe no longer loads")
+
+	shared := t.TempDir()
+	proj, err := Edit(path, LoadOptions{SkipRequiresCheck: true}, func(p *KapiProject) error {
+		p.Context = &ContextBackend{Backend: ContextBackendFile, Path: shared}
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "edited elsewhere", proj.Name)
+	now, err := Load(path)
+	require.NoError(t, err, "the repaired recipe loads")
+	assert.Equal(t, "edited elsewhere", now.Name, "the other writer's edit is kept")
+	require.NotNil(t, now.Context)
+	assert.Equal(t, shared, now.Context.Path)
+}
+
+// TestEdit_WritesNothingItCannotRead pins that a recipe that cannot be read,
+// or read but not parsed, is returned as an error and left as it is.
+func TestEdit_WritesNothingItCannotRead(t *testing.T) {
+	edit := func(p *KapiProject) error { p.Name = "changed"; return nil }
+
+	t.Run("not readable", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), RecipeFileName)
+		require.NoError(t, os.Mkdir(path, 0o755))
+		_, err := Edit(path, LoadOptions{}, edit)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "read project file")
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.True(t, info.IsDir(), "nothing is written in its place")
+	})
+	t.Run("not parsable", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), RecipeFileName)
+		garbage := []byte("name: [unclosed\n")
+		require.NoError(t, os.WriteFile(path, garbage, 0o644))
+		_, err := Edit(path, LoadOptions{}, edit)
+		require.Error(t, err)
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, garbage, got, "the file is left as it is")
+	})
+	t.Run("still invalid after the edit", func(t *testing.T) {
+		path := saveLockRecipe(t)
+		before, err := os.ReadFile(path)
+		require.NoError(t, err)
+		_, err = Edit(path, LoadOptions{}, func(p *KapiProject) error {
+			p.Context = &ContextBackend{Backend: "dropbox"}
+			return nil
+		})
+		require.Error(t, err)
+		got, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, before, got, "nothing is written")
+	})
 }
