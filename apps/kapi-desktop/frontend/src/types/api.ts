@@ -960,6 +960,29 @@ export interface ExecTrustRequest {
   digest: string;
 }
 
+/** What `kapi state import` or `kapi state relink` would take, or took. */
+export interface StateTransfer {
+  action: "import" | "relink";
+  from: string;
+  to: string;
+  files: { source: string; target: string; size: number }[];
+  /** The servers the sync state among the files was issued by. */
+  servers?: string[];
+  taken: boolean;
+  source_removed: boolean;
+  reason?: string;
+}
+
+/** A one-time line about a checkout's state, with the transfer it offers. */
+export interface CheckoutStateNotice {
+  name: "earlier-at-path" | "work-in-tree" | "state-in-tree";
+  /** The line the terminal prints. */
+  message: string;
+  transfer?: StateTransfer;
+  /** Names the transfer as shown; taking it is refused once the plan changed. */
+  digest?: string;
+}
+
 /** What a pull merged. */
 export interface ContextPull extends SyncStatus {
   segments: number;

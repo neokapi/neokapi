@@ -46,97 +46,97 @@ func LegacyStateIn(l Layout) []string {
 	return out
 }
 
-// The names under which a checkout's record keeps the one-time notices given.
+// The names of the one-time lines about a checkout's state. The checkout's
+// record keeps each in its told set once a person was shown it.
 const (
-	toldWorkInTree  = "work-in-tree"
-	toldStateInTree = "state-in-tree"
+	// NoticeEarlierAtPath: state recorded for another directory at the
+	// checkout's location, which `kapi state relink` takes.
+	NoticeEarlierAtPath = "earlier-at-path"
+	// NoticeWorkInTree: a `.kapi/work` in the checkout, which kapi no longer
+	// uses.
+	NoticeWorkInTree = "work-in-tree"
+	// NoticeStateInTree: state an earlier kapi left in the checkout, which
+	// `kapi state import` takes.
+	NoticeStateInTree = "state-in-tree"
 )
 
-// NoticeState gives the one-time lines about the checkout's state: state
-// recorded for another folder at the checkout's location, and state an
-// earlier kapi left inside the checkout. Each line goes through StateNotice,
-// and only a line that was shown is recorded as given. The record is the
-// checkout's state directory under the data root, created when the first line
-// is shown, because that a person was told is then state kapi keeps for the
-// checkout. A checkout with nothing to tell, or a line nobody was shown,
-// leaves the data root as it was. Nothing is written in the checkout.
-func NoticeState(l Layout) {
+// PendingStateNotice is one line kapi owes a person about a checkout's state.
+type PendingStateNotice struct {
+	Name    string
+	Message string
+}
+
+// PendingStateNotices lists the one-time lines about the checkout's state that
+// no person has been shown yet, in the order a surface shows them. It reads
+// and writes nothing: a surface shows each line and then records it with
+// RecordStateNoticeGiven.
+func PendingStateNotices(l Layout) []PendingStateNotice {
 	if l.LocalDir != "" || l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
-		return
+		return nil
 	}
 	if _, err := rootpath.Stat(l.Root, l.RecipePath); err != nil {
-		return
+		return nil
 	}
-	if !dataroot.CheckoutExists(l.Root) && dataroot.RecordedElsewhereAt(l.Root) {
-		// Creating the state directory is what retires this line: once it
-		// exists, the state recorded for the other directory is no longer
-		// this checkout's to be told about.
-		if !StateNotice(earlierAtPathMessage(l)) {
-			return
-		}
-		dir, _, err := dataroot.EnsureCheckoutDir(l.Root)
-		if err != nil {
-			return
-		}
-		recordCheckoutProject(l, dir)
+	var told map[string]bool
+	if rec, err := dataroot.ReadRecord(dataroot.CheckoutDir(l.Root)); err == nil {
+		told = rec.Told
 	}
-	noticeStateInTree(l)
+	var out []PendingStateNotice
+	if !told[NoticeEarlierAtPath] && dataroot.RecordedElsewhereAt(l.Root) {
+		out = append(out, PendingStateNotice{Name: NoticeEarlierAtPath, Message: earlierAtPathMessage(l)})
+	}
+	if _, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, WorkDirName)); err == nil && !told[NoticeWorkInTree] {
+		out = append(out, PendingStateNotice{
+			Name:    NoticeWorkInTree,
+			Message: fmt.Sprintf("kapi: %s/%s in this checkout is no longer used; kapi keeps the checkout's state outside it, and you can delete it.", StateDirName, WorkDirName),
+		})
+	}
+	if legacy := LegacyStateIn(l); len(legacy) > 0 && !told[NoticeStateInTree] {
+		names := make([]string, len(legacy))
+		for i, rel := range legacy {
+			names[i] = filepath.ToSlash(filepath.Join(StateDirName, rel))
+		}
+		out = append(out, PendingStateNotice{
+			Name:    NoticeStateInTree,
+			Message: fmt.Sprintf("kapi: %s in this checkout hold state kapi no longer reads; to use it here, run `kapi state import -p %s`.", strings.Join(names, ", "), l.Root),
+		})
+	}
+	return out
 }
 
-// noticeStateInTree tells the person, once per checkout, about state an
-// earlier kapi left in the checkout: a work directory kapi no longer uses, and
-// state it cannot rebuild, which a person imports.
-func noticeStateInTree(l Layout) {
-	if _, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, WorkDirName)); err == nil {
-		tellOnce(l, toldWorkInTree, fmt.Sprintf("kapi: %s/%s in this checkout is no longer used; kapi keeps the checkout's state outside it, and you can delete it.", StateDirName, WorkDirName))
-	}
-	legacy := LegacyStateIn(l)
-	if len(legacy) == 0 {
-		return
-	}
-	names := make([]string, len(legacy))
-	for i, rel := range legacy {
-		names[i] = filepath.ToSlash(filepath.Join(StateDirName, rel))
-	}
-	tellOnce(l, toldStateInTree, fmt.Sprintf("kapi: %s in this checkout hold state kapi no longer reads; to use it here, run `kapi state import -p %s`.",
-		strings.Join(names, ", "), l.Root))
-}
-
-// tellOnce shows msg through StateNotice unless the checkout's record says it
-// was given, and records it as given once it was shown. The checkout's state
-// directory is created for the record only then.
-func tellOnce(l Layout, name, msg string) {
-	if rec, err := dataroot.ReadRecord(dataroot.CheckoutDir(l.Root)); err == nil && rec.Told[name] {
-		return
-	}
-	if !StateNotice(msg) {
-		return
-	}
+// RecordStateNoticeGiven records that a person was shown the line name about
+// the checkout's state. The checkout's state directory and its record are
+// created for it, because that the person was told is then state kapi keeps
+// for the checkout.
+func RecordStateNoticeGiven(l Layout, name string) error {
 	dir, _, err := dataroot.EnsureCheckoutDir(l.Root)
 	if err != nil {
-		return
+		return err
 	}
 	recordCheckoutProject(l, dir)
-	_, _ = dataroot.MarkTold(dir, name)
-}
-
-// noticeEarlierAtPath tells the person that state recorded for another
-// directory at this checkout's location was kept, not used. It runs when the
-// checkout's state directory is created, which is the one time kapi finds the
-// earlier state beside a new one.
-func noticeEarlierAtPath(l Layout, earlier []dataroot.Checkout) {
-	if len(earlier) == 0 {
-		return
-	}
-	StateNotice(earlierAtPathMessage(l))
+	_, err = dataroot.MarkTold(dir, name)
+	return err
 }
 
 // earlierAtPathMessage is the line about state recorded for another directory
-// at the checkout's location.
+// at the checkout's location. It offers the relink only for this project's
+// state.
 func earlierAtPathMessage(l Layout) string {
 	if other := otherProjectAt(l); other != "" {
 		return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to %s, another project, so this checkout starts with none and kapi keeps that state where it is.", l.Root, other)
 	}
-	return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to another directory, so this checkout starts with none; if it is this checkout's, run `kapi state relink --from %s`.",
-		l.Root, l.Root)
+	return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to another directory, so this checkout starts with none; if it is this checkout's, run `kapi state relink --from %s`.", l.Root, l.Root)
+}
+
+// NoticeState gives the one-time lines about the checkout's state
+// (PendingStateNotices). Each line goes through StateNotice, and only a line
+// that was shown is recorded as given. A checkout with nothing to tell, or a
+// line nobody was shown, leaves the data root as it was. Nothing is written in
+// the checkout.
+func NoticeState(l Layout) {
+	for _, n := range PendingStateNotices(l) {
+		if StateNotice(n.Message) {
+			_ = RecordStateNoticeGiven(l, n.Name)
+		}
+	}
 }

@@ -326,3 +326,28 @@ func TestRelinkMovesTheStateOfAnEarlierLocation(t *testing.T) {
 	_, err = PlanRelink(b, filepath.Join(t.TempDir(), "nowhere"), RelinkOptions{})
 	require.ErrorContains(t, err, "recorded no state")
 }
+
+// The line about state recorded for another folder at the location stays owed
+// when the checkout's state is created with nobody to show it to (a desktop
+// opening the project), and the next surface with a person shows it, once.
+func TestTheEarlierAtPathLineSurvivesAnUnseenCreation(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "app")
+	a := newCheckout(t, root)
+	withVault(t, a, `{"mine":true}`)
+	require.NoError(t, os.RemoveAll(root))
+	b := newCheckout(t, root)
+
+	unseenStateNotices(t)
+	require.NoError(t, EnsureLayout(b))
+	pending := PendingStateNotices(b)
+	require.Len(t, pending, 1)
+	assert.Equal(t, NoticeEarlierAtPath, pending[0].Name)
+
+	shown := captureStateNotices(t)
+	NoticeState(b)
+	require.Len(t, *shown, 1)
+	assert.Contains(t, (*shown)[0], "kapi state relink --from "+root)
+	NoticeState(b)
+	assert.Len(t, *shown, 1, "shown once")
+	assert.Empty(t, PendingStateNotices(b))
+}

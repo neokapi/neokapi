@@ -19,6 +19,8 @@ import type {
   AIModelResolution,
   AISetupNeed,
   ExecTrustRequest,
+  CheckoutStateNotice,
+  StateTransfer,
   AIModelOption,
   AIDetectionResult,
   ProjectFilter,
@@ -520,6 +522,19 @@ export const api = {
     call<void>("ApproveExecTrust", tabID, digest),
   approveContextStore: (tabID: string, shown: string) =>
     call<string>("ApproveContextStore", tabID, shown),
+  /** The one-time lines about the tab's checkout state nobody has been shown, with the transfer each offers. */
+  pendingCheckoutState: (tabID: string) =>
+    call<CheckoutStateNotice[] | null>("PendingCheckoutState", tabID),
+  /** Record that the dialog showed the person these lines. */
+  markCheckoutStateShown: (tabID: string, names: string[]) =>
+    call<void>("MarkCheckoutStateShown", tabID, names),
+  /** Take the transfer a line offers, as the dialog showed it (digest). */
+  applyCheckoutStateTransfer: (
+    tabID: string,
+    name: string,
+    digest: string,
+    removeSource: boolean,
+  ) => call<StateTransfer>("ApplyCheckoutStateTransfer", tabID, name, digest, removeSource),
 
   // What an assistant reads: the connection per host, and the rules files.
   /** The assistants the tab's project can be connected to, and whether each is. */
