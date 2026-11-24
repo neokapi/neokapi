@@ -16,12 +16,12 @@ import (
 )
 
 // TestWorkerVoiceContext_EndToEnd is the end-to-end proof of J-4 over the real
-// PostgreSQL stores: a project whose Properties bind a voice profile
-// (the project rung of the voicescope ladder) and whose workspace terms
-// carries approved terminology produces a translate config that carries the
-// rendered voice guide and the per-locale term rules — and the demo-provider
-// translation job completes with them bound. A sibling project with neither
-// runs bare through the very same worker path.
+// PostgreSQL stores. A project binds a voice profile in its Properties (the
+// project rung of the voicescope ladder), and its workspace terms carry
+// approved terminology. Its translate config carries the rendered voice guide
+// and the per-locale term rules, and the demo-provider translation job
+// completes with them bound. A sibling project with neither runs bare through
+// the very same worker path.
 func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	ctx := t.Context()
@@ -96,7 +96,7 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	// The constructed translate config carries the resolved brand context.
 	proj, err := cs.GetProject(ctx, projectID)
 	require.NoError(t, err)
-	cfg := jobTranslateConfig(ctx, deps, job, proj)
+	cfg := jobTranslateConfig(ctx, deps, job, proj, nil)
 	require.NotNil(t, cfg.Profile, "the project-bound profile must resolve")
 	assert.Equal(t, "Acme Voice", cfg.Profile.Name)
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
@@ -123,7 +123,7 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, scores, "a drafted block must persist a voice score")
 	assert.Equal(t, stored[0].Block.ID, scores[0].BlockID,
-		"the score references the STORED block id — the id the dashboard joins on")
+		"the score references the STORED block id, the id the dashboard joins on")
 	assert.Equal(t, profile.ID, scores[0].ProfileID)
 
 	// Control: a project with no binding and no terminology runs bare through
@@ -138,7 +138,7 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	bareProj, err := cs.GetProject(ctx, bareID)
 	require.NoError(t, err)
 	bareJob := &TranslationJob{ID: "job-bare", WorkspaceSlug: "no-terms", ProjectID: bareID, TargetLocale: "fr"}
-	bareCfg := jobTranslateConfig(ctx, deps, bareJob, bareProj)
+	bareCfg := jobTranslateConfig(ctx, deps, bareJob, bareProj, nil)
 	assert.Nil(t, bareCfg.Profile, "no binding at any rung → no profile")
 	assert.Nil(t, bareCfg.TermRules, "no terminology for the pair → no rules")
 }

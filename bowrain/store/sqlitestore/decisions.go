@@ -11,6 +11,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -78,16 +79,18 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		}
 
 		var old venue.UnitDecision
+		var tally platstore.RejectionTally
 		var haveOld bool
 		var parked int
 		row := tx.QueryRowContext(ctx,
 			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee,
-				governing_fingerprint, updated
+				governing_fingerprint, updated, rejection_basis, rejection_count
 			 FROM unit_decisions
 			 WHERE project_id=? AND stream=? AND item_id=? AND unit=? AND variant=?`,
 			projectID, stream, itemID, d.Unit, d.Variant)
 		switch err := row.Scan(&old.Status, &old.Revision, &old.Basis, &old.ReviewState, &old.DecidedBy,
-			&old.DecidedAt, &old.Note, reasonsInto(&old.Reasons), &old.AgentHost, &parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
+			&old.DecidedAt, &old.Note, reasonsInto(&old.Reasons), &old.AgentHost, &parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated,
+			&tally.Basis, &tally.Count); {
 		case err == nil:
 			old.Parked = parked != 0
 			haveOld = true
@@ -122,21 +125,36 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		if err := venue.CheckStatedInput(stored, d); err != nil {
 			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
+		// A rejection that names no source judged the one the block holds,
+		// and counts against it.
+		counted := d
+		if counted.ReviewState == venue.ReviewStateRejected && counted.Basis == "" && d.ItemName != "" {
+			err := tx.QueryRowContext(ctx,
+				`SELECT source_revision FROM blocks WHERE project_id=? AND stream=? AND item_name=? AND source_id=?`,
+				projectID, stream, d.ItemName, d.Unit).Scan(&counted.Basis)
+			if err != nil && err != sql.ErrNoRows {
+				return changed, fmt.Errorf("resolve rejected block %s/%s: %w", d.ItemName, d.Unit, err)
+			}
+		}
+		tally = platstore.CountRejection(stored, tally, counted)
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
 				(project_id, stream, item_id, item_name, unit, variant, status, revision, basis,
-				 review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+				 review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated, updated_at,
+				 rejection_basis, rejection_count)
+			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=excluded.item_name,
 				status=excluded.status, revision=excluded.revision, basis=excluded.basis,
 				review_state=excluded.review_state, decided_by=excluded.decided_by,
 				decided_at=excluded.decided_at, note=excluded.note, reasons=excluded.reasons, agent_host=excluded.agent_host, parked=excluded.parked,
 				assignee=excluded.assignee, governing_fingerprint=excluded.governing_fingerprint,
-				updated=excluded.updated, updated_at=excluded.updated_at`,
+				updated=excluded.updated, updated_at=excluded.updated_at,
+				rejection_basis=excluded.rejection_basis, rejection_count=excluded.rejection_count`,
 			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.Revision, d.Basis,
-			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, encodeReasons(d.Reasons), d.AgentHost, boolInt(d.Parked), d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
+			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, encodeReasons(d.Reasons), d.AgentHost, boolInt(d.Parked), d.Assignee, d.GoverningFingerprint, d.Updated, now,
+			tally.Basis, tally.Count); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
@@ -274,6 +292,7 @@ func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream 
 			COALESCE(SUM(CASE WHEN d.review_state = ?
 				AND NOT `+basisStale+`
 				AND NOT `+draftCurrent+`
+				AND NOT `+rejectionHeld+`
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
 					AND t.block_id = b.id AND t.locale = d.variant)
@@ -286,7 +305,7 @@ func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream 
 		 WHERE d.project_id=? AND d.stream=? AND b.translatable
 		 GROUP BY d.item_name, d.variant
 		 ORDER BY d.item_name, d.variant`,
-		venue.ReviewStateRejected, projectID, stream)
+		venue.ReviewStateRejected, tool.MaxRejections, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("tally decision basis: %w", err)
 	}
@@ -385,6 +404,54 @@ func (s *SQLiteStore) ListDraftBases(ctx context.Context, projectID, stream stri
 	return out, rows.Err()
 }
 
+var _ platstore.RejectionLedger = (*SQLiteStore)(nil)
+
+// RecordRepeatedDrafts implements platstore.RejectionLedger, as the Postgres
+// store does.
+func (s *SQLiteStore) RecordRepeatedDrafts(ctx context.Context, projectID, stream string, drafts []platstore.DraftBasis) error {
+	stream = storeutil.DefaultStream(stream)
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, d := range drafts {
+		if d.ItemName == "" || d.Unit == "" || d.Variant == "" {
+			continue
+		}
+		if _, err := s.db.ExecContext(ctx,
+			`UPDATE unit_decisions SET
+				rejection_count = CASE WHEN rejection_count > 0 AND rejection_basis = ? THEN rejection_count + 1 ELSE 1 END,
+				rejection_basis = ?, updated_at = ?
+			 WHERE project_id=? AND stream=? AND unit=? AND variant=?
+			   AND item_id = (SELECT id FROM items WHERE project_id=? AND stream=? AND name=?)`,
+			d.Basis, d.Basis, now, projectID, stream, d.Unit, d.Variant, projectID, stream, d.ItemName); err != nil {
+			return fmt.Errorf("record repeated draft %s/%s: %w", d.Unit, d.Variant, err)
+		}
+	}
+	return nil
+}
+
+// ListRejectionTallies implements platstore.RejectionLedger.
+func (s *SQLiteStore) ListRejectionTallies(ctx context.Context, projectID, stream string) ([]platstore.RejectionTally, error) {
+	stream = storeutil.DefaultStream(stream)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT item_name, unit, variant, rejection_basis, rejection_count
+		 FROM unit_decisions WHERE project_id=? AND stream=? AND rejection_count > 0
+		 ORDER BY item_name, unit, variant`,
+		projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list rejection tallies: %w", err)
+	}
+	defer rows.Close()
+
+	var out []platstore.RejectionTally
+	for rows.Next() {
+		var t platstore.RejectionTally
+		if err := rows.Scan(&t.ItemName, &t.Unit, &t.Variant, &t.Basis, &t.Count); err != nil {
+			return nil, fmt.Errorf("scan rejection tally: %w", err)
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
 // basisStale is the SQL twin of platstore.BasisStale over the decision row d
 // and its block b, as the Postgres store's pgBasisStale.
 const basisStale = `(d.basis <> '' AND d.basis <> b.source_revision)`
@@ -397,6 +464,10 @@ const derivedStale = `(COALESCE(json_extract(t.target_json, '$.derived.rev'), ''
 	AND instr(COALESCE(json_extract(t.target_json, '$.derived.from'), ''), ';') = 0)`
 
 const draftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revision)`
+
+// rejectionHeld is the SQL twin of platstore.RejectionTally.Holds, as the
+// Postgres store's pgRejectionHeld, with the stop bound as the next parameter.
+const rejectionHeld = `(d.rejection_basis <> '' AND d.rejection_basis = b.source_revision AND d.rejection_count >= ?)`
 
 // settleDecisionProjections re-derives the projected statuses of every target
 // of a block whose SOURCE just changed, against the decision ledger: the

@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -138,15 +139,17 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		}
 
 		var old venue.UnitDecision
+		var tally platstore.RejectionTally
 		var haveOld bool
 		row := tx.QueryRowContext(ctx,
 			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee,
-				governing_fingerprint, updated
+				governing_fingerprint, updated, rejection_basis, rejection_count
 			 FROM unit_decisions
 			 WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4 AND variant=$5`,
 			projectID, stream, itemID, d.Unit, d.Variant)
 		switch err := row.Scan(&old.Status, &old.Revision, &old.Basis, &old.ReviewState, &old.DecidedBy,
-			&old.DecidedAt, &old.Note, reasonsInto(&old.Reasons), &old.AgentHost, &old.Parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
+			&old.DecidedAt, &old.Note, reasonsInto(&old.Reasons), &old.AgentHost, &old.Parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated,
+			&tally.Basis, &tally.Count); {
 		case err == nil:
 			haveOld = true
 		case err == sql.ErrNoRows:
@@ -182,21 +185,36 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		if err := venue.CheckStatedInput(stored, d); err != nil {
 			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
+		// A rejection that names no source judged the one the block holds,
+		// and counts against it.
+		counted := d
+		if counted.ReviewState == venue.ReviewStateRejected && counted.Basis == "" && d.ItemName != "" {
+			err := tx.QueryRowContext(ctx,
+				`SELECT source_revision FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND source_id=$4`,
+				projectID, stream, d.ItemName, d.Unit).Scan(&counted.Basis)
+			if err != nil && err != sql.ErrNoRows {
+				return changed, fmt.Errorf("resolve rejected block %s/%s: %w", d.ItemName, d.Unit, err)
+			}
+		}
+		tally = platstore.CountRejection(stored, tally, counted)
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
 				(project_id, stream, item_id, item_name, unit, variant, status, revision, basis,
-				 review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated, updated_at)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19,$20)
+				 review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated, updated_at,
+				 rejection_basis, rejection_count)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,$22)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=EXCLUDED.item_name,
 				status=EXCLUDED.status, revision=EXCLUDED.revision, basis=EXCLUDED.basis,
 				review_state=EXCLUDED.review_state, decided_by=EXCLUDED.decided_by,
 				decided_at=EXCLUDED.decided_at, note=EXCLUDED.note, reasons=EXCLUDED.reasons, agent_host=EXCLUDED.agent_host, parked=EXCLUDED.parked,
 				assignee=EXCLUDED.assignee, governing_fingerprint=EXCLUDED.governing_fingerprint,
-				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at`,
+				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at,
+				rejection_basis=EXCLUDED.rejection_basis, rejection_count=EXCLUDED.rejection_count`,
 			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.Revision, d.Basis,
-			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, encodeReasons(d.Reasons), d.AgentHost, d.Parked, d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
+			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, encodeReasons(d.Reasons), d.AgentHost, d.Parked, d.Assignee, d.GoverningFingerprint, d.Updated, now,
+			tally.Basis, tally.Count); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
@@ -339,7 +357,9 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 // RejectedOwed reads the verdict beside the basis: a rejection of a
 // translation of the source the block still carries owes the unit a fresh
 // draft, and the draft mark says whether the loop has made one. Stale
-// rejections are left out, so the two counts stay disjoint.
+// rejections are left out, so the two counts stay disjoint. A unit held at the
+// stop (platstore.RejectionTally.Holds) is a person's to write and owes the
+// loop nothing.
 func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
@@ -355,6 +375,7 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 			COALESCE(SUM(CASE WHEN d.review_state = $3
 				AND NOT `+pgBasisStale+`
 				AND NOT `+pgDraftCurrent+`
+				AND NOT `+pgRejectionHeld+`
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
 					AND t.block_id = b.id AND t.locale = d.variant)
@@ -367,7 +388,7 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 		 WHERE d.project_id=$1 AND d.stream=$2 AND b.translatable
 		 GROUP BY d.item_name, d.variant
 		 ORDER BY d.item_name, d.variant`,
-		projectID, stream, venue.ReviewStateRejected)
+		projectID, stream, venue.ReviewStateRejected, tool.MaxRejections)
 	if err != nil {
 		return nil, fmt.Errorf("tally decision basis: %w", err)
 	}
@@ -477,6 +498,55 @@ func (s *PostgresStore) ListDraftBases(ctx context.Context, projectID, stream st
 	return out, rows.Err()
 }
 
+var _ platstore.RejectionLedger = (*PostgresStore)(nil)
+
+// RecordRepeatedDrafts implements platstore.RejectionLedger. The update is the
+// SQL twin of the tally's own rule: one more for the same source, a count of
+// one for another.
+func (s *PostgresStore) RecordRepeatedDrafts(ctx context.Context, projectID, stream string, drafts []platstore.DraftBasis) error {
+	stream = storeutil.DefaultStream(stream)
+	now := time.Now().UTC()
+	for _, d := range drafts {
+		if d.ItemName == "" || d.Unit == "" || d.Variant == "" {
+			continue
+		}
+		if _, err := s.db.ExecContext(ctx,
+			`UPDATE unit_decisions SET
+				rejection_count = CASE WHEN rejection_count > 0 AND rejection_basis = $6 THEN rejection_count + 1 ELSE 1 END,
+				rejection_basis = $6, updated_at = $7
+			 WHERE project_id=$1 AND stream=$2 AND unit=$4 AND variant=$5
+			   AND item_id = (SELECT id FROM items WHERE project_id=$1 AND stream=$2 AND name=$3)`,
+			projectID, stream, d.ItemName, d.Unit, d.Variant, d.Basis, now); err != nil {
+			return fmt.Errorf("record repeated draft %s/%s: %w", d.Unit, d.Variant, err)
+		}
+	}
+	return nil
+}
+
+// ListRejectionTallies implements platstore.RejectionLedger.
+func (s *PostgresStore) ListRejectionTallies(ctx context.Context, projectID, stream string) ([]platstore.RejectionTally, error) {
+	stream = storeutil.DefaultStream(stream)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT item_name, unit, variant, rejection_basis, rejection_count
+		 FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND rejection_count > 0
+		 ORDER BY item_name, unit, variant`,
+		projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list rejection tallies: %w", err)
+	}
+	defer rows.Close()
+
+	var out []platstore.RejectionTally
+	for rows.Next() {
+		var t platstore.RejectionTally
+		if err := rows.Scan(&t.ItemName, &t.Unit, &t.Variant, &t.Basis, &t.Count); err != nil {
+			return nil, fmt.Errorf("scan rejection tally: %w", err)
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
 // pgBasisStale is the SQL twin of platstore.BasisStale over the decision row d
 // and its block b: the basis names a revision of the source other than the one
 // the block holds now.
@@ -494,6 +564,11 @@ const pgDerivedStale = `(COALESCE(t.target_json->'derived'->>'rev', '') <> ''
 // pgDraftCurrent says the row's draft mark names the source the block holds
 // now: the platform has drafted the unit against it.
 const pgDraftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revision)`
+
+// pgRejectionHeld is the SQL twin of platstore.RejectionTally.Holds over the
+// decision row d and its block b, with the stop (tool.MaxRejections) bound as
+// $4.
+const pgRejectionHeld = `(d.rejection_basis <> '' AND d.rejection_basis = b.source_revision AND d.rejection_count >= $4)`
 
 // The block_history change types a re-derived projection files. Both are
 // written by "system": nobody reviewed anything, the source moved under a

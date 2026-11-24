@@ -385,7 +385,7 @@ func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 // project's DNT terms. A sweep measures models under the context the jobs it
 // informs will actually run with.
 func resolveSweepContext(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) *SweepContext {
-	cfg := jobTranslateConfig(ctx, deps, job, proj)
+	cfg := jobTranslateConfig(ctx, deps, job, proj, nil)
 	return &SweepContext{
 		SourceLocale: cfg.SourceLocale,
 		Profile:      cfg.Profile,

@@ -279,6 +279,11 @@
         "stream properties (extensible metadata, incl. voice binding)"
       ]
     },
+    "50": {
+      "description": "the rejections of drafts of a unit's source",
+      "identity": "7bd0e31f6438cfde2ad71e013fde88ec",
+      "names": ["the rejections of drafts of a unit's source"]
+    },
     "6": {
       "description": "convergence run loop-observability columns (stall_reason, stage, activity)",
       "identity": "bd4d529a53d9684a37f615b6158ca7c0",
@@ -507,6 +512,11 @@
       "description": "the agent host a review decision was recorded from",
       "identity": "39e9695f405f194dca937d2554eb00f1",
       "names": ["the agent host a review decision was recorded from"]
+    },
+    "66": {
+      "description": "the rejections of drafts of a unit's source",
+      "identity": "17cff19516ada0a0e68909c96822fa5e",
+      "names": ["the rejections of drafts of a unit's source"]
     }
   },
   "tb_schema_migrations": {

@@ -887,7 +887,7 @@ func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) 
 		DoNotTranslate: t.keptVerbatimFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
-		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainKey()),
+		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.UnitKey(), v.ChainKey()),
 	})
 	if err != nil {
 		return "", nil, fmt.Errorf("translate: %w", err)
@@ -904,7 +904,7 @@ func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) 
 			DoNotTranslate: t.keptVerbatimFor(maskedSource),
 			VoiceGuide:     t.voiceGuide,
 			Instruction:    t.instruction,
-			BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainKey()),
+			BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.UnitKey(), v.ChainKey()),
 		})
 		if rerr != nil {
 			return "", nil, fmt.Errorf("translate: %w", rerr)
@@ -927,7 +927,7 @@ func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) 
 func (t *AITranslateTool) translateStructured(v tool.VariantView, sourceRuns []model.Run) error {
 	runs, err := tool.TranslateStructures(sourceRuns, func(seq []model.Run) ([]model.Run, error) {
 		if model.RunsHaveInlineCodes(seq) {
-			out, _, err := t.translateCoded(v.Context(), seq, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey()))
+			out, _, err := t.translateCoded(v.Context(), seq, t.contextFor(v.Context(), v.ID(), v.Name(), v.UnitKey(), v.ChainKey()))
 			return out, err
 		}
 		text, _, err := t.translatePlain(v, model.RunsText(seq))
@@ -1000,14 +1000,14 @@ func (t *AITranslateTool) translateBlockRaw(ctx context.Context, req aiprovider.
 // translateWithInlineCodes translates a block that contains inline codes
 // (translateCoded) and writes the target.
 func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRuns []model.Run) error {
-	targetRuns, resp, err := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey()))
+	targetRuns, resp, err := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.UnitKey(), v.ChainKey()))
 	if err != nil {
 		return err
 	}
 	// A draft equal to one a reviewer rejected is asked for once more, with
 	// that wording now shown as rejected.
 	if t.repeatsRejected(v.Context(), v.UnitKey(), model.RunsText(targetRuns)) {
-		again, againResp, rerr := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey()))
+		again, againResp, rerr := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.UnitKey(), v.ChainKey()))
 		if rerr != nil {
 			return rerr
 		}
@@ -1456,7 +1456,7 @@ func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) 
 	if b == nil {
 		return t.configFP
 	}
-	if d := t.contextFor(ctx, b.ID, b.Name, b.ChainKey()).Digest(); d != "" {
+	if d := t.contextFor(ctx, b.ID, b.Name, b.UnitKey(), b.ChainKey()).Digest(); d != "" {
 		return blockstore.ReuseConfig(t.configFP+":"+d, b)
 	}
 	return blockstore.ReuseConfig(t.configFP, b)
@@ -1547,12 +1547,14 @@ func (t *AITranslateTool) keptVerbatimFor(texts ...string) []string {
 }
 
 // contextFor is the reference material for one block: its key always, and its
-// neighbours when the tool holds the document in order.
-func (t *AITranslateTool) contextFor(ctx context.Context, id, name, unit string) prompt.Context {
+// neighbours when the tool holds the document in order. The reviewers'
+// rejections are read by unitKey (model.Block.UnitKey), the key review feedback
+// is filed under; unit is the chain key the block's history is read by.
+func (t *AITranslateTool) contextFor(ctx context.Context, id, name, unitKey, unit string) prompt.Context {
 	if t.contextPolicy == ContextNone {
-		return prompt.Context{Rejections: t.rejectionsFor(ctx, strings.TrimSpace(name))}
+		return prompt.Context{Rejections: t.rejectionsFor(ctx, unitKey)}
 	}
-	pc := prompt.Context{Key: strings.TrimSpace(name), Rejections: t.rejectionsFor(ctx, strings.TrimSpace(name))}
+	pc := prompt.Context{Key: strings.TrimSpace(name), Rejections: t.rejectionsFor(ctx, unitKey)}
 	for i := range t.docEntries {
 		if t.docEntries[i].block != nil && t.docEntries[i].block.ID == id {
 			return t.blockContext(ctx, t.docEntries[i].block, t.docEntries, i)

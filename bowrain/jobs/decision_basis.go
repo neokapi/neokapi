@@ -68,6 +68,9 @@ type decisionUnitKey struct {
 type ledgerRecord struct {
 	venue.UnitDecision
 	draftBasis string
+	// rejections counts the drafts of one source the unit has had turned
+	// down. At the stop the unit is a person's to write.
+	rejections store.RejectionTally
 }
 
 // decisionLedger indexes stream decisions by unit and variant. A nil ledger
@@ -116,6 +119,26 @@ func loadDecisionLedger(ctx context.Context, cs store.ContentStore, projectID, s
 		}
 		rec.draftBasis = d.Basis
 		index[key] = rec
+	}
+	// The tallies sit on the same rows too. A store without them, or a read
+	// that fails, leaves every unit below the stop: the pass drafts a unit it
+	// might have left for a person, which costs a draft and loses no work.
+	rl, ok := cs.(store.RejectionLedger)
+	if !ok {
+		return index
+	}
+	tallies, err := rl.ListRejectionTallies(ctx, projectID, stream)
+	if err != nil {
+		slog.WarnContext(ctx, "read the rejection tallies; this pass drafts every rejected unit",
+			"project", projectID, "stream", stream, "error", err)
+		return index
+	}
+	for _, t := range tallies {
+		key := decisionUnitKey{item: t.ItemName, unit: t.Unit, variant: t.Variant}
+		if rec, ok := index[key]; ok {
+			rec.rejections = t
+			index[key] = rec
+		}
 	}
 	return index
 }
@@ -179,6 +202,11 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 			// the row carries, the unit is a reviewer's to move; another pass
 			// would change nothing but the bill. A rejection clears this mark,
 			// which is what buys the rejected unit exactly one more draft.
+			continue
+		}
+		if d.rejections.Holds(current) {
+			// tool.MaxRejections drafts of this source turned down: the
+			// loop drafts it no more, and a person writes its translation.
 			continue
 		}
 		if d.ReviewState == venue.ReviewStateRejected {
