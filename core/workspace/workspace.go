@@ -87,26 +87,37 @@ type Workspace struct {
 // Open prepares a workspace over a backend: it opens the workspace-wide
 // database and brings the project registry's schema up to date.
 //
-// The Workspace takes ownership of the backend, and Close releases it.
+// The Workspace takes ownership of the backend, and Close releases it. When
+// Open fails it releases the backend itself, since no Workspace exists to.
 func Open(ctx context.Context, backend Backend) (*Workspace, error) {
 	if backend == nil {
 		return nil, errors.New("workspace: no backend")
 	}
 	registry, err := backend.Registry(ctx)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		err = prepareRegistry(ctx, registry, backend.Describe().ReadOnly)
 	}
-	if !backend.Describe().ReadOnly {
-		if err := storage.Migrate(registry, registryMigrationsTable, registryMigrations); err != nil {
-			return nil, fmt.Errorf("workspace: migrate project registry: %w", err)
-		}
-	} else if err := storage.Check(ctx, registry, registryMigrationsTable, registryMigrations); err != nil {
-		// Read-only, nothing is migrated, but a registry a newer kapi wrote
-		// is still refused rather than read in a shape this build does not
-		// know.
-		return nil, fmt.Errorf("workspace: check project registry: %w", err)
+	if err != nil {
+		return nil, errors.Join(err, backend.Close())
 	}
 	return &Workspace{backend: backend, registry: registry}, nil
+}
+
+// prepareRegistry brings the project registry's schema up to date. A
+// registry open for reading only is migrated not at all, but one a newer
+// kapi wrote is still refused rather than read in a shape this build does
+// not know.
+func prepareRegistry(ctx context.Context, registry *storage.DB, readOnly bool) error {
+	if readOnly {
+		if err := storage.Check(ctx, registry, registryMigrationsTable, registryMigrations); err != nil {
+			return fmt.Errorf("workspace: check project registry: %w", err)
+		}
+		return nil
+	}
+	if err := storage.Migrate(registry, registryMigrationsTable, registryMigrations); err != nil {
+		return fmt.Errorf("workspace: migrate project registry: %w", err)
+	}
+	return nil
 }
 
 // OpenLocal prepares a workspace kept in a directory on this machine.
