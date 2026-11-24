@@ -22,9 +22,21 @@ through scheduled-failure-issue.yml. `make lint` runs the offline check, so a
 pull request that raises one copy of a pin and not the others fails at once.
 
 A row whose `note` names a coupling is not a one-line bump: read the note.
+
+A row can carry a hold when a newer release cannot be taken yet:
+
+    "held": {"until": "<condition>", "issue": "#NNNN", "review": "YYYY-MM-DD"}
+
+While a newer release exists and the review date has not come, the row is
+reported as HELD, with its condition, and does not fail. On the review date it
+fails again. A hold on a pin that is current fails too, so it is removed. The
+review date may be at most 90 days ahead, and every run lists the holds. Holds
+were approved by the founder on 2026-11-24; each new hold is named to the
+founder when it is added.
 """
 
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -127,6 +139,11 @@ PINS = [
         ],
         "latest": ("nuget", "microsoft.ml.onnxruntime"),
         "note": "Coupled: the version must be the one the onnxruntime_go release below was built for (its ORT_API_VERSION), and scripts/fetch-onnxruntime.sh needs the new SHA-256. Run the nightly vision jobs and a release dry run on the branch.",
+        "held": {
+            "until": "a yalue/onnxruntime_go release vendors the onnxruntime 1.32 C API (ORT_API_VERSION 32)",
+            "issue": "#3838",
+            "review": "2027-01-15",
+        },
     },
     {
         "name": "onnxruntime_go binding",
@@ -317,10 +334,36 @@ def behind(pinned, upstream):
     return have < want[: len(have)]
 
 
-def check(rows, offline, ask=latest, root=ROOT):
+HOLD_DAYS = 90
+
+
+def hold_problems(hold, today):
+    """Why a hold is malformed or too long; empty when it is well formed."""
+    out = []
+    if not str(hold.get("until", "")).strip():
+        out.append("names no condition (until)")
+    if not re.fullmatch(r"#\d+", str(hold.get("issue", ""))):
+        out.append("links no issue (issue: \"#NNNN\")")
+    try:
+        review = datetime.date.fromisoformat(str(hold.get("review", "")))
+    except ValueError:
+        return out + ["has no review date (review: YYYY-MM-DD)"]
+    if (review - today).days > HOLD_DAYS:
+        out.append(f"has a review date ({review}) more than {HOLD_DAYS} days ahead")
+    return out
+
+
+def check(rows, offline, ask=latest, root=ROOT, today=None):
     """Return (report lines, finding lines) for the rows."""
+    today = today or datetime.date.today()
     report, findings = [], []
     for row in rows:
+        hold = row.get("held")
+        if hold:
+            problems = hold_problems(hold, today)
+            if problems:
+                findings.append(f"{row['name']}: the hold {'; '.join(problems)}")
+                continue
         found = read_pin(row, root)
         if not found:
             findings.append(f"{row['name']}: no pin found. The pattern in scripts/check-tool-versions.py no longer matches the tree.")
@@ -331,7 +374,8 @@ def check(rows, offline, ask=latest, root=ROOT):
             continue
         pinned = next(iter(found))
         if offline:
-            report.append(f"{row['name']}: {pinned} ({len(found[pinned])} place(s))")
+            held = f"; HELD until {hold['until']} ({hold['issue']}, review {hold['review']})" if hold else ""
+            report.append(f"{row['name']}: {pinned} ({len(found[pinned])} place(s)){held}")
             continue
         try:
             upstream = ask(*row["latest"])
@@ -341,8 +385,14 @@ def check(rows, offline, ask=latest, root=ROOT):
         if not upstream:
             findings.append(f"{row['name']}: the registry returned no stable release")
         elif behind(pinned, upstream):
+            if hold and datetime.date.fromisoformat(hold["review"]) > today:
+                report.append(f"{row['name']}: HELD at {pinned}, latest {upstream}, until {hold['until']} ({hold['issue']}, review {hold['review']})")
+                continue
+            expired = f"\n    The hold ({hold['issue']}) reached its review date {hold['review']}: take the release, or renew the hold with the founder." if hold else ""
             note = f"\n    {row['note']}" if row["note"] else ""
-            findings.append(f"{row['name']}: pinned {pinned}, latest {upstream} ({found[pinned][0]} and {len(found[pinned]) - 1} more){note}")
+            findings.append(f"{row['name']}: pinned {pinned}, latest {upstream} ({found[pinned][0]} and {len(found[pinned]) - 1} more){note}{expired}")
+        elif hold:
+            findings.append(f"{row['name']}: {pinned} is current (latest {upstream}), so its hold ({hold['issue']}) is no longer needed: remove it")
         else:
             report.append(f"{row['name']}: {pinned} is current (latest {upstream})")
     return report, findings
@@ -387,6 +437,29 @@ def self_test():
         report, findings = check([missing], offline=True, root=root)
         assert len(findings) == 1 and "no pin found" in findings[0], findings
 
+        # Holds.
+        today = datetime.date(2026, 11, 24)
+        held = dict(row, held={"until": "the binding supports it", "issue": "#3838", "review": "2027-01-15"})
+        newer = lambda kind, argument: "1.3.0"  # noqa: E731
+        same = lambda kind, argument: "1.2.3"  # noqa: E731
+        (root / "a/two.yml").write_text('TOOL_VERSION: "1.2.3"\n', encoding="utf-8")
+        report, findings = check([held], offline=False, ask=newer, root=root, today=today)
+        assert not findings and "HELD at 1.2.3, latest 1.3.0" in report[0] and "#3838" in report[0], (report, findings)
+        report, findings = check([held], offline=True, root=root, today=today)
+        assert not findings and "HELD until the binding supports it" in report[0], (report, findings)
+        report, findings = check([held], offline=False, ask=newer, root=root, today=datetime.date(2027, 1, 15))
+        assert len(findings) == 1 and "reached its review date" in findings[0], findings
+        report, findings = check([held], offline=False, ask=same, root=root, today=today)
+        assert len(findings) == 1 and "no longer needed" in findings[0], findings
+        for bad, why in [({"issue": "#1", "review": "2027-01-01"}, "names no condition"),
+                         ({"until": "x", "review": "2027-01-01"}, "links no issue"),
+                         ({"until": "x", "issue": "#1"}, "no review date"),
+                         ({"until": "x", "issue": "#1", "review": "2027-03-01"}, "more than 90 days ahead")]:
+            report, findings = check([dict(row, held=bad)], offline=True, root=root, today=today)
+            assert len(findings) == 1 and why in findings[0], (bad, findings)
+        report, findings = check([dict(row, held={"until": "x", "issue": "#1", "review": "2027-02-22"})], offline=True, root=root, today=today)
+        assert not findings, findings  # exactly 90 days ahead is allowed
+
     # Every real row still finds its pin in this tree, with one value.
     report, findings = check(PINS, offline=True)
     assert not findings, findings
@@ -404,6 +477,9 @@ def main():
     report, findings = check(PINS, args.offline)
     for line in report:
         print(line)
+    holds = [r for r in PINS if r.get("held")]
+    if holds:
+        print("holds: " + "; ".join(f"{r['name']} until {r['held']['until']} ({r['held']['issue']}, review {r['held']['review']})" for r in holds))
     if findings:
         print("\n" + "\n".join(findings), file=sys.stderr)
         print(f"\ncheck-tool-versions: {len(findings)} pin(s) need attention", file=sys.stderr)
