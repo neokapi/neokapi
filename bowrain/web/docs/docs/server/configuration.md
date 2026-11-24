@@ -229,6 +229,15 @@ enqueues.
 | `BOWRAIN_PLATFORM_BASE_URL` | Provider API base URL (for example self-hosted Ollama) |
 | `BOWRAIN_OPENAI_ENDPOINT` | Azure OpenAI endpoint (managed identity); consulted only when `BOWRAIN_PLATFORM_PROVIDER` is unset |
 
+Bowrain redacts nothing itself: draft jobs and editor translations send block
+content and reviewers' notes to this provider as the platform holds them. To
+keep a value from the provider, declare a
+[redaction policy](https://neokapi.github.io/framework/redaction#recipe-configuration)
+in the project's kapi recipe. `kapi push` then sends that value as a
+placeholder and keeps the original on the developer's machine. That covers
+content kapi pushes. It doesn't cover content from other connectors, or what a
+reviewer types into a note.
+
 :::note Blob directory env var differs by service
 The server reads `BLOB_STORAGE_LOCAL_DIR`; the worker reads `LOCAL_BLOB_DIR`.
 Point both at the same shared volume.

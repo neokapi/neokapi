@@ -224,6 +224,20 @@ func TestReviewFeedback_TheGateFoldsInTheFeedback(t *testing.T) {
 	got := fb[tool.FeedbackUnitKey("src/en.json", "greeting")].Rejections
 	require.NotEmpty(t, got)
 	assert.Equal(t, "Too formal; use tu.", got[len(got)-1].Note, "the next draft is given the note as it reads now")
+
+	// A rejection of another draft of the unit makes that unit stale, and the
+	// other unit stays current.
+	another := rejection
+	another.TargetHash = state.TargetHash("Bonjour à vous")
+	another.Revision = ""
+	another.Decision.Note = "Still too formal."
+	another.Decision.At = "2099-01-02T00:00:00Z"
+	require.NoError(t, st.Put(t.Context(), another))
+	gate, _, err = a.verifyStaleness(cmd, proj, root, units, nil)
+	require.NoError(t, err)
+	require.False(t, gate.Pass, "a rejection of another draft makes the unit stale")
+	require.Len(t, gate.Findings, 1)
+	assert.Contains(t, gate.Findings[0].Message, "1 of 2 targets", "only the unit whose draft was rejected")
 }
 
 // Machine translation is sent no feedback: the run says so once, the unit is
