@@ -16,400 +16,413 @@ import (
 //
 // --- Java-internal API tests (not applicable to native Go implementation) ---
 //
-// okapi-unmapped: ColorValueTest#argbAutoValueAsRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#argbIndexedColorValueAsRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#argbThemeValueAsRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#argbValueAsRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#argbValueWithTintAsRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#hslValueAsRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#percentageRgbValueAsHslRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#percentageRgbValueAsPercentagesRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#percentageRgbValueAsRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ColorValueTest#presetValueAsExternalNameAndRgbRepresented — Java-internal color parsing
-// okapi-unmapped: ConditionalParametersTest#defaultValuesExposedAsString — Java-internal API test
-// okapi-unmapped: ConditionalParametersTest#fontMappingsExposedAsString — Java-internal API test
-// okapi-unmapped: ConditionalParametersTest#testFromStringForTsComplexFieldDefinitionsToExtract — Java-internal API test
-// okapi-unmapped: ConditionalParametersTest#testIncludedSlidesOnly — Java-internal API test
-// okapi-unmapped: ConditionalParametersTest#testMigrateLegacyDefaultTranslatableField — Java-internal API test
-// okapi-unmapped: ConditionalParametersTest#testToStringForTsComplexFieldDefinitionsToExtract — Java-internal API test
-// okapi-unmapped: ConditionalParametersTest#valuesValidated — Java-internal API test
-// okapi-unmapped: ExcelStyleDefinitionsTest#argbForegroundColorsDetermined — Java-internal API test
-// okapi-unmapped: ExcelStyleDefinitionsTest#optionalFillIdOfCellFormatHandled — Java-internal API test
-// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#getColumnIndexFromCellRefTest — Java-internal API test
-// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#getColumnIndexFromColumnRefTest — Java-internal API test
-// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#getRowNumberFromCellRefTest — Java-internal API test
-// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#sanityCheckTest — Java-internal API test
-// okapi-unmapped: PartPathTest#backslashesReplacedWithSlashes — Java-internal API test
-// okapi-unmapped: PartPathTest#slashesRemainUnchanged — Java-internal API test
-// okapi-unmapped: PresentationFragmentsTest#defaultTextStyleDetermined — Java-internal API test
-// okapi-unmapped: PresentationFragmentsTest#notesMasterNamesDetermined — Java-internal API test
-// okapi-unmapped: PresentationFragmentsTest#slideMasterNamesDetermined — Java-internal API test
-// okapi-unmapped: PresentationFragmentsTest#slideNamesDetermined — Java-internal API test
-// okapi-unmapped: PresentationNotesStyleDefinitionsTest#testGetCombinedRunProperties — Java-internal API test
-// okapi-unmapped: SerialDateTimeTest#defaultBasedValuesTransformedToLocalDateTime — Java-internal API test
-// okapi-unmapped: SerialDateTimeTest#epoch1900BasedValuesTransformedToLocalDateTime — Java-internal API test
-// okapi-unmapped: SerialDateTimeTest#epoch1904BasedValuesTransformedToLocalDateTime — Java-internal API test
-// okapi-unmapped: StringItemParserTest#doesNotLoseTextFollowedByEmptyRun — Java-internal API test
-// okapi-unmapped: StringItemParserTest#emptyRunInTheMiddleIsRemoved — Java-internal API test
-// okapi-unmapped: StringItemParserTest#stringItemHasTextNameWhenLastRunHasNoTextButFormatting — Java-internal API test
-// okapi-unmapped: TestContentTypes#testRels — Java-internal API test
-// okapi-unmapped: WorksheetConfigurationsTest#constructedFromParametersString — Java-internal API test
-// okapi-unmapped: WorksheetConfigurationsTest#exposedAsString — Java-internal API test
+// okapi-unmapped: ColorValueTest#argbAutoValueAsRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#argbIndexedColorValueAsRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#argbThemeValueAsRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#argbValueAsRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#argbValueWithTintAsRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#hslValueAsRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#percentageRgbValueAsHslRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#percentageRgbValueAsPercentagesRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#percentageRgbValueAsRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ColorValueTest#presetValueAsExternalNameAndRgbRepresented - Java-internal color parsing
+// okapi-unmapped: ConditionalParametersTest#defaultValuesExposedAsString - Java-internal API test
+// okapi-unmapped: ConditionalParametersTest#fontMappingsExposedAsString - Java-internal API test
+// okapi-unmapped: ConditionalParametersTest#testFromStringForTsComplexFieldDefinitionsToExtract - Java-internal API test
+// okapi-unmapped: ConditionalParametersTest#testIncludedSlidesOnly - Java-internal API test
+// okapi-unmapped: ConditionalParametersTest#testMigrateLegacyDefaultTranslatableField - Java-internal API test
+// okapi-unmapped: ConditionalParametersTest#testToStringForTsComplexFieldDefinitionsToExtract - Java-internal API test
+// Unreleased upstream: Okapi added ConditionalParametersTest#valuesValidated in 8efa7eb2e6, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. Java-internal API test
+// okapi-unmapped: ExcelStyleDefinitionsTest#argbForegroundColorsDetermined - Java-internal API test
+// okapi-unmapped: ExcelStyleDefinitionsTest#optionalFillIdOfCellFormatHandled - Java-internal API test
+// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#getColumnIndexFromCellRefTest - Java-internal API test
+// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#getColumnIndexFromColumnRefTest - Java-internal API test
+// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#getRowNumberFromCellRefTest - Java-internal API test
+// okapi-unmapped: ExcelWorksheetTransUnitPropertyTest#sanityCheckTest - Java-internal API test
+// okapi-unmapped: PartPathTest#backslashesReplacedWithSlashes - Java-internal API test
+// okapi-unmapped: PartPathTest#slashesRemainUnchanged - Java-internal API test
+// okapi-unmapped: PresentationFragmentsTest#defaultTextStyleDetermined - Java-internal API test
+// okapi-unmapped: PresentationFragmentsTest#notesMasterNamesDetermined - Java-internal API test
+// okapi-unmapped: PresentationFragmentsTest#slideMasterNamesDetermined - Java-internal API test
+// okapi-unmapped: PresentationFragmentsTest#slideNamesDetermined - Java-internal API test
+// okapi-unmapped: PresentationNotesStyleDefinitionsTest#testGetCombinedRunProperties - Java-internal API test
+// okapi-unmapped: SerialDateTimeTest#defaultBasedValuesTransformedToLocalDateTime - Java-internal API test
+// okapi-unmapped: SerialDateTimeTest#epoch1900BasedValuesTransformedToLocalDateTime - Java-internal API test
+// okapi-unmapped: SerialDateTimeTest#epoch1904BasedValuesTransformedToLocalDateTime - Java-internal API test
+// okapi-unmapped: StringItemParserTest#doesNotLoseTextFollowedByEmptyRun - Java-internal API test
+// okapi-unmapped: StringItemParserTest#emptyRunInTheMiddleIsRemoved - Java-internal API test
+// okapi-unmapped: StringItemParserTest#stringItemHasTextNameWhenLastRunHasNoTextButFormatting - Java-internal API test
+// okapi-unmapped: TestContentTypes#testRels - Java-internal API test
+// okapi-unmapped: WorksheetConfigurationsTest#constructedFromParametersString - Java-internal API test
+// okapi-unmapped: WorksheetConfigurationsTest#exposedAsString - Java-internal API test
 //
 // --- Java block parser / paragraph simplifier / writer internals ---
 //
-// okapi-unmapped: TestBlockParser#acceptsRevisionsInComplexFields — Java-internal API test
-// okapi-unmapped: TestBlockParser#testAlternateContent — Java-internal API test
-// okapi-unmapped: TestBlockParser#testComplexScriptTagSkipping — Java-internal API test
-// okapi-unmapped: TestBlockParser#testComplexStyles — Java-internal API test
-// okapi-unmapped: TestBlockParser#testComplexStyles2 — Java-internal API test
-// okapi-unmapped: TestBlockParser#testEmptyBlock — Java-internal API test
-// okapi-unmapped: TestBlockParser#testEmptyFootnotes — Java-internal API test
-// okapi-unmapped: TestBlockParser#testEmptyRunIgnoration — Java-internal API test
-// okapi-unmapped: TestBlockParser#testFieldAndTab — Java-internal API test
-// okapi-unmapped: TestBlockParser#testFieldAndTabAsChar — Java-internal API test
-// okapi-unmapped: TestBlockParser#testFieldCodes — Java-internal API test
-// okapi-unmapped: TestBlockParser#testFieldSimple2 — Java-internal API test
-// okapi-unmapped: TestBlockParser#testFindRunAndTextNames — Java-internal API test
-// okapi-unmapped: TestBlockParser#testHyperlink — Java-internal API test
-// okapi-unmapped: TestBlockParser#testHyperlinkComplexFieldCharacters — Java-internal API test
-// okapi-unmapped: TestBlockParser#testLineBreakToCharacterConversion — Java-internal API test
-// okapi-unmapped: TestBlockParser#testMultipleTabs — Java-internal API test
-// okapi-unmapped: TestBlockParser#testNestedBlocksIds — Java-internal API test
-// okapi-unmapped: TestBlockParser#testNestedComplexFieldCharacters — Java-internal API test
-// okapi-unmapped: TestBlockParser#testNestedSmartTag — Java-internal API test
-// okapi-unmapped: TestBlockParser#testNoBreakHyphenToCharacterConversion — Java-internal API test
-// okapi-unmapped: TestBlockParser#testNoProof — Java-internal API test
-// okapi-unmapped: TestBlockParser#testOverlappingStyles — Java-internal API test
-// okapi-unmapped: TestBlockParser#testRunHintsAndFontVariations — Java-internal API test
-// okapi-unmapped: TestBlockParser#testSimpleFields — Java-internal API test
-// okapi-unmapped: TestBlockParser#testSimpleFields2 — Java-internal API test
-// okapi-unmapped: TestBlockParser#testSimpleStyles — Java-internal API test
-// okapi-unmapped: TestBlockParser#testSoftHyphenIgnoration — Java-internal API test
-// okapi-unmapped: TestBlockParser#testStyledHyperlink — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTab — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTabAsChar — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTableTus — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTextBox — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTextBoxInAlternateContent — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTextBoxWithNameOptionDisabled — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTextBoxWithPictureHasUniqueTuIds — Java-internal API test
-// okapi-unmapped: TestBlockParser#testTextpath — Java-internal API test
-// okapi-unmapped: TestBlockParser#testVanishRunProperty — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testAggressiveSpacingTrimming — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testAggressiveVertAlignTrimming — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testAltContent — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testDontConsolidateMathRuns — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testDontMergeWhenPropertiesDontMatch — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testFonts — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testGoBackBookmark — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testHeaderWithConsecutiveTabs — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testInstrText — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testLangAttributeAndEmptyRunPropertyMerging — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testLineSeparatorSlide — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testLineSeparatorSlide2028 — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testPreserveSpaceReset — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testRuby — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testSimplifier — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testSlide — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testStripLastRenderedPagebreak — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testStripSpellingGrammarError — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testTab — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testTextBoxes — Java-internal API test
-// okapi-unmapped: TestParagraphSimplifier#testWithTabs — Java-internal API test
-// okapi-unmapped: TestRelationships#testBasicRels — Java-internal API test
-// okapi-unmapped: TestRelationships#testByType — Java-internal API test
-// okapi-unmapped: TestRelationships#testMissingRels — Java-internal API test
-// okapi-unmapped: TestRelationships#testNormalizedRels — Java-internal API test
-// okapi-unmapped: TestRelationships#testSkipInvalidRels — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#acceptsRevisions — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testAlternateContent — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testAttributesStripping — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testBcsSkip — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testBidirectionality — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testComplexStyles — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testComplexStyles2 — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testEmpty — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testEmptyRunIgnoration — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testEscaping — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testHidden — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testHyperlink — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testHyperlinkComplexFieldCharacters — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testLineBreakToCharacterConversion — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testNestedComplexFieldCharacters — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testNoBreakHyphenToCharacterConversion — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testOverlapping — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testRevisionInformationIsNotStripped — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testSimpleStyles — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testSmartTag — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testSoftHyphenIgnoration — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testTab — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testTextbox — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testTextbox2 — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testTextpath — Java-internal API test
-// okapi-unmapped: TestStyledTextUnitWriter#testWatermarkQuoteEscaping — Java-internal API test
-// okapi-unmapped: TestXMLSerializer#test — Java-internal API test
-// okapi-unmapped: TestXMLSerializer#testAttrQuoting — Java-internal API test
-// okapi-unmapped: TestXMLSerializer#testChars — Java-internal API test
+// okapi-unmapped: TestBlockParser#acceptsRevisionsInComplexFields - Java-internal API test
+// okapi-unmapped: TestBlockParser#testAlternateContent - Java-internal API test
+// okapi-unmapped: TestBlockParser#testComplexScriptTagSkipping - Java-internal API test
+// okapi-unmapped: TestBlockParser#testComplexStyles - Java-internal API test
+// okapi-unmapped: TestBlockParser#testComplexStyles2 - Java-internal API test
+// okapi-unmapped: TestBlockParser#testEmptyBlock - Java-internal API test
+// okapi-unmapped: TestBlockParser#testEmptyFootnotes - Java-internal API test
+// okapi-unmapped: TestBlockParser#testEmptyRunIgnoration - Java-internal API test
+// okapi-unmapped: TestBlockParser#testFieldAndTab - Java-internal API test
+// okapi-unmapped: TestBlockParser#testFieldAndTabAsChar - Java-internal API test
+// okapi-unmapped: TestBlockParser#testFieldCodes - Java-internal API test
+// okapi-unmapped: TestBlockParser#testFieldSimple2 - Java-internal API test
+// okapi-unmapped: TestBlockParser#testFindRunAndTextNames - Java-internal API test
+// okapi-unmapped: TestBlockParser#testHyperlink - Java-internal API test
+// okapi-unmapped: TestBlockParser#testHyperlinkComplexFieldCharacters - Java-internal API test
+// okapi-unmapped: TestBlockParser#testLineBreakToCharacterConversion - Java-internal API test
+// okapi-unmapped: TestBlockParser#testMultipleTabs - Java-internal API test
+// okapi-unmapped: TestBlockParser#testNestedBlocksIds - Java-internal API test
+// okapi-unmapped: TestBlockParser#testNestedComplexFieldCharacters - Java-internal API test
+// okapi-unmapped: TestBlockParser#testNestedSmartTag - Java-internal API test
+// okapi-unmapped: TestBlockParser#testNoBreakHyphenToCharacterConversion - Java-internal API test
+// okapi-unmapped: TestBlockParser#testNoProof - Java-internal API test
+// okapi-unmapped: TestBlockParser#testOverlappingStyles - Java-internal API test
+// okapi-unmapped: TestBlockParser#testRunHintsAndFontVariations - Java-internal API test
+// okapi-unmapped: TestBlockParser#testSimpleFields - Java-internal API test
+// okapi-unmapped: TestBlockParser#testSimpleFields2 - Java-internal API test
+// okapi-unmapped: TestBlockParser#testSimpleStyles - Java-internal API test
+// okapi-unmapped: TestBlockParser#testSoftHyphenIgnoration - Java-internal API test
+// okapi-unmapped: TestBlockParser#testStyledHyperlink - Java-internal API test
+// okapi-unmapped: TestBlockParser#testTab - Java-internal API test
+// okapi-unmapped: TestBlockParser#testTabAsChar - Java-internal API test
+// okapi-unmapped: TestBlockParser#testTableTus - Java-internal API test
+// okapi-unmapped: TestBlockParser#testTextBox - Java-internal API test
+// okapi-unmapped: TestBlockParser#testTextBoxInAlternateContent - Java-internal API test
+// okapi-unmapped: TestBlockParser#testTextBoxWithNameOptionDisabled - Java-internal API test
+// Unreleased upstream: Okapi added TestBlockParser#testTextBoxWithPictureHasUniqueTuIds in 75663880eb, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. Java-internal API test
+// okapi-unmapped: TestBlockParser#testTextpath - Java-internal API test
+// okapi-unmapped: TestBlockParser#testVanishRunProperty - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testAggressiveSpacingTrimming - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testAggressiveVertAlignTrimming - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testAltContent - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testDontConsolidateMathRuns - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testDontMergeWhenPropertiesDontMatch - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testFonts - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testGoBackBookmark - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testHeaderWithConsecutiveTabs - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testInstrText - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testLangAttributeAndEmptyRunPropertyMerging - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testLineSeparatorSlide - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testLineSeparatorSlide2028 - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testPreserveSpaceReset - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testRuby - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testSimplifier - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testSlide - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testStripLastRenderedPagebreak - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testStripSpellingGrammarError - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testTab - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testTextBoxes - Java-internal API test
+// okapi-unmapped: TestParagraphSimplifier#testWithTabs - Java-internal API test
+// okapi-unmapped: TestRelationships#testBasicRels - Java-internal API test
+// okapi-unmapped: TestRelationships#testByType - Java-internal API test
+// okapi-unmapped: TestRelationships#testMissingRels - Java-internal API test
+// okapi-unmapped: TestRelationships#testNormalizedRels - Java-internal API test
+// okapi-unmapped: TestRelationships#testSkipInvalidRels - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#acceptsRevisions - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testAlternateContent - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testAttributesStripping - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testBcsSkip - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testBidirectionality - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testComplexStyles - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testComplexStyles2 - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testEmpty - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testEmptyRunIgnoration - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testEscaping - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testHidden - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testHyperlink - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testHyperlinkComplexFieldCharacters - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testLineBreakToCharacterConversion - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testNestedComplexFieldCharacters - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testNoBreakHyphenToCharacterConversion - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testOverlapping - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testRevisionInformationIsNotStripped - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testSimpleStyles - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testSmartTag - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testSoftHyphenIgnoration - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testTab - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testTextbox - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testTextbox2 - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testTextpath - Java-internal API test
+// okapi-unmapped: TestStyledTextUnitWriter#testWatermarkQuoteEscaping - Java-internal API test
+// okapi-unmapped: TestXMLSerializer#test - Java-internal API test
+// okapi-unmapped: TestXMLSerializer#testAttrQuoting - Java-internal API test
+// okapi-unmapped: TestXMLSerializer#testChars - Java-internal API test
 //
 // --- OpenXMLRoundTripTest: covered by TestRoundTrip_Docx/Xlsx/Pptx glob tests ---
 //
-// okapi-unmapped: OpenXMLDefaultConfigRoundTripTest#testWitthDefaultConfig — default-config DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#acceptsDeletedParagraphMarkRevision — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#acceptsMovedContentRevisions — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#acceptsRevisionsInComplexFields — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#asciiAndHighAnsiFontCategoriesConditionallyPreservedOnDetection — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#breakReplacementsInFieldsWithParagraphsClarified — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#cachedChartStringsAndNumsTranslationSupported — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#cellReferencesRangePartsInitialisationClarified — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#cellsWithOmittedValuesSupported — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#codeFinderPreservesEscapedHtmlTagsAfterXliffMerge — no native equivalent: code-finder escaped-HTML-tag preservation across an XLIFF merge is a merge-time code-finder behaviour; native code-finder support is exercised at extraction by TestNative_CodeFinderExtraction, but the merge-time HTML-escape preservation is not asserted natively
-// okapi-unmapped: OpenXMLRoundTripTest#codeFinderPreservesEscapedHtmlTagsInSharedStrings — no native equivalent: code-finder escaped-HTML-tag preservation in XLSX sharedStrings is a merge-time code-finder behaviour; native code-finder support is exercised at extraction by TestNative_CodeFinderExtraction, but the merge-time HTML-escape preservation is not asserted natively
-// okapi-unmapped: OpenXMLRoundTripTest#codeFindingSupported — DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#complexFieldsMultipleInstructionsHandled — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#complexScriptPropertiesCleared — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#corePropertiesLastModifiedElementHandlingClarified — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#crossStructureRevisionsInTablesAccepted — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#defaultRunFormattingConditionallyOptimisedForWordDocuments — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#differentialFormatReadingClarified — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#dispersedTranslationsContextualised — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#documentWithRtlLanguageIsMerged — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#doesNotAcceptRevisions — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#doesNotCrashOnMerging — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#doesNotCrashOnRequesting0ParagraphLevel — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#doesNotCrashWithEmptyParagraphLevelsInNotesStyles — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#embeddedExcelPackageRemovalSupported — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#emptyCellsAndRowsCleanedUpAggressively — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#emptyFontElementPreservedInStylesXml — DOCX corpus roundtrip covered by TestRoundTrip_Docx (wordprocessing styles.xml font element)
-// okapi-unmapped: OpenXMLRoundTripTest#emptyReferentRunsHandlingClarified — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#emptyStringItemAppearanceInJoinedSourceAndTargetColumnsClarified — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx (Excel joined source/target columns)
-// okapi-unmapped: OpenXMLRoundTripTest#excelDocumentRevisionsAccepted — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#excelTableHeaderSpecialXmlCharactersProperlyEncoded — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#explicitHighlightedColorsInclusionSupported — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#explicitStylesInclusionSupported — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#filteringOutOfHiddenDrawingObjectsSupported — OpenXML corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx (hidden drawing-object filtering)
-// okapi-unmapped: OpenXMLRoundTripTest#fontColorsIgnored — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#fontMappingsAppliedInPresentationDocuments — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#fontMappingsAppliedInSpreadsheetDocuments — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#fontMappingsAppliedInWordDocuments — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#groupsOfWorksheetsAndRowsProvided — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#inlineStringsTransformedToSharedStrings — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#insertedAndDeletedTableRowRevisionsAccepted — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#lineBreakPrependedByRunWithEmptyText — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#lineBreaksMergingFixed — DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#nestedContentWithComplexFieldsHandlingClarified — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#nestedTablesWithoutRevisionsRoundTripped — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#nestedTextualUnitIdsGenerationAndHandlingImproved — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptAndComplexScriptPropertiesIdentificationAndMergeImproved — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptClearedAndComplexScriptPropertiesRemained — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptClearedAndComplexScriptPropertiesRemained2 — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptPropertiesCleared — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#numberingDefinitionsReadingAlignedWithProducedByApachePOINumberingPart — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#numberingTextExtractedAndMerged — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#objectPlaceholderTypeConsideredAsBody — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#okapiMarkersPreserved — DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#paragraphPropertiesAndRtlRunPropertyAbsentForRtlTargetLocale — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#paragraphsWithAbsentPropertiesMerged — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#phoneticGuideAndBaseTextsNestingSupported — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#powerpointBidiFormattingConsidered — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#powerpointExcludedAndHiddenPartsAvailableForModifications — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#powerpointGraphicMetadataTranslationSupported — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#powerpointStylesHierarchyConsidered — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#powerpointTableStylesConsidered — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#relationshipIdGenerationImproved — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsInStrictMode — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsLongRelationshipId — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsNestedContent — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithClarifiedBidiFormattingInStyles — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithOptimisedWordProcessingStyles — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithRefinedComplexFieldsEndBoundaries — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithReorderedNotesAndComments — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithStructuralDocumentTags — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithAggressiveCleanup — DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithRunFontsDifferences — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithRunFontsHintRespect — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithStyleOptimisationApplied — DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#runContainersConsideredForStylesOptimisation — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#runPropertiesMinified — DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#runPropertiesNotMinified — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestTwice — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestWithStyledTextCell — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestsAddLineSeparatorCharacter — DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestsExcludeGraphicMetaData — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithAggressiveTagStripping — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithColumnExclusion — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithHiddenCellsExposed — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithTextfield — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#sameCellsNotCopied — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sameNestedRevisionsAccepted — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#secondDocumentWithRtlLanguageIsMerged — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#selectivePartsTranslationAndReorderingIntroduced — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#sharedStringIndexNotInOrder — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sharedStringsFormationFromWorksheetInlineStringsClarified — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sheetNamesSyncedWithTranslations — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sourceAndTargetColumnsJoiningOnExtractionSupported — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sourceAndTargetColumnsSupported — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sourceColumnCellStylesConditionallyTreatedForExclusion — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sourceColumnCellsConditionallyExcludedFromCopyingOverToTargetOnes — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#sourceToTargetColumnExtractionWithHiddenContentClarified — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#styleOptimisationTurnedOff — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#stylesClarificationThroughoutWholeDocumentPerformed — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#subfilteringWithJoinedSourceAndTargetColumnsRestricted — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx (Excel joined source/target columns)
-// okapi-unmapped: OpenXMLRoundTripTest#tableAndPivotalTableColumnNamesSyncedWithTranslations — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#tablesWithEmptyLastRowsHandled — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#targetColumnCellStylesConditionallyPreserved — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#testAdditionalDocumentTypes — no native equivalent: exercises macro-enabled (.docm/.pptm) and template (.dotx/.dotm/.ppsx) document-type variants the native reader does not handle and the .docx/.xlsx/.pptx roundtrip globs do not match
-// okapi-unmapped: OpenXMLRoundTripTest#testClarifiablePart — XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Xlsx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#testExternalHyperlinks — DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#testHiddenMergeCells — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#testHiddenTablesWithFormula — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#testMultilineFormula — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#testPhoneticRunPropertyForAsianLanguages — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#textFormulaRecalculationPerformedOnSheetLoading — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#textRenderingClarifiedForRTLDirection — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#textRenderingClarifiedForRTLDirectionWithSameLocale — PPTX corpus roundtrip covered by TestRoundTrip_Pptx
-// okapi-unmapped: OpenXMLRoundTripTest#valuesFromCellsOfStringTypeWithEmptyFormulasTreatedAsInlineStrings — XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
-// okapi-unmapped: OpenXMLRoundTripTest#whitespaceStylesIgnoranceClarifiedForNotes — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#whitespaceStylesIgnoranceSupported — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundTripTest#wpmlTogglePropertiesHandlingAlignedWithToolsBehaviour — DOCX corpus roundtrip covered by TestRoundTrip_Docx
-// okapi-unmapped: OpenXMLRoundtripAddTabAsCharTest#test — tab-as-character roundtrip (setAddTabAsCharacter(true)) covered by TestNative_PageBreakRoundtripLineSeparator, which roundtrips with TabAsCharacter enabled
-// okapi-unmapped: OpenXMLRoundtripLineSeparatorReplacementTest#test — line-separator-replacement roundtrip (setAddLineSeparatorCharacter(true)) covered by TestNative_PageBreakRoundtripLineSeparator, which roundtrips with ReplaceLineSeparator enabled
-// neokapi-only: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithReplacementSetting — stale method name (v1.48.0 method is testPageBreakWithLineSeparatorOption, already mapped to TestNative_PageBreakRoundtripLineSeparator); covered by roundtrip glob
-// neokapi-only: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithoutReplacementSetting — stale method name (v1.48.0 method is testPageBreakWithoutLineSeparatorOption, already mapped to TestNative_PageBreakRoundtripNoLineSeparator); covered by roundtrip glob
-// neokapi-only: OpenXmlRoundtripPptxMastersTest#roundTripsWithSlideMastersEnabled — stale method name (v1.48.0 method is OpenXmlRoundtripPptxMastersTest#test, already mapped); covered by roundtrip glob
-// neokapi-only: OpenXmlRoundtripPptxRemoveEmbeddedTest#roundTripsWithEmbeddedExcelPackageRemoved — stale method name (v1.48.0 method is OpenXmlRoundtripPptxRemoveEmbeddedTest#test, already mapped); covered by roundtrip glob
-// neokapi-only: OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#roundTripsWithSoftLineBreaksDoNotTranslate — stale method name (v1.48.0 method is OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#test, already mapped to TestNative_SoftLineBreaksDoNotTranslateRoundtrip); covered by roundtrip glob
+// okapi-unmapped: OpenXMLDefaultConfigRoundTripTest#testWitthDefaultConfig - default-config DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#acceptsDeletedParagraphMarkRevision - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#acceptsMovedContentRevisions - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#acceptsRevisionsInComplexFields - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#asciiAndHighAnsiFontCategoriesConditionallyPreservedOnDetection - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#breakReplacementsInFieldsWithParagraphsClarified - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#cachedChartStringsAndNumsTranslationSupported - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#cellReferencesRangePartsInitialisationClarified - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#cellsWithOmittedValuesSupported - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// Unreleased upstream: Okapi added OpenXMLRoundTripTest#codeFinderPreservesEscapedHtmlTagsAfterXliffMerge in dd05943e52, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. No native test asserts merge-time escaped-HTML preservation across an XLIFF merge;
+// TestNative_CodeFinderExtraction covers extraction.
+// Unreleased upstream: Okapi added OpenXMLRoundTripTest#codeFinderPreservesEscapedHtmlTagsInSharedStrings in dd05943e52, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. No native test asserts merge-time escaped-HTML preservation in XLSX sharedStrings;
+// TestNative_CodeFinderExtraction covers extraction.
+// okapi-unmapped: OpenXMLRoundTripTest#codeFindingSupported - DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#complexFieldsMultipleInstructionsHandled - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#complexScriptPropertiesCleared - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#corePropertiesLastModifiedElementHandlingClarified - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#crossStructureRevisionsInTablesAccepted - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#defaultRunFormattingConditionallyOptimisedForWordDocuments - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#differentialFormatReadingClarified - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#dispersedTranslationsContextualised - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#documentWithRtlLanguageIsMerged - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#doesNotAcceptRevisions - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#doesNotCrashOnMerging - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#doesNotCrashOnRequesting0ParagraphLevel - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#doesNotCrashWithEmptyParagraphLevelsInNotesStyles - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#embeddedExcelPackageRemovalSupported - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#emptyCellsAndRowsCleanedUpAggressively - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// Unreleased upstream: Okapi added OpenXMLRoundTripTest#emptyFontElementPreservedInStylesXml in 00592215dc, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. DOCX corpus roundtrip covered by TestRoundTrip_Docx (wordprocessing styles.xml font element)
+// okapi-unmapped: OpenXMLRoundTripTest#emptyReferentRunsHandlingClarified - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// Unreleased upstream: Okapi added OpenXMLRoundTripTest#emptyStringItemAppearanceInJoinedSourceAndTargetColumnsClarified in b144d31f04, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. XLSX corpus roundtrip covered by TestRoundTrip_Xlsx (Excel joined source/target columns)
+// okapi-unmapped: OpenXMLRoundTripTest#excelDocumentRevisionsAccepted - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#excelTableHeaderSpecialXmlCharactersProperlyEncoded - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#explicitHighlightedColorsInclusionSupported - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#explicitStylesInclusionSupported - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// Unreleased upstream: Okapi added OpenXMLRoundTripTest#filteringOutOfHiddenDrawingObjectsSupported in 85b0be1971, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. OpenXML corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx (hidden drawing-object filtering)
+// okapi-unmapped: OpenXMLRoundTripTest#fontColorsIgnored - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#fontMappingsAppliedInPresentationDocuments - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#fontMappingsAppliedInSpreadsheetDocuments - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#fontMappingsAppliedInWordDocuments - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#groupsOfWorksheetsAndRowsProvided - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#inlineStringsTransformedToSharedStrings - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#insertedAndDeletedTableRowRevisionsAccepted - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#lineBreakPrependedByRunWithEmptyText - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#lineBreaksMergingFixed - DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#nestedContentWithComplexFieldsHandlingClarified - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#nestedTablesWithoutRevisionsRoundTripped - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#nestedTextualUnitIdsGenerationAndHandlingImproved - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptAndComplexScriptPropertiesIdentificationAndMergeImproved - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptClearedAndComplexScriptPropertiesRemained - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptClearedAndComplexScriptPropertiesRemained2 - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#nonComplexScriptPropertiesCleared - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#numberingDefinitionsReadingAlignedWithProducedByApachePOINumberingPart - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#numberingTextExtractedAndMerged - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#objectPlaceholderTypeConsideredAsBody - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#okapiMarkersPreserved - DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#paragraphPropertiesAndRtlRunPropertyAbsentForRtlTargetLocale - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#paragraphsWithAbsentPropertiesMerged - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#phoneticGuideAndBaseTextsNestingSupported - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#powerpointBidiFormattingConsidered - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#powerpointExcludedAndHiddenPartsAvailableForModifications - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#powerpointGraphicMetadataTranslationSupported - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#powerpointStylesHierarchyConsidered - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#powerpointTableStylesConsidered - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#relationshipIdGenerationImproved - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsInStrictMode - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsLongRelationshipId - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsNestedContent - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithClarifiedBidiFormattingInStyles - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithOptimisedWordProcessingStyles - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithRefinedComplexFieldsEndBoundaries - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithReorderedNotesAndComments - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#roundTripsWithStructuralDocumentTags - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithAggressiveCleanup - DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithRunFontsDifferences - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithRunFontsHintRespect - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#roundtripsWithStyleOptimisationApplied - DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#runContainersConsideredForStylesOptimisation - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#runPropertiesMinified - DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#runPropertiesNotMinified - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestTwice - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestWithStyledTextCell - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestsAddLineSeparatorCharacter - DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestsExcludeGraphicMetaData - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithAggressiveTagStripping - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithColumnExclusion - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithHiddenCellsExposed - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#runTestsWithTextfield - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#sameCellsNotCopied - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sameNestedRevisionsAccepted - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#secondDocumentWithRtlLanguageIsMerged - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#selectivePartsTranslationAndReorderingIntroduced - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#sharedStringIndexNotInOrder - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sharedStringsFormationFromWorksheetInlineStringsClarified - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sheetNamesSyncedWithTranslations - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sourceAndTargetColumnsJoiningOnExtractionSupported - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sourceAndTargetColumnsSupported - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sourceColumnCellStylesConditionallyTreatedForExclusion - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sourceColumnCellsConditionallyExcludedFromCopyingOverToTargetOnes - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#sourceToTargetColumnExtractionWithHiddenContentClarified - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#styleOptimisationTurnedOff - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#stylesClarificationThroughoutWholeDocumentPerformed - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// Unreleased upstream: Okapi added OpenXMLRoundTripTest#subfilteringWithJoinedSourceAndTargetColumnsRestricted in 8efa7eb2e6, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. XLSX corpus roundtrip covered by TestRoundTrip_Xlsx (Excel joined source/target columns)
+// okapi-unmapped: OpenXMLRoundTripTest#tableAndPivotalTableColumnNamesSyncedWithTranslations - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#tablesWithEmptyLastRowsHandled - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#targetColumnCellStylesConditionallyPreserved - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#testAdditionalDocumentTypes - no native equivalent: exercises macro-enabled (.docm/.pptm) and template (.dotx/.dotm/.ppsx) document-type variants the native reader does not handle and the .docx/.xlsx/.pptx roundtrip globs do not match
+// okapi-unmapped: OpenXMLRoundTripTest#testClarifiablePart - XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Xlsx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#testExternalHyperlinks - DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#testHiddenMergeCells - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#testHiddenTablesWithFormula - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#testMultilineFormula - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#testPhoneticRunPropertyForAsianLanguages - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#textFormulaRecalculationPerformedOnSheetLoading - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#textRenderingClarifiedForRTLDirection - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#textRenderingClarifiedForRTLDirectionWithSameLocale - PPTX corpus roundtrip covered by TestRoundTrip_Pptx
+// okapi-unmapped: OpenXMLRoundTripTest#valuesFromCellsOfStringTypeWithEmptyFormulasTreatedAsInlineStrings - XLSX corpus roundtrip covered by TestRoundTrip_Xlsx
+// okapi-unmapped: OpenXMLRoundTripTest#whitespaceStylesIgnoranceClarifiedForNotes - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#whitespaceStylesIgnoranceSupported - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundTripTest#wpmlTogglePropertiesHandlingAlignedWithToolsBehaviour - DOCX corpus roundtrip covered by TestRoundTrip_Docx
+// okapi-unmapped: OpenXMLRoundtripAddTabAsCharTest#test - tab-as-character roundtrip (setAddTabAsCharacter(true)) covered by TestNative_PageBreakRoundtripLineSeparator, which roundtrips with TabAsCharacter enabled
+// okapi-unmapped: OpenXMLRoundtripLineSeparatorReplacementTest#test - line-separator-replacement roundtrip (setAddLineSeparatorCharacter(true)) covered by TestNative_PageBreakRoundtripLineSeparator, which roundtrips with ReplaceLineSeparator enabled
+// neokapi-only: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithReplacementSetting - stale method name (v1.48.0 method is testPageBreakWithLineSeparatorOption, already mapped to TestNative_PageBreakRoundtripLineSeparator). Covered by the roundtrip glob.
+// neokapi-only: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithoutReplacementSetting - stale method name (v1.48.0 method is testPageBreakWithoutLineSeparatorOption, already mapped to TestNative_PageBreakRoundtripNoLineSeparator). Covered by the roundtrip glob.
+// neokapi-only: OpenXmlRoundtripPptxMastersTest#roundTripsWithSlideMastersEnabled - stale method name (v1.48.0 method is OpenXmlRoundtripPptxMastersTest#test, already mapped). Covered by the roundtrip glob.
+// neokapi-only: OpenXmlRoundtripPptxRemoveEmbeddedTest#roundTripsWithEmbeddedExcelPackageRemoved - stale method name (v1.48.0 method is OpenXmlRoundtripPptxRemoveEmbeddedTest#test, already mapped). Covered by the roundtrip glob.
+// neokapi-only: OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#roundTripsWithSoftLineBreaksDoNotTranslate - stale method name (v1.48.0 method is OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#test, already mapped to TestNative_SoftLineBreaksDoNotTranslateRoundtrip). Covered by the roundtrip glob.
 //
 // --- Extraction tests not applicable to native (Okapi-specific features) ---
 //
-// okapi-unmapped: OpenXMLTest#extractsTextEncodingOkapiMarkerDocx — Okapi marker encoding not applicable
-// okapi-unmapped: OpenXMLTest#extractsTextEncodingOkapiMarkersPptx — Okapi marker encoding not applicable
-// okapi-unmapped: OpenXMLTest#extractsTextEncodingOkapiMarkerXlsx — Okapi marker encoding not applicable
-// okapi-unmapped: OpenXMLTest#testOkapiEncryptedDataException — encrypted file handling not implemented
-// okapi-unmapped: OpenXMLTest#testLibreOfficeDocWithAbsolutePartPaths — LibreOffice path normalization not implemented
-// okapi-unmapped: OpenXMLRepetitionTest#testRepetition — repetition/leverage not applicable
-// okapi-unmapped: OpenXMLSnippetsTest#testAuthor — Java snippet API not applicable
+// okapi-unmapped: OpenXMLTest#extractsTextEncodingOkapiMarkerDocx - Okapi marker encoding not applicable
+// okapi-unmapped: OpenXMLTest#extractsTextEncodingOkapiMarkersPptx - Okapi marker encoding not applicable
+// okapi-unmapped: OpenXMLTest#extractsTextEncodingOkapiMarkerXlsx - Okapi marker encoding not applicable
+// okapi-unmapped: OpenXMLTest#testOkapiEncryptedDataException - encrypted file handling not implemented
+// okapi-unmapped: OpenXMLTest#testLibreOfficeDocWithAbsolutePartPaths - LibreOffice path normalization not implemented
+// okapi-unmapped: OpenXMLRepetitionTest#testRepetition - repetition/leverage not applicable
+// okapi-unmapped: OpenXMLSnippetsTest#testAuthor - Java snippet API not applicable
 //
 // --- Features not yet implemented in native format ---
 //
-// okapi-unmapped: OpenXMLTest#cellAndInlineStylesCorrelatedForColorsExclusion — color exclusion not implemented
-// okapi-unmapped: OpenXMLTest#codeDisplayTextContainsExcludedRunContentForExtractedExcelDocuments — code display text not implemented
-// okapi-unmapped: OpenXMLTest#codeDisplayTextContainsExcludedRunContentForExtractedPowerpointDocuments — code display text not implemented
-// okapi-unmapped: OpenXMLTest#codeDisplayTextContainsExcludedRunContentForExtractedWordDocuments — code display text not implemented
-// okapi-unmapped: OpenXMLTest#exclusionByDefaultFontColorsSupported — color exclusion not implemented
-// okapi-unmapped: OpenXMLTest#exclusionByDefaultHighlightColorsSupported — highlight color exclusion not implemented
-// okapi-unmapped: OpenXMLTest#explicitHighlightedColorsInclusionSupported — highlight color inclusion not implemented
-// okapi-unmapped: OpenXMLTest#explicitStylesInclusionSupported — style inclusion not implemented
-// okapi-unmapped: OpenXMLTest#extractsMovedContent — tracked changes not implemented
-// okapi-unmapped: OpenXMLTest#extractsMovedInlineContent — tracked changes not implemented
-// okapi-unmapped: OpenXMLTest#extractsMovedParagraphContent — tracked changes not implemented
-// okapi-unmapped: OpenXMLTest#extractsRunsFollowedByEmptyParagraph — empty paragraph handling not implemented
-// okapi-unmapped: OpenXMLTest#extractsRunsWithMinifiedRunProperties — minified run properties not implemented
-// okapi-unmapped: OpenXMLTest#extractsUnmergedRunsWithDifferentRunFonts — unmerged run fonts not implemented
-// okapi-unmapped: OpenXMLTest#extractsWithAcceptedDeletedParagraphMarkRevision — revision acceptance not implemented
-// okapi-unmapped: OpenXMLTest#extractsWithImplicitFormatting — implicit formatting not implemented
-// okapi-unmapped: OpenXMLTest#extractsReorderedNotesAndComments — reordered notes extraction not implemented
-// okapi-unmapped: OpenXMLTest#extractsReorderedNotesAndCommentsWithNoCommentsPart — reordered notes without comments not implemented
-// okapi-unmapped: OpenXMLTest#insertedAndDeletedTableRowRevisionsAccepted — table row revisions not implemented
-// okapi-unmapped: OpenXMLTest#nonComplexScriptAndComplexScriptPropertiesIdentificationAndMergeImproved — script properties merge not implemented
-// okapi-unmapped: OpenXMLTest#numberingLevelTextExtracted — numbering level text not implemented
-// okapi-unmapped: OpenXMLTest#phoneticGuideAndBaseTextsNested — phonetic guide nesting not implemented
-// okapi-unmapped: OpenXMLTest#standardBackgroundForegroundAndFontColorsExcluded — color exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxColorExclude — color exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxColorExcludeBlock — color exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxHighlightsExclude — highlight exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxHighlightsExcludeBlock — highlight exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxHighlightsInclude — highlight inclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxHighlightsIncludeColorExcludeInStyle — highlight/color filtering not implemented
-// okapi-unmapped: OpenXMLTest#testDocxHighlightsIncludeInStyle — highlight inclusion in style not implemented
-// okapi-unmapped: OpenXMLTest#testDocxStylesExclude — style exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxStylesInclude — style inclusion not implemented
-// okapi-unmapped: OpenXMLTest#testDocxStylesIncludeWithExcludedColor — style/color filtering not implemented
-// okapi-unmapped: OpenXMLTest#testHiddenTablesByApachePOIWithoutTranslation — hidden tables not implemented
-// okapi-unmapped: OpenXMLTest#testHiddenTablesByApachePOIWithTranslation — hidden tables not implemented
-// okapi-unmapped: OpenXMLTest#testPartialExclusionFromColumns — column exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testSmartQuotes — smart quotes not implemented
-// okapi-unmapped: OpenXMLTest#testXLSXExcludeAllColumns — column exclusion not implemented
-// okapi-unmapped: OpenXMLTest#testXLSXTranslateSheetNames — sheet name translation not implemented
-// okapi-unmapped: OpenXMLTest#whitespaceStylesIgnored — whitespace styles not implemented
-// okapi-unmapped: OpenXMLTest#wordFontColorsIgnored — font color filtering not implemented
+// okapi-unmapped: OpenXMLTest#cellAndInlineStylesCorrelatedForColorsExclusion - color exclusion not implemented
+// okapi-unmapped: OpenXMLTest#codeDisplayTextContainsExcludedRunContentForExtractedExcelDocuments - code display text not implemented
+// okapi-unmapped: OpenXMLTest#codeDisplayTextContainsExcludedRunContentForExtractedPowerpointDocuments - code display text not implemented
+// okapi-unmapped: OpenXMLTest#codeDisplayTextContainsExcludedRunContentForExtractedWordDocuments - code display text not implemented
+// okapi-unmapped: OpenXMLTest#exclusionByDefaultFontColorsSupported - color exclusion not implemented
+// okapi-unmapped: OpenXMLTest#exclusionByDefaultHighlightColorsSupported - highlight color exclusion not implemented
+// okapi-unmapped: OpenXMLTest#explicitHighlightedColorsInclusionSupported - highlight color inclusion not implemented
+// okapi-unmapped: OpenXMLTest#explicitStylesInclusionSupported - style inclusion not implemented
+// okapi-unmapped: OpenXMLTest#extractsMovedContent - tracked changes not implemented
+// okapi-unmapped: OpenXMLTest#extractsMovedInlineContent - tracked changes not implemented
+// okapi-unmapped: OpenXMLTest#extractsMovedParagraphContent - tracked changes not implemented
+// okapi-unmapped: OpenXMLTest#extractsRunsFollowedByEmptyParagraph - empty paragraph handling not implemented
+// okapi-unmapped: OpenXMLTest#extractsRunsWithMinifiedRunProperties - minified run properties not implemented
+// okapi-unmapped: OpenXMLTest#extractsUnmergedRunsWithDifferentRunFonts - unmerged run fonts not implemented
+// okapi-unmapped: OpenXMLTest#extractsWithAcceptedDeletedParagraphMarkRevision - revision acceptance not implemented
+// okapi-unmapped: OpenXMLTest#extractsWithImplicitFormatting - implicit formatting not implemented
+// okapi-unmapped: OpenXMLTest#extractsReorderedNotesAndComments - reordered notes extraction not implemented
+// okapi-unmapped: OpenXMLTest#extractsReorderedNotesAndCommentsWithNoCommentsPart - reordered notes without comments not implemented
+// okapi-unmapped: OpenXMLTest#insertedAndDeletedTableRowRevisionsAccepted - table row revisions not implemented
+// okapi-unmapped: OpenXMLTest#nonComplexScriptAndComplexScriptPropertiesIdentificationAndMergeImproved - script properties merge not implemented
+// okapi-unmapped: OpenXMLTest#numberingLevelTextExtracted - numbering level text not implemented
+// okapi-unmapped: OpenXMLTest#phoneticGuideAndBaseTextsNested - phonetic guide nesting not implemented
+// okapi-unmapped: OpenXMLTest#standardBackgroundForegroundAndFontColorsExcluded - color exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxColorExclude - color exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxColorExcludeBlock - color exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxHighlightsExclude - highlight exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxHighlightsExcludeBlock - highlight exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxHighlightsInclude - highlight inclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxHighlightsIncludeColorExcludeInStyle - highlight/color filtering not implemented
+// okapi-unmapped: OpenXMLTest#testDocxHighlightsIncludeInStyle - highlight inclusion in style not implemented
+// okapi-unmapped: OpenXMLTest#testDocxStylesExclude - style exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxStylesInclude - style inclusion not implemented
+// okapi-unmapped: OpenXMLTest#testDocxStylesIncludeWithExcludedColor - style/color filtering not implemented
+// okapi-unmapped: OpenXMLTest#testHiddenTablesByApachePOIWithoutTranslation - hidden tables not implemented
+// okapi-unmapped: OpenXMLTest#testHiddenTablesByApachePOIWithTranslation - hidden tables not implemented
+// okapi-unmapped: OpenXMLTest#testPartialExclusionFromColumns - column exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testSmartQuotes - smart quotes not implemented
+// okapi-unmapped: OpenXMLTest#testXLSXExcludeAllColumns - column exclusion not implemented
+// okapi-unmapped: OpenXMLTest#testXLSXTranslateSheetNames - sheet name translation not implemented
+// okapi-unmapped: OpenXMLTest#whitespaceStylesIgnored - whitespace styles not implemented
+// okapi-unmapped: OpenXMLTest#wordFontColorsIgnored - font color filtering not implemented
 //
 // --- OpenXmlPptxTest: PPTX features not yet implemented in native ---
 //
-// okapi-unmapped: OpenXmlPptxTest#cachedChartNumbersExtracted — chart number extraction not implemented
-// okapi-unmapped: OpenXmlPptxTest#cachedChartStringsExtracted — chart string extraction not implemented
-// okapi-unmapped: OpenXmlPptxTest#chartsNotTranslatedButReordered — chart reordering not implemented
-// okapi-unmapped: OpenXmlPptxTest#conditionalExtractionOfHiddenDrawingObjectsSupported — hidden drawing extraction not implemented
-// okapi-unmapped: OpenXmlPptxTest#diagramDataNotTranslatedButReordered — diagram reordering not implemented
-// okapi-unmapped: OpenXmlPptxTest#diagramDataTranslatedAndReordered — diagram translation not implemented
-// okapi-unmapped: OpenXmlPptxTest#documentPropertiesNotTranslatedButReordered — doc properties reordering not implemented
-// okapi-unmapped: OpenXmlPptxTest#documentPropertiesTranslatedAndReordered — doc properties reordering not implemented
-// okapi-unmapped: OpenXmlPptxTest#doesNotExtractEmptyFormatting — empty formatting filtering not implemented
-// okapi-unmapped: OpenXmlPptxTest#endParagraphPropertiesDoesNotTriggerAdditionalCodesCreation — paragraph properties not implemented
-// okapi-unmapped: OpenXmlPptxTest#extractsWithAggressivelyCleanedUpFormatting — PPTX aggressive cleanup not implemented
-// okapi-unmapped: OpenXmlPptxTest#extractsWithoutAggressivelyCleanedUpFormatting — PPTX aggressive cleanup not implemented
-// okapi-unmapped: OpenXmlPptxTest#graphicMetadataExtracted — graphic metadata not implemented
-// okapi-unmapped: OpenXmlPptxTest#notesTranslatedAndReordered — notes reordering not implemented
-// okapi-unmapped: OpenXmlPptxTest#relationshipsReordered — relationships reordering not implemented
-// okapi-unmapped: OpenXmlPptxTest#testExternalRelationships — external relationships not implemented
-// okapi-unmapped: OpenXmlPptxTest#testIncludeSlidesCharts — included slides with charts not implemented
-// okapi-unmapped: OpenXmlPptxTest#testIncludeSlidesSmartArt — included slides with smart art not implemented
-// okapi-unmapped: OpenXmlPptxTest#testIncludeSlidesYes — included slides filtering not implemented
-// okapi-unmapped: OpenXmlPptxTest#testMaster — master slide extraction not implemented
-// okapi-unmapped: OpenXmlPptxTest#testRunMergingWithBaselineAttribute — run merging baseline not implemented
-// okapi-unmapped: OpenXmlPptxTest#testRunMergingWithBaselineAttributeFromMaster — run merging from master not implemented
+// okapi-unmapped: OpenXmlPptxTest#cachedChartNumbersExtracted - chart number extraction not implemented
+// okapi-unmapped: OpenXmlPptxTest#cachedChartStringsExtracted - chart string extraction not implemented
+// okapi-unmapped: OpenXmlPptxTest#chartsNotTranslatedButReordered - chart reordering not implemented
+// Unreleased upstream: Okapi added OpenXmlPptxTest#conditionalExtractionOfHiddenDrawingObjectsSupported in 85b0be1971, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. hidden drawing extraction not implemented
+// okapi-unmapped: OpenXmlPptxTest#diagramDataNotTranslatedButReordered - diagram reordering not implemented
+// okapi-unmapped: OpenXmlPptxTest#diagramDataTranslatedAndReordered - diagram translation not implemented
+// okapi-unmapped: OpenXmlPptxTest#documentPropertiesNotTranslatedButReordered - doc properties reordering not implemented
+// okapi-unmapped: OpenXmlPptxTest#documentPropertiesTranslatedAndReordered - doc properties reordering not implemented
+// okapi-unmapped: OpenXmlPptxTest#doesNotExtractEmptyFormatting - empty formatting filtering not implemented
+// okapi-unmapped: OpenXmlPptxTest#endParagraphPropertiesDoesNotTriggerAdditionalCodesCreation - paragraph properties not implemented
+// okapi-unmapped: OpenXmlPptxTest#extractsWithAggressivelyCleanedUpFormatting - PPTX aggressive cleanup not implemented
+// okapi-unmapped: OpenXmlPptxTest#extractsWithoutAggressivelyCleanedUpFormatting - PPTX aggressive cleanup not implemented
+// okapi-unmapped: OpenXmlPptxTest#graphicMetadataExtracted - graphic metadata not implemented
+// okapi-unmapped: OpenXmlPptxTest#notesTranslatedAndReordered - notes reordering not implemented
+// okapi-unmapped: OpenXmlPptxTest#relationshipsReordered - relationships reordering not implemented
+// okapi-unmapped: OpenXmlPptxTest#testExternalRelationships - external relationships not implemented
+// okapi-unmapped: OpenXmlPptxTest#testIncludeSlidesCharts - included slides with charts not implemented
+// okapi-unmapped: OpenXmlPptxTest#testIncludeSlidesSmartArt - included slides with smart art not implemented
+// okapi-unmapped: OpenXmlPptxTest#testIncludeSlidesYes - included slides filtering not implemented
+// okapi-unmapped: OpenXmlPptxTest#testMaster - master slide extraction not implemented
+// okapi-unmapped: OpenXmlPptxTest#testRunMergingWithBaselineAttribute - run merging baseline not implemented
+// okapi-unmapped: OpenXmlPptxTest#testRunMergingWithBaselineAttributeFromMaster - run merging from master not implemented
 //
 // --- OpenXmlXlsxTest: XLSX features not yet implemented in native ---
 //
-// okapi-unmapped: OpenXmlXlsxTest#benchmarkXLSX — benchmark not applicable
-// okapi-unmapped: OpenXmlXlsxTest#booleansAndNumbersExtractedAsMetadata — metadata extraction not implemented
-// okapi-unmapped: OpenXmlXlsxTest#cellsWithOmittedValuesSupported — omitted values not implemented
-// okapi-unmapped: OpenXmlXlsxTest#colorExclusionConsideredForThemes — theme color exclusion not implemented
-// okapi-unmapped: OpenXmlXlsxTest#columnsExcluded — column exclusion not implemented
-// okapi-unmapped: OpenXmlXlsxTest#emptyStringItemAppearanceInJoinedSourceAndTargetColumnsClarified — joined columns not implemented
-// okapi-unmapped: OpenXmlXlsxTest#excelDocumentRevisionsAcceptedWithAllReviewed — revision acceptance not implemented
-// okapi-unmapped: OpenXmlXlsxTest#excelDocumentRevisionsNotAcceptedWithNotAllReviewed — revision non-acceptance not implemented
-// okapi-unmapped: OpenXmlXlsxTest#explicitlySpecifiedCellsExtractionAllowed — specific cell extraction not implemented
-// okapi-unmapped: OpenXmlXlsxTest#explicitlySpecifiedWorksheetsExtractionAllowed — specific worksheet extraction not implemented
-// okapi-unmapped: OpenXmlXlsxTest#fontsInfoExtracted — XLSX font info not implemented
-// okapi-unmapped: OpenXmlXlsxTest#groupsOfWorksheetsAndRowsExtracted — worksheet groups not implemented
-// okapi-unmapped: OpenXmlXlsxTest#joinedSourceAndTargetColumnsExtractionHandled — joined columns not implemented
-// okapi-unmapped: OpenXmlXlsxTest#maxWidthAndSizeUnitPropertiesSpecified — max width properties not implemented
-// okapi-unmapped: OpenXmlXlsxTest#metadataMarked — metadata marking not implemented
-// okapi-unmapped: OpenXmlXlsxTest#rowsAndColumnsExcluded — rows/columns exclusion not implemented
-// okapi-unmapped: OpenXmlXlsxTest#rowsExcluded — row exclusion not implemented
-// okapi-unmapped: OpenXmlXlsxTest#sameCellDataNotCopied — same cell data not implemented
-// okapi-unmapped: OpenXmlXlsxTest#sourceColumnCellStylesTreatedForExclusion — source column styles not implemented
-// okapi-unmapped: OpenXmlXlsxTest#sourceColumnsIdentifiedAndExtractedAsTargetColumns — source/target columns not implemented
-// okapi-unmapped: OpenXmlXlsxTest#sourceToTargetColumnExtractionWithHiddenContentClarified — hidden content columns not implemented
-// okapi-unmapped: OpenXmlXlsxTest#subfilteringWithJoinedSourceAndTargetColumnsRestricted — subfiltering restriction not implemented
-// okapi-unmapped: OpenXmlXlsxTest#testExcelWorksheetTransUnitProperty — worksheet trans unit not implemented
-// okapi-unmapped: OpenXmlXlsxTest#testSheetNamesHiddenExclude — hidden sheet exclusion not implemented
-// okapi-unmapped: OpenXmlXlsxTest#testSheetNamesHiddenInclude — hidden sheet inclusion not implemented
-// okapi-unmapped: OpenXmlXlsxTest#testSmartArtHidden — XLSX hidden smart art not implemented
-// okapi-unmapped: OpenXmlXlsxTest#testTextFields — XLSX text fields not implemented
-// okapi-unmapped: OpenXmlXlsxTest#testTextFieldsHidden — XLSX hidden text fields not implemented
-// okapi-unmapped: OpenXmlXlsxTest#tintedColorsHandlingClarified — tinted colors not implemented
-// okapi-unmapped: OpenXmlXlsxTest#valuesFromCellsOfStringTypeWithEmptyFormulasTreatedAsInlineStrings — empty formula strings not implemented
-// okapi-unmapped: OpenXmlXlsxTest#worksheetRowsAndColumnsIdentificationClarified — worksheet identification not implemented
+// okapi-unmapped: OpenXmlXlsxTest#benchmarkXLSX - benchmark not applicable
+// okapi-unmapped: OpenXmlXlsxTest#booleansAndNumbersExtractedAsMetadata - metadata extraction not implemented
+// okapi-unmapped: OpenXmlXlsxTest#cellsWithOmittedValuesSupported - omitted values not implemented
+// okapi-unmapped: OpenXmlXlsxTest#colorExclusionConsideredForThemes - theme color exclusion not implemented
+// okapi-unmapped: OpenXmlXlsxTest#columnsExcluded - column exclusion not implemented
+// Unreleased upstream: Okapi added OpenXmlXlsxTest#emptyStringItemAppearanceInJoinedSourceAndTargetColumnsClarified in b144d31f04, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. joined columns not implemented
+// okapi-unmapped: OpenXmlXlsxTest#excelDocumentRevisionsAcceptedWithAllReviewed - revision acceptance not implemented
+// okapi-unmapped: OpenXmlXlsxTest#excelDocumentRevisionsNotAcceptedWithNotAllReviewed - revision non-acceptance not implemented
+// okapi-unmapped: OpenXmlXlsxTest#explicitlySpecifiedCellsExtractionAllowed - specific cell extraction not implemented
+// okapi-unmapped: OpenXmlXlsxTest#explicitlySpecifiedWorksheetsExtractionAllowed - specific worksheet extraction not implemented
+// okapi-unmapped: OpenXmlXlsxTest#fontsInfoExtracted - XLSX font info not implemented
+// okapi-unmapped: OpenXmlXlsxTest#groupsOfWorksheetsAndRowsExtracted - worksheet groups not implemented
+// okapi-unmapped: OpenXmlXlsxTest#joinedSourceAndTargetColumnsExtractionHandled - joined columns not implemented
+// okapi-unmapped: OpenXmlXlsxTest#maxWidthAndSizeUnitPropertiesSpecified - max width properties not implemented
+// okapi-unmapped: OpenXmlXlsxTest#metadataMarked - metadata marking not implemented
+// okapi-unmapped: OpenXmlXlsxTest#rowsAndColumnsExcluded - rows/columns exclusion not implemented
+// okapi-unmapped: OpenXmlXlsxTest#rowsExcluded - row exclusion not implemented
+// okapi-unmapped: OpenXmlXlsxTest#sameCellDataNotCopied - same cell data not implemented
+// okapi-unmapped: OpenXmlXlsxTest#sourceColumnCellStylesTreatedForExclusion - source column styles not implemented
+// okapi-unmapped: OpenXmlXlsxTest#sourceColumnsIdentifiedAndExtractedAsTargetColumns - source/target columns not implemented
+// okapi-unmapped: OpenXmlXlsxTest#sourceToTargetColumnExtractionWithHiddenContentClarified - hidden content columns not implemented
+// Unreleased upstream: Okapi added OpenXmlXlsxTest#subfilteringWithJoinedSourceAndTargetColumnsRestricted in 8efa7eb2e6, after the pinned v1.48.0;
+// restore it as an okapi-unmapped annotation once a pinned release has it. subfiltering restriction not implemented
+// okapi-unmapped: OpenXmlXlsxTest#testExcelWorksheetTransUnitProperty - worksheet trans unit not implemented
+// okapi-unmapped: OpenXmlXlsxTest#testSheetNamesHiddenExclude - hidden sheet exclusion not implemented
+// okapi-unmapped: OpenXmlXlsxTest#testSheetNamesHiddenInclude - hidden sheet inclusion not implemented
+// okapi-unmapped: OpenXmlXlsxTest#testSmartArtHidden - XLSX hidden smart art not implemented
+// okapi-unmapped: OpenXmlXlsxTest#testTextFields - XLSX text fields not implemented
+// okapi-unmapped: OpenXmlXlsxTest#testTextFieldsHidden - XLSX hidden text fields not implemented
+// okapi-unmapped: OpenXmlXlsxTest#tintedColorsHandlingClarified - tinted colors not implemented
+// okapi-unmapped: OpenXmlXlsxTest#valuesFromCellsOfStringTypeWithEmptyFormulasTreatedAsInlineStrings - empty formula strings not implemented
+// okapi-unmapped: OpenXmlXlsxTest#worksheetRowsAndColumnsIdentificationClarified - worksheet identification not implemented
 //
 // --- Formatting, subfiltering, zip tests not yet implemented in native ---
 //
-// okapi-unmapped: OpenXmlFormattingTest#extractsCaps — caps formatting not implemented
-// okapi-unmapped: OpenXmlFormattingTest#extractsHighlightAndShade — highlight/shade not implemented
-// okapi-unmapped: SubfilteringTest#extractsWithHtmlSubfiltering — HTML subfiltering not implemented
-// okapi-unmapped: SubfilteringTest#extractsWithPlainTextSubfiltering — plaintext subfiltering not implemented
-// okapi-unmapped: SubfilteringTest#extractsWithoutSubfiltering — subfiltering not implemented
-// okapi-unmapped: SubfilteringTest#roundtripsWithHtmlSubfiltering — HTML subfiltering roundtrip not implemented
-// okapi-unmapped: SubfilteringTest#roundtripsWithPlainTextSubfiltering — plaintext subfiltering roundtrip not implemented
-// okapi-unmapped: OpenXMLZipFullFileTest#testAll — full file zip test not implemented
-// okapi-unmapped: OpenXMLZipFullFileTest#testNonwellformed — non-wellformed test not implemented
-// okapi-unmapped: OpenXMLFilterLineSeparatorReplacementTest#testSimple — line separator replacement not implemented
-// okapi-unmapped: OpenXMLFilterLineSeparatorReplacementTest#testSimple2 — line separator replacement not implemented
-// okapi-unmapped: WorksheetTest#test — Java-internal API test
-// okapi-unmapped: WorksheetTest#testExcludeColors — Java-internal API test
-// okapi-unmapped: WorksheetTest#testExcludeHiddenCells — Java-internal API test
-// okapi-unmapped: WorksheetTest#testExposeHiddenCells — Java-internal API test
+// okapi-unmapped: OpenXmlFormattingTest#extractsCaps - caps formatting not implemented
+// okapi-unmapped: OpenXmlFormattingTest#extractsHighlightAndShade - highlight/shade not implemented
+// okapi-unmapped: SubfilteringTest#extractsWithHtmlSubfiltering - HTML subfiltering not implemented
+// okapi-unmapped: SubfilteringTest#extractsWithPlainTextSubfiltering - plaintext subfiltering not implemented
+// okapi-unmapped: SubfilteringTest#extractsWithoutSubfiltering - subfiltering not implemented
+// okapi-unmapped: SubfilteringTest#roundtripsWithHtmlSubfiltering - HTML subfiltering roundtrip not implemented
+// okapi-unmapped: SubfilteringTest#roundtripsWithPlainTextSubfiltering - plaintext subfiltering roundtrip not implemented
+// okapi-unmapped: OpenXMLZipFullFileTest#testAll - full file zip test not implemented
+// okapi-unmapped: OpenXMLZipFullFileTest#testNonwellformed - non-wellformed test not implemented
+// okapi-unmapped: OpenXMLFilterLineSeparatorReplacementTest#testSimple - line separator replacement not implemented
+// okapi-unmapped: OpenXMLFilterLineSeparatorReplacementTest#testSimple2 - line separator replacement not implemented
+// okapi-unmapped: WorksheetTest#test - Java-internal API test
+// okapi-unmapped: WorksheetTest#testExcludeColors - Java-internal API test
+// okapi-unmapped: WorksheetTest#testExcludeHiddenCells - Java-internal API test
+// okapi-unmapped: WorksheetTest#testExposeHiddenCells - Java-internal API test
 
 // testdataDir returns the path to the okapi-testdata OpenXML directory.
 // Returns "" if the testdata is not available (skips the test).
@@ -492,7 +505,7 @@ func readFileWithConfig(t *testing.T, path string, configure func(*Config)) []*m
 
 // --- DOCX tests mirroring Okapi extraction tests ---
 
-// neokapi-only: OpenXMLTest#testWordDocuments — no such method in v1.48.0 OpenXMLTest; general DOCX extraction is OpenXMLTest#extractsNestedContentInTheExpectedOrder (already mapped to TestNative_DocxNotes). This native test is additional neokapi DOCX-extraction coverage.
+// neokapi-only: OpenXMLTest#testWordDocuments - no such method in v1.48.0 OpenXMLTest; general DOCX extraction is OpenXMLTest#extractsNestedContentInTheExpectedOrder (already mapped to TestNative_DocxNotes). This native test is additional neokapi DOCX-extraction coverage.
 func TestNative_SimpleDocx(t *testing.T) {
 	dir := testdataDir(t)
 	parts := readFile(t, filepath.Join(dir, "948-1.docx"))
@@ -567,7 +580,7 @@ func TestNative_DocxSoftLineBreaks(t *testing.T) {
 	require.NotEmpty(t, blocks, "DOCX with soft line breaks should produce blocks")
 }
 
-// neokapi-only: OpenXMLTest#testTextBoxes — no such method in v1.48.0 OpenXMLTest (textbox content is exercised within extractsNestedContentInTheExpectedOrder); native textbox extraction is neokapi's own coverage.
+// neokapi-only: OpenXMLTest#testTextBoxes - no such method in v1.48.0 OpenXMLTest (textbox content is exercised within extractsNestedContentInTheExpectedOrder); native textbox extraction is neokapi's own coverage.
 func TestNative_DocxTextBoxes(t *testing.T) {
 	dir := testdataDir(t)
 	parts := readFile(t, filepath.Join(dir, "TextBoxes.docx"))
@@ -600,7 +613,7 @@ func TestNative_DocxWatermark(t *testing.T) {
 	assert.True(t, hasLayerStart, "watermark DOCX should have layer structure")
 }
 
-// neokapi-only: OpenXMLTest#testSpecialCharsAndLinebreaks — no such method in v1.48.0 OpenXMLTest; line-break behavior is OpenXMLTest#testLineBreakAsCharacter (already mapped to TestNative_DocxSoftLineBreaks) and smart-quote/special-char behavior is OpenXMLTest#testSmartQuotes; native special-char extraction is neokapi's own coverage.
+// neokapi-only: OpenXMLTest#testSpecialCharsAndLinebreaks - no such method in v1.48.0 OpenXMLTest; line-break behavior is OpenXMLTest#testLineBreakAsCharacter (already mapped to TestNative_DocxSoftLineBreaks) and smart-quote/special-char behavior is OpenXMLTest#testSmartQuotes; native special-char extraction is neokapi's own coverage.
 func TestNative_DocxSpecialChars(t *testing.T) {
 	dir := testdataDir(t)
 	parts := readFile(t, filepath.Join(dir, "special-chars-and-linebreaks.docx"))
@@ -729,7 +742,7 @@ func TestNative_DocxComplexFields(t *testing.T) {
 	// complex-field instructions (hyperlink/date/empty in different orders). Upstream
 	// merges them into a single text unit with inline codes; the native reader
 	// segments around the field boundaries (see #591 for the structural-fidelity gap
-	// on write-back). Either way every literal text token must survive extraction —
+	// on write-back). Either way every literal text token must survive extraction -
 	// the field instructions ("HYPERLINK", "DATE") must NOT leak into the source.
 	for _, f := range []string{
 		"1083-hyperlink-and-empty-instructions.docx",
@@ -901,7 +914,7 @@ func TestNative_XlsxMultiLayer(t *testing.T) {
 	assert.Greater(t, layerStartCount, 1, "XLSX should produce multiple layers")
 }
 
-// neokapi-only: OpenXmlXlsxTest#testInlineStrings — stale method name; the v1.48.0 method is OpenXmlXlsxTest#inlineStringsExtracted (mapped on the next line).
+// neokapi-only: OpenXmlXlsxTest#testInlineStrings - stale method name; the v1.48.0 method is OpenXmlXlsxTest#inlineStringsExtracted (mapped on the next line).
 // okapi: OpenXmlXlsxTest#inlineStringsExtracted
 func TestNative_XlsxInlineStrings(t *testing.T) {
 	dir := testdataDir(t)
@@ -935,7 +948,7 @@ func TestNative_XlsxSharedStrings(t *testing.T) {
 	require.NotEmpty(t, blocks, "XLSX with shared strings should produce blocks")
 }
 
-// okapi-skip: OpenXmlXlsxTest#mergedCellsAsMetadataMarked — upstream asserts an
+// okapi-skip: OpenXmlXlsxTest#mergedCellsAsMetadataMarked - upstream asserts an
 // XLIFFContextGroup annotation carrying the merged-cell range (e.g. "A6:B7") on a
 // specific group event, driven by the Java WorksheetConfigurations API. The native
 // model has no XLIFF-context-group annotation and no per-worksheet configuration
@@ -1346,7 +1359,7 @@ func TestNative_PptxLineBreaksAsTags(t *testing.T) {
 
 // --- XLSX cross-sheet references ---
 
-// neokapi-only: OpenXmlXlsxTest#crossSheetsReferences — no such method in v1.48.0 OpenXmlXlsxTest; the 1051-cross-sheets fixtures are exercised upstream only by OpenXMLRoundTripTest#sheetNamesSyncedWithTranslations (roundtrip); native cross-sheet extraction is neokapi's own coverage.
+// neokapi-only: OpenXmlXlsxTest#crossSheetsReferences - no such method in v1.48.0 OpenXmlXlsxTest; the 1051-cross-sheets fixtures are exercised upstream only by OpenXMLRoundTripTest#sheetNamesSyncedWithTranslations (roundtrip); native cross-sheet extraction is neokapi's own coverage.
 func TestNative_XlsxCrossSheetReferences(t *testing.T) {
 	dir := testdataDir(t)
 
@@ -1885,12 +1898,12 @@ func TestNative_DocxRunFontsHintRespect(t *testing.T) {
 	dir := testdataDir(t)
 	// 851.docx mixes East-Asian and special symbols across runs with differing
 	// rFonts hints. Run boundaries differ from the native model (which strips
-	// codes from SourceText), but the full Unicode text content — CJK ideographs,
+	// codes from SourceText), but the full Unicode text content - CJK ideographs,
 	// the Ohm sign (U+2126), section/pilcrow signs, the n-ary summation, the
-	// ideographic full stop — must survive intact and in order. The symbol cluster
+	// ideographic full stop - must survive intact and in order. The symbol cluster
 	// is built from explicit runes so the test is unambiguous about which Unicode
 	// code points the rFonts-hinted runs must preserve.
-	const ohm = "Ω" // OHM SIGN — distinct from Greek capital Omega (U+03A9)
+	const ohm = "Ω" // OHM SIGN, distinct from Greek capital Omega (U+03A9)
 	symbols := "(国际" + ohm + " §¶∑商。)."
 	texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "851.docx"))))
 	assert.Equal(t, []string{
@@ -1951,7 +1964,7 @@ func TestNative_SoftLineBreaksDoNotTranslateRoundtrip(t *testing.T) {
 	}
 }
 
-// okapi-skip: OpenXmlRoundtripPptxMastersTest#test — upstream roundtrips
+// okapi-skip: OpenXmlRoundtripPptxMastersTest#test - upstream roundtrips
 // textbox-on-master.pptx with setTranslatePowerpointMasters(true) AND
 // setIgnorePlaceholdersInPowerpointMasters(true). The native reader has no
 // ignore-placeholders-in-masters surface, so with masters enabled it extracts the
@@ -1960,7 +1973,7 @@ func TestNative_SoftLineBreaksDoNotTranslateRoundtrip(t *testing.T) {
 // boilerplate (148 → 64 blocks). This is a PPTX-master placeholder-handling gap, not
 // a behaviour the native reader/writer currently models. Tracked under #555.
 
-// okapi-skip: OpenXmlRoundtripPptxRemoveEmbeddedTest#test — upstream roundtrips
+// okapi-skip: OpenXmlRoundtripPptxRemoveEmbeddedTest#test - upstream roundtrips
 // chartEx_with_cache.pptx with setRemoveEmbeddedExcel(true) plus
 // setTranslatePowerpointCachedChartStrings/Numbers(true), and asserts the embedded
 // Excel package is removed from the rewritten archive. The native reader/writer
