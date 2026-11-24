@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -104,7 +105,15 @@ type ShippedLedgers map[string]map[int]ShippedMigration
 // so the first run that turns the check on refuses a collision instead of
 // accepting it. A recorded version the code no longer carries (a folded
 // baseline, a retired number) is left alone.
+//
+// Before any of that, it refuses a database a newer release migrated: one
+// that records a version above the newest the code knows (ErrNewerDatabase).
+// This build cannot tell what such a migration changed, so it neither reads
+// nor writes the database.
 func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigration, shipped map[int]ShippedMigration) ([]Migration, error) {
+	if err := checkNotNewer(ledger, migrations, applied); err != nil {
+		return nil, err
+	}
 	byVersion := make(map[int]Migration, len(migrations))
 	var problems []string
 	for _, m := range migrations {
@@ -137,6 +146,58 @@ func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigrati
 		return nil, fmt.Errorf("refusing to migrate %q: %s", ledger, strings.Join(problems, "; "))
 	}
 	return adopt, nil
+}
+
+// ErrNewerDatabase is a database whose ledger records a migration newer than
+// any the running build knows. A *NewerDatabaseError matches it.
+var ErrNewerDatabase = errors.New("the database was migrated by a newer release")
+
+// NewerDatabaseError is a ledger that records a version above the newest the
+// running build knows. Remedy says what the person who reads it does, which
+// only the program that opened the database can name: the runner that
+// meets the error fills it in.
+type NewerDatabaseError struct {
+	Ledger   string
+	Database int    // the newest version the database records
+	Known    int    // the newest version this build knows
+	Remedy   string // what to run instead, set by the runner
+}
+
+func (e *NewerDatabaseError) Error() string {
+	msg := fmt.Sprintf("refusing to open %q: the database is at version %d and this build knows versions up to %d: %s",
+		e.Ledger, e.Database, e.Known, ErrNewerDatabase)
+	if e.Remedy != "" {
+		msg += "; " + e.Remedy
+	}
+	return msg
+}
+
+func (e *NewerDatabaseError) Unwrap() error { return ErrNewerDatabase }
+
+// WithRemedy sets remedy on the *NewerDatabaseError err carries, if it carries
+// one, and returns err.
+func WithRemedy(err error, remedy string) error {
+	if newer, ok := errors.AsType[*NewerDatabaseError](err); ok && newer.Remedy == "" {
+		newer.Remedy = remedy
+	}
+	return err
+}
+
+// checkNotNewer refuses a ledger that records a version above the newest the
+// code knows, retired numbers included, naming both versions.
+func checkNotNewer(ledger string, migrations []Migration, applied []AppliedMigration) error {
+	known := 0
+	for _, m := range migrations {
+		known = max(known, m.Version)
+	}
+	newest := 0
+	for _, a := range applied {
+		newest = max(newest, a.Version)
+	}
+	if newest <= known {
+		return nil
+	}
+	return &NewerDatabaseError{Ledger: ledger, Database: newest, Known: known}
 }
 
 // knownName reports whether recorded is a name the version has carried: the

@@ -21,6 +21,8 @@
 package migrations
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/agent"
@@ -34,6 +36,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/voice"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
 // Subsystem is one migration ledger: a set of migrations and the bookkeeping
@@ -93,6 +96,21 @@ func All() []Subsystem {
 	}
 }
 
+// RefuseNewer checks every ledger in the database against this build and
+// refuses, naming the subsystem, when any records a version newer than the
+// build knows (core/storage.ErrNewerDatabase): a newer release migrated the
+// database, so this build must not read or write it. A process that serves
+// or works on the database runs it at start, before anything else touches
+// the schema. Other disagreements are left to each ledger's migration.
+func RefuseNewer(ctx context.Context, db *storage.PgDB) error {
+	for _, s := range All() {
+		if err := storage.CheckPostgresLedgerNS(ctx, db, s.Table, s.Migrations); errors.Is(err, corestorage.ErrNewerDatabase) {
+			return fmt.Errorf("check the %s ledger: %w", s.Name, err)
+		}
+	}
+	return nil
+}
+
 // Apply brings every subsystem up to its latest version, in registry order.
 //
 // This is what the migrate-only entrypoint runs. It is deliberately not what
@@ -100,6 +118,14 @@ func All() []Subsystem {
 // effect of constructing them, and changing that is a larger move than this
 // package needs to make.
 func Apply(db *storage.PgDB, log func(string, ...any)) error {
+	// Refused across every ledger before any is migrated, so a database a
+	// newer release migrated is left exactly as that release left it.
+	ctx, cancel := context.WithTimeout(context.Background(), storage.DefaultMigrationTimeout)
+	err := RefuseNewer(ctx, db)
+	cancel()
+	if err != nil {
+		return err
+	}
 	for _, s := range All() {
 		if err := storage.MigratePostgresNS(db, s.Table, s.Migrations); err != nil {
 			return fmt.Errorf("migrate %s: %w", s.Name, err)

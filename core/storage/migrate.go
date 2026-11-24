@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/version"
 )
 
 // Migration represents a single schema migration step.
@@ -80,7 +82,7 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		return err
 	}
 	if err := checkAndAdopt(db, tableName, ordered); err != nil {
-		return err
+		return WithRemedy(err, kapiRemedy(db))
 	}
 
 	var currentVersion int
@@ -99,6 +101,64 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 	}
 
 	return nil
+}
+
+// Check compares a ledger with the code without migrating it, for a database
+// opened for reading only: it refuses one a newer release migrated, or one
+// whose rows disagree with the code (CheckLedger). A ledger table that does
+// not exist passes, and nothing is written.
+func Check(ctx context.Context, db *DB, tableName string, migrations []Migration) error {
+	if !validTableName.MatchString(tableName) {
+		return fmt.Errorf("invalid migration table name: %q", tableName)
+	}
+	ordered, err := ValidateMigrations(tableName, migrations)
+	if err != nil {
+		return err
+	}
+	var exists bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?)`, tableName).Scan(&exists); err != nil {
+		return fmt.Errorf("look for %s: %w", tableName, err)
+	}
+	if !exists {
+		return nil
+	}
+	var hasIdentity bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM pragma_table_info(?) WHERE name = 'identity')`, tableName).Scan(&hasIdentity); err != nil {
+		return fmt.Errorf("read the columns of %s: %w", tableName, err)
+	}
+	query := "SELECT version, description, '' FROM " + tableName
+	if hasIdentity {
+		query = "SELECT version, description, identity FROM " + tableName
+	}
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", tableName, err)
+	}
+	var applied []AppliedMigration
+	for rows.Next() {
+		var a AppliedMigration
+		if err := rows.Scan(&a.Version, &a.Description, &a.Identity); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("read %s: %w", tableName, err)
+		}
+		applied = append(applied, a)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("read %s: %w", tableName, err)
+	}
+	_, err = CheckLedger(tableName, ordered, applied, shippedLedgers[tableName])
+	return WithRemedy(err, kapiRemedy(db))
+}
+
+// kapiRemedy is what a person does about a store a newer kapi wrote: these
+// stores belong to kapi and the apps built on it, so the remedy is to update
+// kapi, and the path says which store.
+func kapiRemedy(db *DB) string {
+	where := "this store"
+	if p := db.Path(); p != "" && !isMemoryDSN(p) {
+		where = p
+	}
+	return fmt.Sprintf("update kapi to a release at least as new as the one that wrote %s (this is kapi %s)", where, version.Version)
 }
 
 // errLostRace marks the one non-lock condition applyMigration retries: another

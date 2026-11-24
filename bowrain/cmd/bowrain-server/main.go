@@ -458,6 +458,9 @@ func run() error {
 	}
 
 	srv := server.NewServer(cfg)
+	if err := srv.StartupError(); err != nil {
+		return fmt.Errorf("bowrain-server cannot start: %w", err)
+	}
 
 	// Build gRPC server with tracing, plus auth interceptors when JWT is
 	// configured. Tracing is chained FIRST, so it is outermost and a call

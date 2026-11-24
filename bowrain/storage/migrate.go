@@ -8,6 +8,7 @@ import (
 	"time"
 
 	corestorage "github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/version"
 )
 
 // Migration represents a single schema migration step. It is the framework's
@@ -50,6 +51,23 @@ type migrationDB interface {
 // recorded before identities (identity, version; the recorded name is kept).
 type ledgerSQL struct {
 	create, addIdentity, insert, adopt string
+	// remedy is what the reader of a refusal for a database a newer release
+	// migrated does: which program to run instead (corestorage.WithRemedy).
+	remedy string
+}
+
+// serverRemedy is what an operator does about a PostgreSQL database a newer
+// release migrated, which the server and the worker both open. A rollback
+// across a migration is one way to meet it, so it says that going back is
+// not an option.
+func serverRemedy() string {
+	return fmt.Sprintf("the database is newer than this server (%s); deploy bowrain-server and bowrain-worker at a version at least as new as the one that migrated it. An older version cannot be started against this database", version.Version)
+}
+
+// appRemedy is what a person does about a Bowrain app store a newer release
+// of the app wrote.
+func appRemedy(path string) string {
+	return fmt.Sprintf("update the Bowrain app to a release at least as new as the one that wrote %s (this is %s)", path, version.Version)
 }
 
 // runMigrations creates the tracking table with createTableSQL, reads the
@@ -75,7 +93,7 @@ func runMigrations(ctx context.Context, db migrationDB, tableName string, dialec
 		return fmt.Errorf("add the identity column to %s: %w", tableName, err)
 	}
 	if err := checkAndAdopt(ctx, db, tableName, dialect, ordered); err != nil {
-		return err
+		return corestorage.WithRemedy(err, dialect.remedy)
 	}
 
 	var currentVersion int
@@ -156,6 +174,7 @@ func MigrateContextNS(ctx context.Context, db *DB, tableName string, migrations 
 		addIdentity: "ALTER TABLE " + tableName + " ADD COLUMN identity TEXT NOT NULL DEFAULT ''",
 		insert:      "INSERT INTO " + tableName + " (version, description, identity) VALUES (?, ?, ?)",
 		adopt:       "UPDATE " + tableName + " SET identity = ? WHERE version = ? AND identity = ''",
+		remedy:      appRemedy(db.Path()),
 	}, migrations)
 }
 

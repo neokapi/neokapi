@@ -150,13 +150,20 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 	return stores, nil
 }
 
-// checkLaterLedgers compares, at start, each ledger the server migrates only
-// on first workspace access (terms, memory) with the code, so a ledger the
-// code disagrees with fails the start, and with it the health check, rather
-// than every request for one workspace later.
+// checkLaterLedgers compares, at start and before any store is built, every
+// ledger with the code. A database a newer release migrated fails the start
+// whichever ledger moved ahead, including one whose store the server would
+// otherwise run without (voice, agent, billing): this build would read and
+// write that store in a shape it does not know. Each ledger the server
+// migrates only on first workspace access (terms, memory) also fails the
+// start on any other disagreement, rather than every request for one
+// workspace later; the others report theirs when their store migrates.
 func checkLaterLedgers(db *storage.PgDB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), storage.DefaultMigrationTimeout)
 	defer cancel()
+	if err := migrations.RefuseNewer(ctx, db); err != nil {
+		return err
+	}
 	for _, s := range migrations.All() {
 		if !s.PerWorkspace {
 			continue
