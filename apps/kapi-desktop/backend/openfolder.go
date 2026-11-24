@@ -338,11 +338,22 @@ func (a *App) adoptRecipe(op *openProject, draftRoot string) {
 // saveRecipe writes a tab's recipe, first giving an unsaved folder its
 // kapi.yaml. The recipe-editing methods call it in place of project.Save, with
 // a.mu held.
+//
+// A recipe that changed on disk after the tab read it (an edit in another
+// tab, the CLI or an agent) is not written over. The save is refused and the
+// tab reads the recipe again, so the next edit applies to it as it stands.
 func (a *App) saveRecipe(op *openProject) error {
 	if err := a.ensureRecipeLocked(op); err != nil {
 		return err
 	}
-	return project.Save(op.Path, op.Project)
+	err := project.Save(op.Path, op.Project)
+	if !errors.Is(err, project.ErrRecipeChanged) {
+		return err
+	}
+	if fresh, lerr := project.LoadWithOptions(op.Path, project.LoadOptions{SkipRequiresCheck: true}); lerr == nil {
+		op.Project = fresh
+	}
+	return fmt.Errorf("%s changed on disk since this tab read it; the tab now shows it as it stands, so make the change again: %w", project.RecipeFileName, err)
 }
 
 // ensureRecipeForKey writes the recipe of every open tab of one workspace

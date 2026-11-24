@@ -21,14 +21,18 @@
 package project
 
 import (
+	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/axis"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/locale"
@@ -172,6 +176,37 @@ type KapiProject struct {
 	// from here at load time and re-encode on save. Round-tripping a recipe
 	// through the framework alone preserves these keys verbatim.
 	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
+
+	// basis is the recipe file this project was loaded from, or last saved
+	// to, and the digest it had then; nil for a project built in memory.
+	// Save refuses to write over that file once it no longer has the digest.
+	basis *recipeBasis
+}
+
+// recipeBasis is a recipe file and the digest of its content.
+type recipeBasis struct {
+	path string
+	sum  [sha256.Size]byte
+}
+
+// newBasis records path, made absolute, and the digest of data.
+func newBasis(path string, data []byte) *recipeBasis {
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	return &recipeBasis{path: filepath.Clean(path), sum: sha256.Sum256(data)}
+}
+
+// guards reports whether b is a basis for a save to path: the file it was
+// read from.
+func (b *recipeBasis) guards(path string) bool {
+	if b == nil {
+		return false
+	}
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	return b.path == filepath.Clean(path)
 }
 
 // Defaults holds project-wide processing defaults.
@@ -1115,6 +1150,7 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	if err := yaml.Unmarshal(data, &proj); err != nil {
 		return nil, fmt.Errorf("parse project file %s: %w", path, RecipeYAMLError(err))
 	}
+	proj.basis = newBasis(path, data)
 
 	if err := proj.validate(opts); err != nil {
 		return nil, fmt.Errorf("invalid project file %s: %w", path, err)
@@ -1129,24 +1165,55 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	return &proj, nil
 }
 
+// WriteOverOnSave makes the next Save write the recipe over whatever the file
+// holds, as for a project built in memory. A caller uses it to repair a
+// recipe file that no longer loads, which no read can give a basis for.
+func (p *KapiProject) WriteOverOnSave() { p.basis = nil }
+
+// ErrRecipeChanged is what Save returns for a recipe whose file changed
+// after the project was loaded from it.
+var ErrRecipeChanged = errors.New("changed since it was read")
+
 // Save writes a recipe to the given path, keeping the comments and key order of
 // whatever recipe is already there and writing nothing at all when the
 // serialization is unchanged (core/yamledit).
 //
-// A recipe is committed, human-authored source (`kapi init` scaffolds it with a
-// commented tutorial), so a verb that touches one binding keeps the
-// explanation. A save with nothing new to write leaves the file alone: the
-// recipe sits at the repo root, which the erasure gate classifies as foreign,
-// and a convergence run that rewrote it with identical content would be
-// refused by name.
+// The save takes the lock every commit of the file takes (filehome.WithLock).
+// Under it, a project loaded from a file is written only while the file still
+// holds what it was loaded from. Otherwise the save is refused with
+// ErrRecipeChanged and writes nothing, so of two saves from one read the
+// later is refused rather than lost. A project built in memory, a save to
+// another path, and a save over a file that is gone are written as before.
+//
+// A save with nothing new to write leaves the file alone: a convergence run
+// that rewrote the recipe with identical content would be refused by the
+// erasure gate.
 func Save(path string, proj *KapiProject) error {
 	if proj.Version == "" {
 		proj.Version = CurrentVersion
 	}
-	if _, err := yamledit.WriteFile(path, proj, 0o644); err != nil {
-		return fmt.Errorf("write project file: %w", err)
-	}
-	return nil
+	return filehome.WithLock(context.Background(), path, func() error {
+		if proj.basis.guards(path) {
+			current, err := os.ReadFile(path)
+			switch {
+			case errors.Is(err, fs.ErrNotExist):
+				// The file is gone: there is nothing to lose by writing it.
+			case err != nil:
+				return fmt.Errorf("read project file: %w", err)
+			case sha256.Sum256(current) != proj.basis.sum:
+				return fmt.Errorf("write project file %s: %w; read it again and repeat the change", path, ErrRecipeChanged)
+			}
+		}
+		if _, err := yamledit.WriteFile(path, proj, 0o644); err != nil {
+			return fmt.Errorf("write project file: %w", err)
+		}
+		written, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read project file: %w", err)
+		}
+		proj.basis = newBasis(path, written)
+		return nil
+	})
 }
 
 // Validate checks that the project file is well-formed. Equivalent to

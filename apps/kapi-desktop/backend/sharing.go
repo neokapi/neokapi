@@ -189,6 +189,15 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 		a.mu.Unlock()
 		return nil, err
 	}
+	// The place is written into the recipe as it stands on disk, as kapi share
+	// writes it, so an edit made outside the tab since it opened is kept.
+	// A recipe that no longer loads (a broken context block) is repaired by
+	// writing the place over it.
+	if fresh, lerr := project.LoadWithOptions(op.Path, project.LoadOptions{SkipRequiresCheck: true}); lerr == nil {
+		op.Project = fresh
+	} else {
+		op.Project.WriteOverOnSave()
+	}
 	if spec.Shared() {
 		block := spec
 		op.Project.Context = &block

@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -549,6 +550,19 @@ func lockFilesIn(t *testing.T, dir string) []string {
 	return names
 }
 
+// newLockFiles lists the names in after that are not in before: the lock
+// files taken since before was listed. Setting a project up saves its recipe,
+// which takes the recipe's lock.
+func newLockFiles(before, after []string) []string {
+	var added []string
+	for _, name := range after {
+		if !slices.Contains(before, name) {
+			added = append(added, name)
+		}
+	}
+	return added
+}
+
 // TestChangeLocks_AProjectChangeSetAndAProjectWriteTakeOneLock pins that a
 // project's change set and a write the host commits within the project
 // (commitWithin: the agent's project writes, extract output, the source
@@ -560,6 +574,7 @@ func TestChangeLocks_AProjectChangeSetAndAProjectWriteTakeOneLock(t *testing.T) 
 	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
 	root := filepath.Dir(recipe)
 	path := filepath.Join(root, "locales", "en.json")
+	before := lockFilesIn(t, filepath.Join(data, "locks"))
 
 	svc := changeService(t, a, recipe)
 	page, err := svc.Read(t.Context(), change.ReadRequest{Doc: "locales/en.json"})
@@ -576,7 +591,7 @@ func TestChangeLocks_AProjectChangeSetAndAProjectWriteTakeOneLock(t *testing.T) 
 
 	lock, err := filehome.LockFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, []string{filepath.Base(lock)}, lockFilesIn(t, filepath.Join(data, "locks")), "both commits take the one lock file of the file")
+	assert.Equal(t, []string{filepath.Base(lock)}, newLockFiles(before, lockFilesIn(t, filepath.Join(data, "locks"))), "both commits take the one lock file of the file")
 	assert.Empty(t, lockFilesIn(t, filepath.Join(project.LayoutAt(root).WorkDir(), "locks")), "and no other")
 }
 
@@ -590,6 +605,7 @@ func TestChangeLocks_OneFileInsideAndOutsideAProjectTakesOneLock(t *testing.T) {
 	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
 	root := filepath.Dir(recipe)
 	path := filepath.Join(root, "locales", "en.json")
+	before := lockFilesIn(t, filepath.Join(data, "locks"))
 
 	apply := func(svc *change.Service, text string) {
 		t.Helper()
@@ -607,7 +623,7 @@ func TestChangeLocks_OneFileInsideAndOutsideAProjectTakesOneLock(t *testing.T) {
 
 	lock, err := filehome.LockFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, []string{filepath.Base(lock)}, lockFilesIn(t, filepath.Join(data, "locks")), "both commits take the one lock file of the file")
+	assert.Equal(t, []string{filepath.Base(lock)}, newLockFiles(before, lockFilesIn(t, filepath.Join(data, "locks"))), "both commits take the one lock file of the file")
 	assert.Empty(t, lockFilesIn(t, filepath.Join(project.LayoutAt(root).WorkDir(), "locks")), "and no other")
 }
 

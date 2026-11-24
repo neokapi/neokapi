@@ -578,9 +578,8 @@ func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) 
 
 func (s *session) Close() error { return nil }
 
-// takeLock takes the lock on the lock file at path, creating the lock
-// directory, which belongs to this user alone, when it is not there, and
-// sweeping it at most once a day.
+// takeLock prepares the home's locks once, then takes the lock on the lock
+// file at path (acquireLockFile).
 func (h *Home) takeLock(ctx context.Context, path string) (*filelock.Lock, error) {
 	if h.prepareLocks != nil {
 		h.prepared.Do(func() { h.prepareErr = h.prepareLocks() })
@@ -588,12 +587,38 @@ func (h *Home) takeLock(ctx context.Context, path string) (*filelock.Lock, error
 			return nil, fmt.Errorf("prepare the lock directory: %w", h.prepareErr)
 		}
 	}
+	return acquireLockFile(ctx, path)
+}
+
+// acquireLockFile takes the lock on the lock file at path, creating the lock
+// directory, which belongs to this user alone, when it is not there, and
+// sweeping it at most once a day.
+func acquireLockFile(ctx context.Context, path string) (*filelock.Lock, error) {
 	dir := filepath.Dir(path)
 	if err := ensureLockDir(dir); err != nil {
 		return nil, err
 	}
 	filelock.SweepDue(dir, sweepEvery, lockFileMaxAge, sweepLimit)
 	return filelock.Acquire(ctx, path)
+}
+
+// WithLock runs fn while holding the lock of the file at target, the one
+// every commit of that file takes (LockFile), so a writer that does not go
+// through a home, such as the recipe's own save, takes turns with the
+// commits of the same file. A commit of the same file from inside fn is
+// refused (filelock.ErrHeldHere).
+func WithLock(ctx context.Context, target string, fn func() error) error {
+	key, err := LockFile(target)
+	if err != nil {
+		return err
+	}
+	l, err := acquireLockFile(ctx, key)
+	if err != nil {
+		return err
+	}
+	defer l.Close()
+	defer l.Unlock()
+	return fn()
 }
 
 // The lock directory holds one lock file for every file a commit ever took a

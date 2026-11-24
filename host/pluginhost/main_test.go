@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/goleak"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/devenvtest"
 )
 
@@ -23,6 +24,9 @@ func TestMain(m *testing.M) {
 		if fakeDaemonDir != "" {
 			_ = os.RemoveAll(fakeDaemonDir)
 		}
+		// A recipe save takes its file's lock under the data root, which a
+		// test binary gets under the temporary directory.
+		dataroot.RemoveTestDir()
 		os.Exit(exitCode)
 	}))
 }
