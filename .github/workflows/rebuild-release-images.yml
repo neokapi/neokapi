@@ -259,15 +259,24 @@ jobs:
         id: exists
         env:
           IMAGE: ${{ matrix.image }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           mkdir -p "$RUNNER_TEMP/current"
           if out="$(docker buildx imagetools inspect "ghcr.io/neokapi/$IMAGE:latest" --format '{{json .Manifest}}' 2>"$RUNNER_TEMP/inspect.err")"; then
-            digest="$(printf '%s' "$out" | jq -r .digest)"
+            # The index digest (what publish checks before moving latest), the
+            # platform manifest within it (what is scanned) and that
+            # manifest's config digest (the image id the report must carry).
+            digest="$(printf '%s' "$out" | jq -er .digest)"
+            platform_digest="$(printf '%s' "$out" | jq -er --arg os "${PLATFORM%/*}" --arg arch "${PLATFORM#*/}" \
+              '[.manifests[] | select(.platform.os == $os and .platform.architecture == $arch)][0].digest')"
+            config="$(docker buildx imagetools inspect "ghcr.io/neokapi/$IMAGE@$platform_digest" --raw | jq -er .config.digest)"
             echo "$digest" > "$RUNNER_TEMP/current/digest.txt"
+            echo "ghcr.io/neokapi/$IMAGE@$platform_digest" > "$RUNNER_TEMP/current/ref.txt"
+            echo "$config" > "$RUNNER_TEMP/current/image-id.txt"
             echo "present=true" >> "$GITHUB_OUTPUT"
-            echo "ref=ghcr.io/neokapi/$IMAGE@$digest" >> "$GITHUB_OUTPUT"
-            echo "latest is $digest"
+            echo "ref=ghcr.io/neokapi/$IMAGE@$platform_digest" >> "$GITHUB_OUTPUT"
+            echo "latest is $digest; $PLATFORM is $platform_digest, image id $config"
           elif grep -qiE 'not found|manifest unknown' "$RUNNER_TEMP/inspect.err"; then
             echo "no image under latest" > "$RUNNER_TEMP/current/absent"
             echo "present=false" >> "$GITHUB_OUTPUT"
@@ -355,7 +364,8 @@ jobs:
               if [ -f "$cur/absent" ]; then
                 baseline=(--no-current)
               else
-                baseline=(--current "$cur/current.json" --current-ref "ghcr.io/neokapi/$image@$(cat "$cur/digest.txt")")
+                baseline=(--current "$cur/current.json" --current-ref "$(cat "$cur/ref.txt")" \
+                  --current-image-id "$(cat "$cur/image-id.txt")")
               fi
               status=0
               python3 scripts/image-scan-compare.py compare "$rec/candidate.json" \
@@ -390,6 +400,19 @@ jobs:
           PUBLISH: ${{ steps.judge.outputs.publish }}
         run: |
           set -euo pipefail
+          # The digest under latest now, "absent" when no image is there, or a
+          # failure: any error but "not found" stops the move.
+          latest_digest() {
+            local out
+            if out="$(docker buildx imagetools inspect "ghcr.io/neokapi/$1:latest" --format '{{json .Manifest}}' 2>"$RUNNER_TEMP/inspect.err")"; then
+              printf '%s' "$out" | jq -er .digest
+            elif grep -qiE 'not found|manifest unknown' "$RUNNER_TEMP/inspect.err"; then
+              echo absent
+            else
+              echo "::error::could not read ghcr.io/neokapi/$1:latest: $(cat "$RUNNER_TEMP/inspect.err")" >&2
+              return 1
+            fi
+          }
           read -r -a images <<< "$PUBLISH"
           for image in "${images[@]}"; do
             if docker buildx imagetools inspect "ghcr.io/neokapi/$image:$TAG" >/dev/null 2>&1; then
@@ -408,17 +431,18 @@ jobs:
                 "ghcr.io/neokapi/$image:$TAG-amd64" "ghcr.io/neokapi/$image:$TAG-arm64"
             fi
           done
+          # Move latest only while it still points at the digest scan-current
+          # scanned, checked per image right before the move. This is a check,
+          # then an act: the registry has no conditional tag update, so a small
+          # window remains; the bowrain-latest concurrency group keeps the
+          # release jobs out of it.
           for image in "${images[@]}"; do
             cur="$A/current-$image-amd64"
-            now="$(docker buildx imagetools inspect "ghcr.io/neokapi/$image:latest" --format '{{json .Manifest}}' 2>/dev/null | jq -r .digest || true)"
-            if [ -f "$cur/absent" ]; then
-              want=""
-              now="${now/null/}"
-            else
-              want="$(cat "$cur/digest.txt")"
-            fi
+            want=absent
+            [ -f "$cur/absent" ] || want="$(cat "$cur/digest.txt")"
+            now="$(latest_digest "$image")" || exit 1
             if [ "$now" != "$want" ]; then
-              echo "::error::ghcr.io/neokapi/$image:latest moved from '${want:-absent}' to '$now' during the rebuild (a release?); latest is left alone"
+              echo "::error::ghcr.io/neokapi/$image:latest moved from $want to $now during the rebuild (a release?); latest is left alone"
               exit 1
             fi
             docker buildx imagetools create -t "ghcr.io/neokapi/$image:latest" "ghcr.io/neokapi/$image:$TAG"

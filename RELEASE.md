@@ -166,6 +166,14 @@ so both platforms show the same publisher.
 
 ## Prerequisites
 
+### Release tags
+
+The repository ruleset "release tags" lets only the admin role create, move or
+delete `refs/tags/v*` and `refs/tags/*-v*`. A tag-push release reacts to a tag a
+person pushed. The coordinated release is the exception: its publish step
+creates the tags with the workflow token, which the ruleset refuses, so push
+both tags before you dispatch it.
+
 ### CI (one-time; already configured)
 
 GitHub Actions repo secrets used by `release.yml`:
