@@ -22,6 +22,8 @@ func writeSuggestProject(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0o755))
+	// Each run of each test has its own workspace (see writeContextReviewProject).
+	t.Setenv("KAPI_DATA_DIR", t.TempDir())
 	name := strings.ToLower(strings.NewReplacer("/", "-", "_", "-").Replace(t.Name()))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(`version: v1
 name: `+name+`
