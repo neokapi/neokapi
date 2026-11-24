@@ -57,7 +57,9 @@ import importlib.util
 import os
 import re
 import shlex
+import subprocess
 import sys
+import tempfile
 
 import yaml
 
@@ -262,9 +264,18 @@ LATEST_PUBLISHERS = {
 SAFE_TAGS = {"${{ github.sha }}"}
 # Tags safe only where the one shared refusal proves them not `latest`: in a
 # workflow, an earlier step of the same job that uses REFUSAL_ACTION with this
-# exact expression and no `if:`; in a Makefile, a top-level include of
-# REFUSAL_MK.
+# exact expression, no `if:` and no `continue-on-error`; in a Makefile, a
+# top-level include of REFUSAL_MK. String equality holds only for values a job
+# cannot change between the refusal and the push: inputs, the github context
+# and step outputs. An `env` expression is never one of these, because a step
+# can rewrite it through GITHUB_ENV.
 REFUSABLE_TAGS = {"${{ inputs.image-tag }}", "${{ steps.meta.outputs.tag }}", "$(VERSION)"}
+# The values each refusal is run against before the guard trusts it. Both must
+# refuse every bad probe and accept every good one, so they accept the same
+# set: the Docker tag grammar, and not `latest`.
+REFUSAL_BAD = ["latest", "latest ", " latest", "", "a b", "a\nlatest", "latest\n", "a,latest",
+               ".x", "-x", "a" * 129, "x:latest", "a'b", "a\tb"]
+REFUSAL_GOOD = ["v1.2.3", "abc123", "dev", "LATEST", "_x", "a" * 128, "v1.4.0-rc5-12-gabc-dirty"]
 REFUSAL_ACTION = "./.github/actions/refuse-latest-tag"
 REFUSAL_MK = "refuse-latest-version.mk"
 # Whole image references held in a variable, per file, that cannot be `latest`.
@@ -275,25 +286,39 @@ SKIP_DIRS = {".git", "node_modules", ".claude", ".venv", "dist", "build", "targe
 WHOLE_EXPR = re.compile(r"\$\{\{.*?\}\}", re.S)
 
 
+def _refuses_exactly(run_one) -> bool:
+    """Whether run_one(value) is False for every bad probe and True for every
+    good one."""
+    return (not any(run_one(v) for v in REFUSAL_BAD)) and all(run_one(v) for v in REFUSAL_GOOD)
+
+
 def refusal_implementations(root: str) -> tuple[bool, bool]:
-    """Whether the shared refusals exist and refuse: the composite action's
-    script compares its input with latest and exits non-zero, and the make
-    fragment stops on VERSION=latest at top level."""
+    """Whether the shared refusals refuse what they must. Each is run against
+    REFUSAL_BAD and REFUSAL_GOOD rather than read: the action's one step with
+    TAG set as its env maps it, and the make fragment with VERSION given on the
+    command line."""
     action_ok = mk_ok = False
     try:
         with open(os.path.join(root, ".github", "actions", "refuse-latest-tag", "action.yml")) as fh:
             doc = yaml.safe_load(fh) or {}
-        runs = " ".join(str(s.get("run", "")) for s in (doc.get("runs") or {}).get("steps") or [] if isinstance(s, dict))
-        action_ok = bool(re.search(r'"\$TAG"\s*=\s*latest', runs) and "exit 1" in runs and "inputs.tag" in yaml.safe_dump(doc))
+        steps = (doc.get("runs") or {}).get("steps") or []
+        step = steps[0] if len(steps) == 1 and isinstance(steps[0], dict) else {}
+        if (step.get("shell") == "bash" and "continue-on-error" not in step and "if" not in step
+                and str((step.get("env") or {}).get("TAG", "")).replace(" ", "") == "${{inputs.tag}}"):
+            script = str(step.get("run", ""))
+            action_ok = _refuses_exactly(lambda v: subprocess.run(
+                ["bash", "-e", "-c", script], env={"TAG": v, "PATH": os.environ.get("PATH", "")},
+                capture_output=True).returncode == 0)
     except (OSError, yaml.YAMLError):
         pass
-    try:
-        with open(os.path.join(root, "scripts", "lib", REFUSAL_MK)) as fh:
-            lines = [ln for ln in fh.read().splitlines() if ln.strip() and not ln.lstrip().startswith("#")]
-        mk_ok = (len(lines) >= 3 and lines[0].strip() == "ifeq ($(VERSION),latest)"
-                 and lines[1].strip().startswith("$(error ") and lines[2].strip() == "endif")
-    except OSError:
-        pass
+    fragment = os.path.abspath(os.path.join(root, "scripts", "lib", REFUSAL_MK))
+    if os.path.exists(fragment):
+        with tempfile.TemporaryDirectory() as tmp:
+            mk = os.path.join(tmp, "Makefile")
+            with open(mk, "w") as fh:
+                fh.write(f"include {fragment}\nprobe:\n\t@true\n")
+            mk_ok = _refuses_exactly(lambda v: subprocess.run(
+                ["make", "-s", "-f", mk, f"VERSION={v}"], capture_output=True, cwd=tmp).returncode == 0)
     return action_ok, mk_ok
 
 
@@ -492,8 +517,12 @@ def workflow_pushes(rel: str, doc: dict, allowed, action_ok: bool, root: str) ->
             label = f"{rel} step {step.get('name') or step.get('uses') or '?'}"
             uses = str(step.get("uses", ""))
             with_ = step.get("with") or {}
-            if uses == REFUSAL_ACTION and action_ok and "if" not in step:
-                refused.add(str(with_.get("tag", "")).strip())
+            if uses == REFUSAL_ACTION:
+                disarmed = str(step.get("continue-on-error", False)).lower() not in ("false", "")
+                if action_ok and "if" not in step and not disarmed:
+                    refused.add(str(with_.get("tag", "")).strip())
+                elif disarmed:
+                    out.append(f"{label}: the refusal has continue-on-error, so it refuses nothing")
                 continue
             frozen = frozenset(refused)
             if uses.startswith("docker/build-push-action") and (
@@ -504,6 +533,18 @@ def workflow_pushes(rel: str, doc: dict, allowed, action_ok: bool, root: str) ->
                     problem = ref_problem(ref, rel, frozen)
                     if problem:
                         out.append(f"{label}: {problem}")
+            if uses.startswith("docker/bake-action"):
+                words = ["docker", "buildx", "bake"]
+                if str(with_.get("push", "")).lower() == "true":
+                    words.append("--push")
+                for line in str(with_.get("set", "")).splitlines():
+                    if line.strip():
+                        words += ["--set", line.strip()]
+                for f in re.split(r"[\n,]", str(with_.get("files", "") or with_.get("source", ""))):
+                    if f.strip() and not f.strip().startswith(("http", "git@", "{{")):
+                        words += ["-f", f.strip()]
+                if build_pushes(words, root):
+                    out.append(f"{label}: docker/bake-action pushes the tags its bake file names, which this guard cannot check")
             if uses.startswith("docker/metadata-action") and "latest=false" not in str(with_.get("flavor", "")).replace(" ", ""):
                 out.append(f"{label}: docker/metadata-action adds latest unless its flavor says latest=false")
             run = str(step.get("run", ""))
@@ -922,6 +963,82 @@ def self_test() -> int:
                 failures.append(f"{quiet!r} is allowed, but was flagged: {found}")
         if sum(f.startswith("bowrain/Makefile") for f in found) != 1:
             failures.append(f"the Makefile's version push and its comment are not flagged: {found}")
+    # The four holes in the refusal, and docker/bake-action.
+    def tree(action: str, fragment: str) -> str:
+        top = tempfile.mkdtemp()
+        os.makedirs(os.path.join(top, ".github", "actions", "refuse-latest-tag"))
+        os.makedirs(os.path.join(top, ".github", "workflows"))
+        os.makedirs(os.path.join(top, "scripts", "lib"))
+        with open(os.path.join(top, ".github", "actions", "refuse-latest-tag", "action.yml"), "w") as fh:
+            fh.write(action)
+        with open(os.path.join(top, "scripts", "lib", REFUSAL_MK), "w") as fh:
+            fh.write(fragment)
+        return top
+
+    with open(os.path.join(ROOT, ".github", "actions", "refuse-latest-tag", "action.yml")) as fh:
+        real_action = fh.read()
+    with open(os.path.join(ROOT, "scripts", "lib", REFUSAL_MK)) as fh:
+        real_fragment = fh.read()
+    # A raw comparison with latest lets `latest ` and a second line through.
+    raw_action = real_action.split("      run: |")[0] + """      run: |
+        if [ -z "$TAG" ] || [ "$TAG" = latest ]; then
+          exit 1
+        fi
+"""
+    raw_fragment = "ifeq ($(VERSION),latest)\n$(error no)\nendif\n"
+    refused_push = """jobs:
+  j:
+    steps:
+      - uses: ./.github/actions/refuse-latest-tag
+        {extra}with:
+          tag: {tag}
+      - name: {name}
+        uses: docker/build-push-action@v7
+        with:
+          push: true
+          tags: ghcr.io/neokapi/r:{tag}
+"""
+    import shutil
+    good = tree(real_action, real_fragment)
+    weak = tree(raw_action, raw_fragment)
+    try:
+        if refusal_implementations(good) != (True, True):
+            failures.append(f"the repository's refusals must refuse every bad probe: {refusal_implementations(good)}")
+        if refusal_implementations(weak) != (False, False):
+            failures.append(f"a raw comparison with latest lets `latest ` through and must not be trusted: "
+                            f"{refusal_implementations(weak)}")
+        cases = {
+            "raw action": (weak, "", "${{ inputs.image-tag }}", True),
+            "env expression": (good, "", "${{ env.TAG }}", True),
+            "continue-on-error": (good, "continue-on-error: true\n        ", "${{ inputs.image-tag }}", True),
+            "sound refusal": (good, "", "${{ inputs.image-tag }}", False),
+        }
+        for name, (top, extra, tag, want) in cases.items():
+            with open(os.path.join(top, ".github", "workflows", f"{name.replace(' ', '-')}.yml"), "w") as fh:
+                fh.write(refused_push.format(extra=extra, tag=tag, name=name))
+        for top in (good, weak):
+            with open(os.path.join(top, "Makefile"), "w") as fh:
+                fh.write("include scripts/lib/refuse-latest-version.mk\np:\n\tdocker push $(IMG):$(VERSION)\n")
+        with open(os.path.join(good, ".github", "workflows", "bake.yml"), "w") as fh:
+            fh.write("jobs:\n  b:\n    steps:\n      - name: bake action\n        uses: docker/bake-action@v6\n"
+                     "        with:\n          push: true\n")
+        found_good, found_weak = latest_pushes(good), latest_pushes(weak)
+        found = found_good + found_weak
+        for name, (top, extra, tag, want) in cases.items():
+            flagged = any(f"step {name}:" in f for f in found)
+            if flagged != want:
+                failures.append(f"{name}: {'must be flagged' if want else 'is sound and was flagged'}: {found}")
+        if not any("the refusal has continue-on-error" in f for f in found):
+            failures.append(f"a refusal with continue-on-error must be named: {found}")
+        if not any(f.startswith("Makefile: docker push") for f in found_weak):
+            failures.append(f"a Makefile under a fragment that lets `latest ` through must be flagged: {found_weak}")
+        if any(f.startswith("Makefile: docker push") for f in found_good):
+            failures.append(f"a Makefile under the repository's fragment is sound and was flagged: {found_good}")
+        if not any("step bake action: docker/bake-action" in f for f in found):
+            failures.append(f"a pushing docker/bake-action step must be flagged: {found}")
+    finally:
+        shutil.rmtree(good)
+        shutil.rmtree(weak)
     if failures:
         print("check-release-build-only self-test: FAIL")
         for f in failures:
