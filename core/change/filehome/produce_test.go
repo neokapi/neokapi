@@ -69,7 +69,7 @@ func TestProduce_CommitsWhatTheRunWrote(t *testing.T) {
 			}
 			before, err := filehome.Digest(path)
 			require.NoError(t, err)
-			home := filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks")})
+			home := filehome.New(nil, filehome.Options{})
 
 			p, err := home.Produce(t.Context(), path, before, produceBytes("new\n"))
 			require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestProduce_KeepsTheModeOfTheFileItReplaces(t *testing.T) {
 	require.NoError(t, os.Chmod(path, 0o750))
 	before, err := filehome.Digest(path)
 	require.NoError(t, err)
-	home := filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks")})
+	home := filehome.New(nil, filehome.Options{})
 	p, err := home.Produce(t.Context(), path, before, produceBytes("new\n"))
 	require.NoError(t, err)
 	require.NoError(t, p.Commit(t.Context()))
@@ -123,7 +123,7 @@ func TestProduce_KeepsTheModeOfTheFileItReplaces(t *testing.T) {
 func TestProduce_AHomeThatWritesNothingStagesNothing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out", "messages.txt")
-	home := filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks"), WriteNothing: true})
+	home := filehome.New(nil, filehome.Options{WriteNothing: true})
 	p, err := home.Produce(t.Context(), path, "", produceBytes("new\n"))
 	require.NoError(t, err)
 	want, err := home.Produce(t.Context(), filepath.Join(dir, "elsewhere"), "", produceBytes("new\n"))
@@ -139,7 +139,7 @@ func TestProduce_AHomeThatWritesNothingStagesNothing(t *testing.T) {
 func TestProduce_AHomeThatWritesNothingStillWritesUnderItsTree(t *testing.T) {
 	dir := t.TempDir()
 	drafts := filepath.Join(dir, ".kapi", "work", "drafts")
-	home := filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks"), WriteNothing: true, WriteUnder: drafts})
+	home := filehome.New(nil, filehome.Options{WriteNothing: true, WriteUnder: drafts})
 
 	draft := filepath.Join(drafts, "qps", "messages.txt")
 	p, err := home.Produce(t.Context(), draft, "", produceBytes("draft\n"))
@@ -162,7 +162,7 @@ func TestProduce_AHomeThatWritesNothingStillWritesUnderItsTree(t *testing.T) {
 func TestProduce_AWriterThatFailsStagesNothing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "messages.txt")
-	home := filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks")})
+	home := filehome.New(nil, filehome.Options{})
 	boom := errors.New("boom")
 	_, err := home.Produce(t.Context(), path, "", func(w io.Writer) error {
 		_, _ = io.WriteString(w, "half")
@@ -178,20 +178,19 @@ func TestProduce_AWriterThatFailsStagesNothing(t *testing.T) {
 // commit of one waits for the other's, and the produced document then finds
 // the file the change set left.
 func TestProduce_TakesTheLockAChangeSetCommitsUnder(t *testing.T) {
-	locks := filepath.Join(t.TempDir(), "locks")
-	f := newFixture(t, map[string]string{"a.json": `{"greeting": "Hello there"}` + "\n"}, filehome.Options{LockDir: locks})
+	f := newFixture(t, map[string]string{"a.json": `{"greeting": "Hello there"}` + "\n"}, filehome.Options{})
 	path := filepath.Join(f.dir, "a.json")
 	before, err := filehome.Digest(path)
 	require.NoError(t, err)
 
-	producer := filehome.New(nil, filehome.Options{LockDir: locks})
+	producer := filehome.New(nil, filehome.Options{})
 	p, err := producer.Produce(t.Context(), path, before, produceBytes(`{"greeting": "Bonjour"}`+"\n"))
 	require.NoError(t, err)
 	defer func() { _ = p.Release() }()
 
 	// A change set staged and settled holds the file's commit lock until it
 	// commits.
-	home := filehome.New(filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}, filehome.Options{LockDir: locks})
+	home := filehome.New(filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}, filehome.Options{})
 	sess, err := home.Open(t.Context(), "a.json")
 	require.NoError(t, err)
 	defer sess.Close()

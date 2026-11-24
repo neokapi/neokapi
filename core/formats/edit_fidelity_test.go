@@ -121,7 +121,7 @@ func applyOneEdit(t *testing.T, file, doc, pick string, edit change.TextEdit) st
 	require.NoError(t, os.WriteFile(path, []byte(doc), 0o600))
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
-	home := filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, filehome.Options{LockDir: t.TempDir()})
+	home := filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, filehome.Options{})
 	svc := change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 
 	read, err := svc.Read(t.Context(), change.ReadRequest{Doc: file})

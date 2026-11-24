@@ -132,7 +132,7 @@ func (p *Produced) Commit(ctx context.Context) error {
 	}
 	tmp := p.tmp
 	p.tmp = nil
-	key, err := p.h.lockPath(p.path)
+	key, err := LockFile(p.path)
 	if err != nil {
 		_ = tmp.Discard()
 		return err

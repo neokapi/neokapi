@@ -144,12 +144,11 @@ func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeService
 }
 
 // changeHome is where a change service finds and writes documents: the layout
-// that locates them, the directory their lock files live in, what prepares
-// that directory before the first lock, and the root of the project (empty
-// outside one).
+// that locates them, what prepares the project before the first lock, and the
+// root of the project (empty outside one). The lock of each file is the one
+// filehome.LockFile names, whichever home commits it.
 type changeHome struct {
 	layout  filehome.Layout
-	lockDir string
 	prepare func() error
 	root    string
 }
@@ -174,12 +173,10 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 			// to its file.
 			pl.kept = a.newKeptPolicy(l.Root, pl.proj)
 		}
-		// The lock files live in work/ in the checkout's state directory, which the layout's ignore rule
-		// keeps out of a commit. The directory and the rule are written when a
-		// change first takes a lock, so a read leaves the project as it was.
+		// The checkout's state directory is written when a change first takes
+		// a lock, so a read leaves the project as it was.
 		return changeHome{
 			layout:  pl,
-			lockDir: filepath.Join(l.WorkDir(), "locks"),
 			prepare: sync.OnceValue(func() error { return project.EnsureLayout(l) }),
 			root:    l.Root,
 		}, nil
@@ -203,9 +200,6 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 	return changeHome{
 		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, enc: ResolveEncodingName(opts.Encoding, ""), anywhere: opts.AnyPath, plainText: opts.PlainText,
 			source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), "")), sourceNamed: opts.SourceLocale != "", out: out},
-		// Every kapi process of this user finds the same lock files for a
-		// document outside a project, whatever its temporary directory.
-		lockDir: filepath.Join(DataDir(), "locks"),
 	}, nil
 }
 
@@ -218,7 +212,7 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	// The recorder opens before the home takes its first lock, after the
 	// lock directory is prepared.
 	recorder := a.changeRecorder(ctx, h.root)
-	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix, Root: h.root,
+	home := filehome.New(h.layout, filehome.Options{PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix, Root: h.root,
 		Materialize: opts.Materialize, BeforeSettle: opts.BeforeSettle})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),

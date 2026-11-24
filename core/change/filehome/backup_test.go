@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -115,8 +116,8 @@ func TestService_ReadEachReadsTheWholeDocument(t *testing.T) {
 }
 
 // A home calls PrepareLocks before it opens a lock file, which a commit does
-// and a read never does, so a host creates the directory its locks live in
-// only when a change lands.
+// and a read never does, so a host prepares the project, and the lock
+// directory is created, only when a change lands.
 func TestFileHome_PreparesTheLockDirectoryOnlyToCommit(t *testing.T) {
 	ctx := context.Background()
 	text := "Hi"
@@ -126,10 +127,10 @@ func TestFileHome_PreparesTheLockDirectoryOnlyToCommit(t *testing.T) {
 			Body: &change.SetContent{Text: &text},
 		}}}
 	}
-	locks := filepath.Join(t.TempDir(), "work", "locks")
+	t.Setenv(dataroot.EnvDir, t.TempDir())
+	locks := filehome.LockDir()
 	prepared := 0
 	f := newFixture(t, map[string]string{"a.json": `{"greeting": "Hello"}` + "\n"}, filehome.Options{
-		LockDir:      locks,
 		PrepareLocks: func() error { prepared++; return nil },
 	})
 

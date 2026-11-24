@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -160,36 +161,37 @@ func TestSedPrintOpsAppliesInAProject(t *testing.T) {
 	})
 }
 
-// ksed and kapi apply lock a document of a project in the project's lock
-// directory, so the two exclude each other between reading a file and
-// renaming the edit onto it. A read takes no lock and writes nothing into the
-// project.
+// ksed and kapi apply lock a document of a project in the one lock file of
+// the file (filehome.LockFile), so the two exclude each other between reading
+// a file and renaming the edit onto it. A read takes no lock and writes
+// nothing into the project.
 func TestSedLocksAProjectFileWhereKapiApplyDoes(t *testing.T) {
 	root := sedProject(t)
 	t.Setenv("KAPI_DATA_DIR", t.TempDir())
 	app := newToolboxApp(t)
+	locks := filepath.Join(DataDir(), "locks")
 
 	printOps(t, app, "s/shop/store/g", "docs/sub/guide.md")
 	inspectJSONL(t, app, "docs/sub/guide.md")
 	assert.NoDirExists(t, filepath.Join(root, ".kapi"), "reading a project's document leaves the project as it was")
+	before := lockFilesIn(t, locks)
 
 	prog, err := ParseSedProgram([]string{"s/shop/store/g"})
 	require.NoError(t, err)
 	require.NoError(t, app.RunSed(context.Background(), sedCommand(), []string{"docs/sub/guide.md"}, prog, SedOptions{InPlace: true}))
-	locks, err := os.ReadDir(filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
+	lock, err := filehome.LockFile(filepath.Join(root, "docs", "sub", "guide.md"))
 	require.NoError(t, err)
-	require.Len(t, locks, 1)
+	require.FileExists(t, lock, "ksed -i takes the lock of the file")
 	assert.NoDirExists(t, filepath.Join(root, ".kapi"), "the lock directory is outside the checkout")
-	assert.NoDirExists(t, filepath.Join(DataDir(), "locks"), "no lock outside the project")
+	assert.Empty(t, lockFilesIn(t, filepath.Join(project.LayoutAt(root).WorkDir(), "locks")), "and no lock of its own in the project")
+	taken := lockFilesIn(t, locks)
 
 	rec := recordOf(t, inspectJSONL(t, app, "docs/sub/guide.md"), "guide/p")
 	_, _, err = runApply(t, app, NewEnvCommand(t.Context(), "apply"),
 		changeSetOf(t, map[string]any{"op": "set_content", "at": rec.Ref, "if_match": rec.Rev, "text": "Visit the store now."}), ApplyOptions{})
 	require.NoError(t, err)
-	again, err := os.ReadDir(filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
-	require.NoError(t, err)
-	require.Len(t, again, 1)
-	assert.Equal(t, locks[0].Name(), again[0].Name(), "kapi apply takes the lock ksed took")
+	assert.Equal(t, taken, lockFilesIn(t, locks), "kapi apply takes the lock ksed took")
+	assert.NotEqual(t, before, taken)
 }
 
 // --target edits the translation a bilingual or multilingual file holds,
@@ -275,10 +277,10 @@ func TestEditionsOfAFormat(t *testing.T) {
 
 // Inside a project, a bilingual source whose translations the recipe writes to
 // files of their own keeps them there, though the source file can hold a
-// translation: the French edition of a Qt Linguist catalog lives in the French
-// file, and the French of a PO template in po/fr.po, read in French, whatever
-// target language the service was told. A catalog whose collection names no
-// target holds its translation in place.
+// translation. The French edition of a Qt Linguist catalog lives in the French
+// file. The French of a PO template lives in po/fr.po and is read in French,
+// whatever target language the service was told. A catalog in a collection
+// with no target holds its translation in place.
 func TestProjectPlacesTheEditionsOfABilingualSource(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, body string) {

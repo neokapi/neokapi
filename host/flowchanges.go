@@ -58,15 +58,14 @@ func flowActor(flowName string) change.Actor {
 func flowOrigin(flowName string) string { return "flow:" + flowName }
 
 // flowHome is the file home a flow run commits the documents it writes
-// through: the home of the project at root ("" outside one), with the lock
-// directory a change service of that project takes its locks in. Under
+// through: the home of the project at root ("" outside one), which prepares
+// the project's state directory before its first lock. Under
 // --print-ops it writes nothing but a convergence pass's drafts, which stay
 // in the run's own tree.
 func (a *App) flowHome(root string) *filehome.Home {
-	opts := filehome.Options{LockDir: filepath.Join(DataDir(), "locks"), WriteNothing: a.printOps != nil, WriteUnder: a.convergeDraftDir, Root: root}
+	opts := filehome.Options{WriteNothing: a.printOps != nil, WriteUnder: a.convergeDraftDir, Root: root}
 	if root != "" {
 		l := project.LayoutAt(root)
-		opts.LockDir = filepath.Join(l.WorkDir(), "locks")
 		opts.PrepareLocks = sync.OnceValue(func() error { return project.EnsureLayout(l) })
 	}
 	return filehome.New(nil, opts)

@@ -297,7 +297,7 @@ func (st *staged) refuseEdition(key string, k model.EditionKey, err *change.Erro
 func (st *staged) lockKeys() error {
 	st.keys = st.keys[:0]
 	for _, f := range st.files {
-		p, err := st.s.h.lockPath(f.path)
+		p, err := LockFile(f.path)
 		if err != nil {
 			return err
 		}

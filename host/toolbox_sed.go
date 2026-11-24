@@ -23,17 +23,15 @@ import (
 // InPlaceFlag is the `-i` shared by `ksed` and `kapi apply`: a switch on its
 // own, carrying an optional backup suffix when one is attached (`-i.bak`).
 //
-// pflag needs a non-empty NoOptDefVal for a flag whose value is optional —
-// without one, a bare `-i` swallows the next argument as its value. That marker
-// used to be a NUL-prefixed sentinel in a plain string flag, and pflag prints
-// NoOptDefVal verbatim into the flag list: `--help` came out with a raw NUL in
-// it, so the usage text registered as *binary* and `ksed --help | grep -i
-// recursive` matched nothing at all.
+// pflag needs a non-empty NoOptDefVal for a flag whose value is optional.
+// Without one, a bare `-i` swallows the next argument as its value. pflag
+// prints NoOptDefVal verbatim into the flag list, so the marker must be text a
+// terminal and grep read as text.
 //
-// Declaring the type as "bool" is what fixes the display: pflag omits both the
-// value placeholder and the `[=…]` suffix for a bool whose NoOptDefVal is
-// "true", so the flag lists like any other switch and the optional suffix is
-// explained in its description — which is how GNU sed documents `-i` too.
+// The type is declared "bool": pflag omits both the value placeholder and the
+// `[=…]` suffix for a bool whose NoOptDefVal is "true". The flag lists like
+// any other switch, and its description explains the optional suffix, as GNU
+// sed documents `-i`.
 type InPlaceFlag struct {
 	// Suffix is the backup suffix (`-i.bak` → ".bak"); empty means no backup.
 	Suffix string
@@ -285,9 +283,9 @@ type sedEdit struct {
 
 // inPlace edits a file where it lies. An archive's members are edited each in
 // a change set of its own, since one change set writes one archive through one
-// document; every member's change is computed and checked before any is
-// written, so a member that is refused leaves the archive as it was, and the
-// archive is copied once, when a backup is asked for and a member changes.
+// document. Every member's change is computed and checked before any is
+// written, so a refused member leaves the archive as it was. The archive is
+// copied once, when a backup is asked for and a member changes.
 func (r *sedRun) inPlace(ctx context.Context, file string) error {
 	if file == StdinName {
 		return errors.New("in-place editing requires a file argument")
@@ -391,7 +389,7 @@ func (r *sedRun) toStdout(ctx context.Context, file string) error {
 		if derr != nil {
 			return derr
 		}
-		svc, serr := r.changes.copyService(ctx, file, copyPath, filepath.Join(dir, "locks"))
+		svc, serr := r.changes.copyService(ctx, file, copyPath)
 		if serr != nil {
 			return serr
 		}

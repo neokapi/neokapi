@@ -77,7 +77,7 @@ func TestFileRunner_KeepsAFileSavedWhileTheRunWorked(t *testing.T) {
 			saver := &saveDuringRun{BaseTool: &tool.BaseTool{ToolName: "save"}, path: output, saved: saved}
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{
 				FormatReg: newTestRegistry(), SourceLocale: "en-US",
-				Home: filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks")}),
+				Home: filehome.New(nil, filehome.Options{}),
 			})
 			err := runner.RunFile(t.Context(), "pseudo", []tool.Tool{saver, pseudoTool(t)}, input, output, "qps")
 			require.Error(t, err)
@@ -151,7 +151,7 @@ func TestFileRunner_ShowsEachDocumentToItsFollower(t *testing.T) {
 			f := &following{entered: map[string]string{}, left: map[string]string{}, commit: tc.commit}
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{
 				FormatReg: newTestRegistry(), SourceLocale: "en-US", Documents: f,
-				Home: filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks")}),
+				Home: filehome.New(nil, filehome.Options{}),
 			})
 			require.NoError(t, runner.RunFile(t.Context(), "pseudo", []tool.Tool{pseudoTool(t)}, input, output, "qps"))
 
@@ -177,7 +177,7 @@ func TestFileRunner_CommitsUnderTheHomesLock(t *testing.T) {
 	input := filepath.Join(dir, "en.json")
 	require.NoError(t, os.WriteFile(input, []byte(`{"greeting": "Hello World"}`), 0o644))
 	prepared := 0
-	home := filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks"), PrepareLocks: func() error {
+	home := filehome.New(nil, filehome.Options{PrepareLocks: func() error {
 		prepared++
 		return nil
 	}})

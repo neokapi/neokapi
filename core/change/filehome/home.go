@@ -15,9 +15,8 @@
 // home reads it again under the lock, applies the editor once more, and
 // renames that result; an operation whose precondition the new content breaks
 // is refused stale. Two processes editing different blocks of one file both
-// land. The lock file sits under work/locks in the checkout's state
-// directory for a project, and under locks in the user's data root outside
-// one.
+// land. The lock file of a file sits under locks in the user's data root,
+// named for the file (LockFile), whichever home commits it.
 package filehome
 
 import (
@@ -44,19 +43,16 @@ import (
 
 // Home is the file home.
 type Home struct {
-	layout  Layout
-	lockDir string
-	// defaultLockDir says lockDir is DefaultLockDir, in the data root.
-	defaultLockDir bool
-	prepareLocks   func() error
-	prepared       sync.Once
-	prepareErr     error
-	beforeSettle   func(doc string)
-	backup         string
-	writeNothing   bool
-	writeUnder     string
-	materialize    bool
-	root           string
+	layout       Layout
+	prepareLocks func() error
+	prepared     sync.Once
+	prepareErr   error
+	beforeSettle func(doc string)
+	backup       string
+	writeNothing bool
+	writeUnder   string
+	materialize  bool
+	root         string
 
 	// mu guards permitted, the destinations outside root a person named.
 	mu        sync.Mutex
@@ -65,14 +61,11 @@ type Home struct {
 
 // Options configures a Home.
 type Options struct {
-	// LockDir holds the lock files. Empty is DefaultLockDir.
-	LockDir string
 	// PrepareLocks, when set, runs once, before the home first opens a lock
 	// file, which a commit does and a read never does, and a failure stops
 	// that commit before anything is written. The kapi host writes a
-	// project's state directory there, with the ignore rule that keeps the
-	// lock files out of a commit, and opens the project's recorder, so a read
-	// leaves the project as it found it.
+	// project's state directory there and opens the project's recorder, so
+	// a read leaves the project as it found it.
 	PrepareLocks func() error
 	// BeforeSettle, when set, is called after a document is staged and
 	// before its commit lock is taken. A test sets it to force two writers to
@@ -111,30 +104,37 @@ type Options struct {
 	Root string
 }
 
-// DefaultLockDir is where lock files go when the caller names no directory:
-// locks in the user's data root (dataroot.Dir), created with mode 0700. It is
-// the directory the kapi host locks in outside a project, so a home that
-// names none and a kapi process writing the same file take turns. The data
-// root does not follow TMPDIR, so a process locks in one directory whatever
-// its temporary directory. Inside a project the host names the project's own
-// directory under the checkout's state.
-func DefaultLockDir() string {
+// LockDir is the directory every lock file lives in: locks in the user's data
+// root (dataroot.Dir), created with mode 0700. No caller chooses another, so
+// two writers of one file find one lock whatever route they take to it.
+func LockDir() string {
 	return filepath.Join(dataroot.Dir(), "locks")
+}
+
+// LockFile is the lock file that orders the writers of the file at target:
+// one per file, in LockDir, named for the file's canonical path (the file a
+// link leads to, the nearest existing directory resolved for a file not
+// there yet). Every commit takes the lock of each file it writes or reads
+// from this function and from nothing else. It names the file and creates
+// nothing.
+func LockFile(target string) (string, error) {
+	resolved, _, _, err := atomicfile.Resolve(target)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256([]byte(dataroot.NormalizePath(resolved)))
+	return filepath.Join(LockDir(), hex.EncodeToString(sum[:16])+".lock"), nil
 }
 
 // New returns a file home over layout. A home that only commits the
 // documents producers write (Produce) needs no layout and may be given nil;
 // Open on it fails.
 func New(layout Layout, opts Options) *Home {
-	dir := opts.LockDir
-	if dir == "" {
-		dir = DefaultLockDir()
-	}
 	root := opts.Root
 	if l, ok := layout.(DirLayout); ok && root == "" {
 		root = l.Root
 	}
-	return &Home{layout: layout, lockDir: dir, defaultLockDir: filepath.Clean(dir) == filepath.Clean(DefaultLockDir()), prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
+	return &Home{layout: layout, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
 		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize, root: root}
 }
 
@@ -563,21 +563,6 @@ func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) 
 
 func (s *session) Close() error { return nil }
 
-// lockPath is the lock file that orders the writers of the file at path: one
-// per file, named for the file it guards with any symlink resolved, so two
-// links to one file share it. A file that does not exist yet is named by its
-// nearest existing directory, resolved, so the commit that creates it and a
-// later one that replaces it take the same lock. It names the file and
-// creates nothing.
-func (h *Home) lockPath(path string) (string, error) {
-	target, _, _, err := atomicfile.Resolve(path)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256([]byte(dataroot.NormalizePath(target)))
-	return filepath.Join(h.lockDir, hex.EncodeToString(sum[:16])+".lock"), nil
-}
-
 // openLock opens the lock file at path, creating the lock directory, which
 // belongs to this user alone, when it is not there.
 func (h *Home) openLock(path string) (*filelock.Lock, error) {
@@ -587,7 +572,7 @@ func (h *Home) openLock(path string) (*filelock.Lock, error) {
 			return nil, fmt.Errorf("prepare the lock directory: %w", h.prepareErr)
 		}
 	}
-	if err := ensureLockDir(h.lockDir, h.defaultLockDir); err != nil {
+	if err := ensureLockDir(filepath.Dir(path)); err != nil {
 		return nil, err
 	}
 	return filelock.Open(path)
@@ -596,15 +581,12 @@ func (h *Home) openLock(path string) (*filelock.Lock, error) {
 // ensureLockDir creates dir with mode 0700. It refuses a lock directory this
 // user does not hold alone: a link, something other than a directory, a
 // directory another user owns, or one group or other users may write. The
-// owner check is dataroot.CheckOwnedDir, the one the data root passes.
-// inDataRoot says dir is DefaultLockDir, so a directory that cannot be
-// created is reported with the variable that moves the data root.
-func ensureLockDir(dir string, inDataRoot bool) error {
+// owner check is dataroot.CheckOwnedDir, the one the data root passes. A
+// directory that cannot be created is reported with the variable that moves
+// the data root.
+func ensureLockDir(dir string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		if inDataRoot {
-			return fmt.Errorf("create the lock directory %s in kapi's data root: %w; make the data root writable, or set %s to a directory you can write", dir, err, dataroot.EnvDir)
-		}
-		return fmt.Errorf("create the lock directory %s: %w", dir, err)
+		return fmt.Errorf("create the lock directory %s in kapi's data root: %w; make the data root writable, or set %s to a directory you can write", dir, err, dataroot.EnvDir)
 	}
 	if err := dataroot.CheckOwnedDir(dir); err != nil {
 		return fmt.Errorf("refused the lock directory %w; remove it, or name a lock directory of your own", err)

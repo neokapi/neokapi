@@ -20,18 +20,16 @@ import (
 )
 
 // --print-ops: a flow run that prints the change set it would apply.
-//
-// The run reads, runs its tools and renders every document as it would, into
-// a home that writes nothing (filehome.Options.WriteNothing), and records
-// nothing. What it changed in each document becomes operations: the
-// difference between each block as the reader gave it and as the writer
-// received it (change.Diff), each guarded by the revision the change service
-// read before the run, a derived edition's set_content carrying the revision
-// of the source it was made from as its basis, and every operation on a
-// derived edition stating the tool that produced it as its origin. The
-// operations of every document make one change set, which kapi apply applies
-// to the same bytes the run would have written, and records as its applier's
-// edit, keeping no origin.
+
+// The run reads, runs its tools and renders each document into a home that
+// writes nothing (filehome.Options.WriteNothing) and records nothing. What it
+// changed becomes operations, from the difference between each block as the
+// reader gave it and as the writer received it (change.Diff), each guarded by
+// the revision read before the run. A derived edition's set_content carries
+// its source's revision as its basis, and each operation on it names the
+// producing tool as its origin. The operations make one change set, which kapi
+// apply applies to the bytes the run would write and records as its applier's
+// edit.
 
 // WithPrintedOps runs run as the command asks: with --print-ops, every
 // document the run's flows write is held back, nothing is recorded, the run's
@@ -212,13 +210,12 @@ func (doc *flowDoc) printOps() []change.Op {
 //
 // The two can differ, because they write a file two ways. kapi apply edits the
 // blocks an operation names in the file as it stands; a run writes a
-// target-language file whole from its source. A block the source gained goes,
-// under kapi apply, beside a neighbour in the file where the format's writer
-// adds blocks, and has no place in it where the writer adds none; whatever the
-// file holds that the source does not (its own order, an entry of its own)
-// stays there under kapi apply and is gone after the run. So each document's operations are applied
-// to a private copy of the file first, through the change service kapi apply
-// reaches, and printed only when the copy then holds the run's bytes.
+// target-language file whole from its source. Under kapi apply, a new source
+// block goes beside a neighbour where the format's writer adds blocks, and
+// nowhere where it adds none. What the file holds that the source
+// does not stays under kapi apply and is gone after the run. So each
+// document's operations are applied to a private copy first, and printed only
+// when the copy then holds the run's bytes.
 func (doc *flowDoc) printDocument(ctx context.Context, path, want string) error {
 	ops := doc.printOps()
 	if len(ops) == 0 {
@@ -258,7 +255,7 @@ func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.
 		return "", rerr
 	}
 	doc.fc.mu.Lock()
-	svc, err := doc.fc.changes.copyService(ctx, file, copied, filepath.Join(dir, "locks"))
+	svc, err := doc.fc.changes.copyService(ctx, file, copied)
 	doc.fc.mu.Unlock()
 	if err != nil {
 		return "", err

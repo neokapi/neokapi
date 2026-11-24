@@ -340,6 +340,12 @@ func (s *docSession) Stage(ctx context.Context, want change.Want, e change.Edito
 	if err != nil {
 		return nil, err
 	}
+	// The document lock orders writers of one document the workspace keeps
+	// whole in its log: its head row and the blob behind it, which no file in
+	// the working tree holds. The lock of a file (filehome.LockFile) orders
+	// the writers of a path. The working copy here is a private file each
+	// session makes for itself, so no file lock can stand in for this one,
+	// and this one says nothing about any file. Keep the two apart.
 	sum := sha256.Sum256([]byte(s.key))
 	lock := filepath.Join(s.d.WorkDir, "locks", "document-"+hex.EncodeToString(sum[:8])+".lock")
 	return &docStaged{s: s, inner: st, lockKey: lock, seq: s.seq, head: s.head}, nil
