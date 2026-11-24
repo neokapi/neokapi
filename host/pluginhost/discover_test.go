@@ -78,7 +78,7 @@ func TestDiscover_PrecedenceXDGOverSystem(t *testing.T) {
 
 // Homebrew installs a plugin into its own keg and links it into the shared
 // prefix, so the entry in the plugin root is a symlink. Discovery must follow
-// it — DirEntry.IsDir() describes the link, not the target.
+// it, DirEntry.IsDir() describes the link, not the target.
 func TestDiscover_FollowsSymlinkedPluginDir(t *testing.T) {
 	keg := t.TempDir()
 	writeManifest(t, keg, "demo", `{
@@ -193,7 +193,7 @@ func TestCache_RoundTrip(t *testing.T) {
 	plugins := pluginhost.Discover(opts)
 	require.Len(t, plugins, 1)
 
-	cache := pluginhost.BuildCache(opts, plugins)
+	cache := pluginhost.BuildCache(opts, plugins, nil)
 	cachePath := filepath.Join(t.TempDir(), "cache.json")
 	require.NoError(t, pluginhost.SaveCache(cachePath, cache))
 
@@ -202,7 +202,7 @@ func TestCache_RoundTrip(t *testing.T) {
 	require.NotNil(t, loaded)
 	assert.True(t, pluginhost.IsFresh(loaded, opts))
 
-	rehydrated := pluginhost.PluginsFromCache(loaded)
+	rehydrated := pluginhost.PluginsFromCache(loaded, opts)
 	require.Len(t, rehydrated, 1)
 	assert.Equal(t, "demo", rehydrated[0].Manifest.Plugin)
 }
@@ -221,7 +221,7 @@ func TestCache_StaleAfterTouch(t *testing.T) {
 		SystemDirs:    []string{},
 	}
 	plugins := pluginhost.Discover(opts)
-	cache := pluginhost.BuildCache(opts, plugins)
+	cache := pluginhost.BuildCache(opts, plugins, nil)
 	require.True(t, pluginhost.IsFresh(cache, opts))
 
 	// Touch the dir to bump mtime forward.

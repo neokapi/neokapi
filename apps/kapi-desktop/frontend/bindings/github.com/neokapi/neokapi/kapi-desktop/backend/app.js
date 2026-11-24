@@ -2600,7 +2600,7 @@ export function ReleaseKeptWording(tabID, doc, locale, blocks) {
 
 /**
  * RemovePlugin uninstalls a plugin via the plugin host, which deletes it from
- * the directory it was discovered in — the same one InstallPlugin installs into.
+ * the directory it was discovered in: the same one InstallPlugin installs into.
  * 
  * The frontend may pass either a plugin name ("okapi-bridge") or the composite
  * installation ID surfaced by ListPlugins ("okapi-bridge/1.39.0"). We resolve

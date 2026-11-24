@@ -1,7 +1,7 @@
 // Package engine provides a generic registry of named factories for a
-// plugin-backed capability — a speech recognizer (core/asr), an OCR engine
+// plugin-backed capability such as a speech recognizer (core/asr), an OCR engine
 // (core/vision), and any future one with the same shape. A framework-only build
-// registers no factory, so the capability is simply absent; a host wires the
+// registers no factory, so the capability is absent; a host wires the
 // factory that discovers and drives the plugin.
 package engine
 
@@ -22,6 +22,7 @@ type Registry[T any] struct {
 
 	mu          sync.RWMutex
 	factories   map[string]func() (T, error)
+	probes      map[string]func() bool
 	defaultName string
 }
 
@@ -32,35 +33,51 @@ func NewRegistry[T any](label string, noEngine error) *Registry[T] {
 		label:     label,
 		noEngine:  noEngine,
 		factories: map[string]func() (T, error){},
+		probes:    map[string]func() bool{},
 	}
 }
 
 // Register registers a named engine factory. The first one registered becomes
 // the default. A nil factory is ignored.
 func (r *Registry[T]) Register(name string, f func() (T, error)) {
+	r.RegisterWithProbe(name, f, nil)
+}
+
+// RegisterWithProbe registers a named engine factory whose engine is usable
+// only when probe reports true, such as one backed by a plugin that may not be
+// installed. Available asks the probe each time. A nil probe means the engine
+// is always usable, as with Register.
+func (r *Registry[T]) RegisterWithProbe(name string, f func() (T, error), probe func() bool) {
 	if f == nil {
 		return
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.factories[name] = f
+	if probe != nil {
+		r.probes[name] = probe
+	} else {
+		delete(r.probes, name)
+	}
 	if r.defaultName == "" {
 		r.defaultName = name
 	}
 }
 
-// Available reports whether the named engine ("" = default) is registered.
+// Available reports whether the named engine ("" = default) is registered and
+// its probe, when it has one, reports it usable.
 func (r *Registry[T]) Available(name string) bool {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 	if name == "" {
 		name = r.defaultName
 	}
-	if name == "" {
+	_, ok := r.factories[name]
+	probe := r.probes[name]
+	r.mu.RUnlock()
+	if name == "" || !ok {
 		return false
 	}
-	_, ok := r.factories[name]
-	return ok
+	return probe == nil || probe()
 }
 
 // Open opens the named engine ("" = default), returning the registry's
@@ -88,5 +105,6 @@ func (r *Registry[T]) ResetForTest() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.factories = map[string]func() (T, error){}
+	r.probes = map[string]func() bool{}
 	r.defaultName = ""
 }

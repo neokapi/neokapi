@@ -56,7 +56,7 @@ func runSubprocess(ctx context.Context, p *Plugin, args []string) error {
 // stdout, instead of inheriting the parent's stdio. It is the plumbing behind
 // data-returning command contributions (e.g. the built-in `kapi status`
 // shelling `server-status --json` to merge a server section). The plugin's
-// stderr is discarded — a plumbing caller degrades gracefully rather than
+// stderr is discarded, a plumbing caller degrades gracefully rather than
 // leaking plugin diagnostics into a structured host output.
 func (r *CommandRoute) CaptureStdout(ctx context.Context, args ...string) ([]byte, error) {
 	cmdArgs := append([]string{"command", r.Command.Name}, args...)
@@ -68,10 +68,10 @@ func (r *CommandRoute) CaptureStdout(ctx context.Context, args ...string) ([]byt
 // buffering the whole document first. The trailing newline is stripped; a final
 // line without one is still delivered.
 //
-// It is what a caller that must react to a long-running plumbing command while
-// it runs uses instead of CaptureStdout: a progress feed read after the
-// subprocess exits is a transcript, and a UI rendering one shows a spinner for
-// the length of a convergence run and then every event at once.
+// A caller that must react to a long-running plumbing command while it runs
+// uses it instead of CaptureStdout. A progress feed read after the subprocess
+// exits is a transcript: a UI rendering one would show a spinner for the whole
+// convergence run and then every event at once.
 //
 // onLine runs on the reading goroutine, so a slow handler backpressures the
 // child. The plugin's stderr is discarded, as CaptureStdout discards it.
@@ -84,13 +84,16 @@ func (r *CommandRoute) StreamStdout(ctx context.Context, onLine func([]byte), ar
 // binary, the same cancellation wiring, and the same environment.
 //
 // Pass useful context to the plugin via env. The plugin's argv already carries
-// the user's intent; env carries kapi-side state — minus the provider API keys,
+// the user's intent; env carries kapi-side state, minus the provider API keys,
 // which are the host's to spend (see env.go).
 //
 //nolint:contextcheck // the nil-ctx guard is an API fallback for embedded/desktop callers; ctx is otherwise threaded straight into exec.CommandContext
-func pluginCommand(ctx context.Context, p *Plugin, args []string) *exec.Cmd {
+func pluginCommand(ctx context.Context, p *Plugin, args []string) (*exec.Cmd, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if err := CheckLaunch(p); err != nil {
+		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, p.BinaryPath, args...)
 	env := pluginEnviron()
@@ -98,15 +101,13 @@ func pluginCommand(ctx context.Context, p *Plugin, args []string) *exec.Cmd {
 	env = append(env, "KAPI_PLUGIN_NAME="+p.Name())
 	env = append(env, "KAPI_PLUGIN_VERSION="+p.Version())
 	cmd.Env = env
-	return cmd
+	return cmd, nil
 }
 
 // pluginRunError maps a failed subprocess onto the error a caller should see.
 //
-// It is one function on purpose: the capturing launch mode used to be a copy of
-// the inheriting one, and the copy had quietly lost exit-code propagation — a
-// plugin that failed under CaptureStdout reported a generic error and kapi
-// exited 1 instead of the plugin's own code. Every mode maps its failure here.
+// Every launch mode maps its failure here, so each one propagates the plugin's
+// own exit code rather than a generic error and exit 1.
 func pluginRunError(ctx context.Context, p *Plugin, err error) error {
 	if err == nil {
 		return nil
@@ -133,7 +134,10 @@ func pluginRunError(ctx context.Context, p *Plugin, err error) error {
 // child inherits the host's stdio; when true its stdout is buffered and
 // returned (stdin closed, stderr discarded).
 func execPlugin(ctx context.Context, p *Plugin, args []string, capture bool) ([]byte, error) {
-	cmd := pluginCommand(ctx, p, args)
+	cmd, err := pluginCommand(ctx, p, args)
+	if err != nil {
+		return nil, err
+	}
 
 	var out bytes.Buffer
 	if capture {
@@ -162,7 +166,10 @@ func execPlugin(ctx context.Context, p *Plugin, args []string, capture bool) ([]
 // it arrives. stdin is closed and stderr discarded, matching the capturing mode:
 // a plumbing caller reads a structured document, not a terminal rendering.
 func streamPlugin(ctx context.Context, p *Plugin, args []string, onLine func([]byte)) error {
-	cmd := pluginCommand(ctx, p, args)
+	cmd, err := pluginCommand(ctx, p, args)
+	if err != nil {
+		return err
+	}
 	cmd.Stdin = nil
 	cmd.Stderr = io.Discard
 
@@ -195,7 +202,7 @@ func streamPlugin(ctx context.Context, p *Plugin, args []string, onLine func([]b
 
 // pluginExitError carries the exit code from a plugin subprocess so that
 // cli.ExitCode (which checks for the exitCoder interface) can propagate it
-// through the normal cobra error path — avoiding os.Exit inside RunE.
+// through the normal cobra error path, avoiding os.Exit inside RunE.
 // Implementing ExitCode() satisfies cli.exitCoder without importing the cli
 // package (which would create an import cycle).
 type pluginExitError struct {

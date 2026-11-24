@@ -1,0 +1,7 @@
+#!/bin/sh
+# A stand-in for kapi-asr: answers every transcribe request with one segment.
+[ "$1" = "serve" ] || exit 2
+while IFS= read -r line; do
+  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+  printf '{"id":%s,"segments":[{"text":"Hello from the recording","startMs":0,"endMs":900}],"language":"en"}\n' "${id:-0}"
+done

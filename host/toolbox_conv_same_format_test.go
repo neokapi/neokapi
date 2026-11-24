@@ -35,9 +35,9 @@ import (
 // its reader. A format whose reader refuses every document by design
 // (format.WriteOnlyReader) must make kconv fail with an error.
 //
-// No plugin is discovered, so the run is the same on every machine. A sample
-// the format's own reader cannot read without one (audio needs the asr
-// plugin to transcribe) must make kconv fail with that reader's error.
+// No plugin is discovered, so the run is the same on every machine. A media
+// sample whose engine is a plugin (audio's speech recognizer, an image's OCR)
+// is read as media with no text, and converts as such.
 func TestConvSameFormatWritesTheDocument(t *testing.T) {
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
 	t.Setenv("KAPI_PLUGINS_DIR", "")

@@ -78,6 +78,8 @@ var allowHostB = map[string]string{
 	"host/pluginhost/cache.go:LoadCache":                     "the plugin discovery cache in the user cache directory",
 	"host/pluginhost/cache.go:SaveCache":                     "the plugin discovery cache in the user cache directory",
 	"host/pluginhost/cache.go:dirMtime":                      "a plugin install directory",
+	"host/pluginhost/cache.go:pathFingerprint":               "a plugin root, plugin directory or plugin binary the safety rule checked",
+	"host/pluginhost/adopt.go:AdoptPluginDir":                "a plugin directory an earlier desktop release installed, moved into the plugin install directory",
 	"host/pluginhost/daemon.go:close":                        "the socket of a plugin daemon kapi started; the plugin is code the user installed",
 	"host/pluginhost/discover.go:Discover":                   "the plugin install directories",
 	"host/pluginhost/discover.go:isDirFollowingLinks":        "the plugin install directories",

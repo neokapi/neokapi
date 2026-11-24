@@ -69,6 +69,19 @@ A single-file run reports the flow and the paths involved; a batch run reports t
 }
 ```
 
+### `kapi up` and `kapi status`
+
+`kapi up --json` reports the run, and `kapi status --json` the project's standing. Both carry `unread_media` when a file in a media format (audio, image, video) was last read without the engine plugin its content needs. Each entry names the file, its collection and the engines it waits for. Such a file gets no target; once the engine is installed, the next run reads it again. A run with any `unread_media` reports `converged: false` and exits 0, as for a file whose reader plugin is not installed: a missing engine on a build machine does not fail the build.
+
+```json
+{
+  "converged": false,
+  "unread_media": [
+    { "file": "media/en/logo.png", "collection": "images", "engines": ["vision"] }
+  ]
+}
+```
+
 ### `kapi extract`
 
 One document per batch: identity (`batch_id`, `manifest`), the extraction inputs (`format`, `targets`, `sources`), one entry per target-locale pass under `pairs` (file/block counts and content-memory leverage), the aggregate `leverage`, incremental `reused` count, and `failures` when source/target pairs failed (details stream to stderr as they happen).

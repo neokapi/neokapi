@@ -51,3 +51,21 @@ func TestRegistry(t *testing.T) {
 	assert.False(t, r.Available(""))
 	assert.False(t, r.Available("a"))
 }
+
+// An engine registered with a probe is available only while the probe says
+// so, such as a plugin-backed engine whose plugin is not installed.
+func TestRegistryProbe(t *testing.T) {
+	r := engine.NewRegistry[*fakeEngine]("demo", errors.New("none"))
+	installed := false
+	r.RegisterWithProbe("plugin", func() (*fakeEngine, error) { return &fakeEngine{name: "plugin"}, nil },
+		func() bool { return installed })
+	assert.False(t, r.Available(""), "the probe reports the plugin missing")
+	assert.False(t, r.Available("plugin"))
+	installed = true
+	assert.True(t, r.Available(""))
+
+	// Register without a probe clears an earlier one.
+	installed = false
+	r.Register("plugin", func() (*fakeEngine, error) { return &fakeEngine{name: "plugin"}, nil })
+	assert.True(t, r.Available("plugin"))
+}

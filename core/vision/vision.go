@@ -3,7 +3,7 @@
 // defines the Engine interface and a name-keyed engine registry, mirroring
 // core/segment: the heavy ONNX models live in an out-of-process plugin
 // (kapi-vision) that a host registers as an engine, so the framework stays
-// pure-Go and the capability is simply absent when the plugin is not installed.
+// pure-Go and the capability is absent when the plugin is not installed.
 //
 // Phase 1 exposes OCR. Layout and Table methods are added in later phases; the
 // interface is intentionally small so backends (the Go+ONNX plugin now, an
@@ -61,7 +61,7 @@ type Engine interface {
 // (e.g. locating and launching the kapi-vision plugin).
 type Factory func() (Engine, error)
 
-// ErrNoEngine is returned by Open when no vision engine is registered — the
+// ErrNoEngine is returned by Open when no vision engine is registered, the
 // kapi-vision plugin is not installed, or no host wired one up.
 var ErrNoEngine = errors.New("vision: no engine registered (install the kapi-vision plugin)")
 
@@ -76,6 +76,14 @@ var registry = engine.NewRegistry[Engine]("vision", ErrNoEngine)
 // the plugin; framework-only builds register none, so vision is absent.
 func RegisterEngine(name string, f Factory) { registry.Register(name, f) }
 
+// RegisterEngineWithProbe registers a named engine factory whose engine is
+// usable only while probe reports true: a host whose engine drives a plugin
+// passes a probe that looks for the plugin, so Available is false when it is
+// not installed and a reader skips the engine instead of failing.
+func RegisterEngineWithProbe(name string, f Factory, probe func() bool) {
+	registry.RegisterWithProbe(name, f, probe)
+}
+
 // Available reports whether the named engine ("" = default) is registered.
 func Available(name string) bool { return registry.Available(name) }
 
@@ -88,13 +96,13 @@ func Open(name string) (Engine, error) { return registry.Open(name) }
 func ResetForTest() { registry.ResetForTest() }
 
 // OCRResultFromBlocks builds an OCRResult from blocks that already carry text and
-// top-left geometry — e.g. a PDF page's positioned text runs. It is the inverse
+// top-left geometry, e.g. a PDF page's positioned text runs. It is the inverse
 // of BlocksFromOCR, letting the layout pipeline (Layout + PartsFromLayout)
 // structure ANY source of positioned text, not just OCR: a layout model runs over
 // the rendered page raster while the text comes from the document itself (more
 // accurate than re-OCRing a vector PDF).
 //
-// width/height are the rendered raster's pixel dimensions — and the block
+// width/height are the rendered raster's pixel dimensions, and the block
 // geometry must live in that same pixel space (render the page at 72 DPI so PDF
 // points map 1:1 to pixels, with a top-left origin). Blocks lacking text or
 // geometry are skipped.
@@ -122,7 +130,7 @@ func OCRResultFromBlocks(blocks []*model.Block, width, height int) *OCRResult {
 }
 
 // setOCRProvenance records on a block that its source text was produced by OCR,
-// carrying the line's confidence — the gate a media-refine tier reads (AD-030).
+// carrying the line's confidence, the gate a media-refine tier reads (AD-030).
 // The provenance is uniform across lines; a 0 confidence still marks Kind ocr.
 func setOCRProvenance(b *model.Block, ln OCRLine) {
 	b.SetSourceOrigin(&model.Origin{Kind: model.OriginOCR, Confidence: ln.Confidence})

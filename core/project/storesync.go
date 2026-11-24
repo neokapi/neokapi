@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -15,8 +16,8 @@ import (
 	"github.com/neokapi/neokapi/core/rootpath"
 )
 
-// This file centralizes block-store synchronization — the version stamp, the
-// per-source drift stamps, and the extract-into-store path — so the CLI's
+// This file centralizes block-store synchronization (the version stamp, the
+// per-source drift stamps, and the extract-into-store path) so the CLI's
 // convergence loop (`kapi up`) and the desktop's Re-extract share one
 // implementation (#1078 C2). The desktop's backend RunExtract is a thin
 // binding over ExtractToBlockStore; the CLI auto-extracts on drift before
@@ -42,6 +43,24 @@ type SourceStamp struct {
 	// file, the bytes are assumed unchanged and the hash is not recomputed.
 	Size    int64 `json:"size"`
 	MTimeNS int64 `json:"mtimeNs"`
+	// MissingEngines names the engines the file's reader needed and did not
+	// have when it was extracted (ReaderEngines), such as "asr" for audio read
+	// without its speech recognizer. Installing or removing one makes the
+	// file drift, so the next run reads it again.
+	MissingEngines []string `json:"missing_engines,omitempty"`
+}
+
+// MissingReaderEngines names, for a resolved file, the engines its reader
+// would need and cannot use now: the plugin-backed recognizers a host
+// registers (speech for audio, OCR for images). A host that wires such
+// engines sets it; with none set, a file needs no engine.
+var MissingReaderEngines func(rf ResolvedFile) []string
+
+func missingEnginesFor(rf ResolvedFile) []string {
+	if MissingReaderEngines == nil {
+		return nil
+	}
+	return MissingReaderEngines(rf)
 }
 
 // StoreDrift describes how the block store has fallen behind the working tree.
@@ -81,7 +100,9 @@ func CompareSourceStamps(stamps map[string]SourceStamp, files []ResolvedFile) (c
 		}
 		seen[rf.Relative] = true
 		stamp, ok := stamps[rf.Relative]
-		if !ok {
+		if !ok || !slices.Equal(stamp.MissingEngines, missingEnginesFor(rf)) {
+			// An engine the reader needed was installed or removed since the
+			// file was read, so what it reads now differs.
 			changed = append(changed, rf.Relative)
 			continue
 		}
@@ -117,7 +138,7 @@ type ExtractStats struct {
 	// Skipped lists files that could not be extracted (no reader, read error)
 	// with a short reason. Extraction is best-effort per file.
 	Skipped []ExtractSkip `json:"skipped,omitempty"`
-	// Warnings records faults that did not endanger the extracted content —
+	// Warnings records faults that did not endanger the extracted content:
 	// today, a failure to record the store's version or drift stamps after the
 	// blocks were already committed. Those writes stay best-effort (see
 	// ExtractToBlockStore), but best-effort is not the same as unreportable:
@@ -126,7 +147,7 @@ type ExtractStats struct {
 	// perfectly healthy. This is the channel that lets a caller say so.
 	//
 	// core is deliberately logger-free, so a returned, serialisable value is
-	// the framework's way to report — it is also the only form a test can
+	// the framework's way to report: it is also the only form a test can
 	// assert on.
 	Warnings []string `json:"warnings,omitempty"`
 }
@@ -146,7 +167,7 @@ func CollectionLabel(name string) string {
 // looked like when it did.
 //
 // It is an interface because the stamps live in the project store's `store_meta`
-// table (core/projectdb), and that package imports this one — so extraction can
+// table (core/projectdb), and that package imports this one, so extraction can
 // name the capability it needs but never the store that provides it.
 type BlockStoreStamper interface {
 	// StampBlockStoreVersion records BlockStoreSchemaVersion as the writer of
@@ -225,8 +246,8 @@ func ExtractToBlockStore(
 			})
 			continue
 		}
-		// The format configuration the recipe declares for THIS item — its own
-		// format.config over the project defaults — applied the same way a run
+		// The format configuration the recipe declares for THIS item (its own
+		// format.config over the project defaults) applied the same way a run
 		// configures the reader, because block numbering must match the CLI's
 		// and an item's extraction rules decide which leaves become blocks at
 		// all.
@@ -250,8 +271,8 @@ func ExtractToBlockStore(
 				Editions:     kbf.SourceEditions(src.Runs),
 			}
 			// The source file the block came from. It is what makes a stored
-			// block placeable — an occurrence names the document it was found
-			// in, and a unit-state record finds its block by (document, id) —
+			// block placeable (an occurrence names the document it was found
+			// in, and a unit-state record finds its block by (document, id))
 			// and it is not recoverable from the block itself, because the
 			// store is keyed by content and holds no document rows.
 			kb.Properties.File = rf.Relative
@@ -267,14 +288,14 @@ func ExtractToBlockStore(
 
 		// The drift stamp is not optional bookkeeping: DetectStoreDrift treats a
 		// file with NO stamp as unconditionally Changed, so a dropped stamp means
-		// this file reads as drifted on every future invocation — re-extracted and
+		// this file reads as drifted on every future invocation, re-extracted and
 		// re-translated forever, with any "N drifted" summary permanently
 		// over-reporting. The whole-sidecar write below really is best-effort (it
 		// self-heals on the next run); a per-file hole is not, because the same
 		// stat/hash fails again every time. And stats.Files++ above has already
 		// counted the file as extracted, so silence here makes the stats and the
 		// stamp map disagree about the same file.
-		stamp, serr := sourceStampFor(pctx.ProjectDir, rf.Path)
+		stamp, serr := sourceStampFor(pctx.ProjectDir, rf)
 		if serr != nil {
 			_ = sess.Rollback()
 			return stats, fmt.Errorf("stamp source %q for drift detection: %w. Without a stamp "+
@@ -289,17 +310,13 @@ func ExtractToBlockStore(
 
 	// Stamp the store with the version that wrote it plus the per-source drift
 	// stamps. Best-effort: a failed write only means the next drift check reads
-	// the store as stale/drifted and re-extracts. The blocks are already
-	// committed, so failing the whole extraction over a cache hint would throw
-	// away good work.
-	//
-	// Reported rather than silent, though. "It self-heals on the next run"
-	// holds only if the next write succeeds; when the cause is permanent — a
-	// read-only state directory, a full disk, a changed owner — every run
-	// re-extracts and re-translates the entire project, and the sole symptom is
-	// that kapi is inexplicably slow and re-does finished work forever. That is
-	// precisely the failure nobody diagnoses, because nothing ever said it
-	// happened.
+	// the store as stale/drifted and re-extracts, and the blocks are already
+	// committed.
+
+	// Reported rather than silent, though: a next run heals it only if its
+	// write succeeds. When the cause is permanent (a read-only state directory,
+	// a full disk, a changed owner), every run re-extracts and re-translates the
+	// whole project, and the only symptom is a slow kapi redoing finished work.
 	// Which document each file IS, resolved against what the project already
 	// knows and recorded before anything reads a decision back. Unlike the
 	// stamps below, a failure here is reported rather than swallowed: a run
@@ -324,11 +341,12 @@ func ExtractToBlockStore(
 	return stats, nil
 }
 
-// sourceStampFor captures a source file's drift stamp (hash + stat fast path).
-// The file is opened once, through root when it lies beneath it, and stated
-// and hashed through that one descriptor.
-func sourceStampFor(root, path string) (SourceStamp, error) {
-	f, err := rootpath.Open(root, path)
+// sourceStampFor captures a source file's drift stamp (hash + stat fast path),
+// and the engines its reader is missing now. The file is opened once, through
+// root when it lies beneath it, and stated and hashed through that one
+// descriptor.
+func sourceStampFor(root string, rf ResolvedFile) (SourceStamp, error) {
+	f, err := rootpath.Open(root, rf.Path)
 	if err != nil {
 		return SourceStamp{}, err
 	}
@@ -341,7 +359,7 @@ func sourceStampFor(root, path string) (SourceStamp, error) {
 	if err != nil {
 		return SourceStamp{}, err
 	}
-	return SourceStamp{Hash: hash, Size: info.Size(), MTimeNS: info.ModTime().UnixNano()}, nil
+	return SourceStamp{Hash: hash, Size: info.Size(), MTimeNS: info.ModTime().UnixNano(), MissingEngines: missingEnginesFor(rf)}, nil
 }
 
 // sourceChanged reports whether the file at path differs from its stamp:

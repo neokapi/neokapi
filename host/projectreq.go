@@ -21,7 +21,7 @@ import (
 //
 // Resolution flow:
 //
-//  1. project.LoadWithOptions(SkipRequiresCheck: true) — parse + run
+//  1. project.LoadWithOptions(SkipRequiresCheck: true), parse + run
 //     full schema validation but skip the "extension group registered"
 //     check.
 //  2. For every entry in proj.MissingRequires(): if --yes is set or
@@ -29,7 +29,7 @@ import (
 //     pluginhost.InstallFromRegistry, then re-discover plugins on the
 //     App's PluginHost and register their schema_extensions so
 //     project.HasExtensionGroup reports them present.
-//  3. proj.ValidateRequires() — fails with the original actionable
+//  3. proj.ValidateRequires(), fails with the original actionable
 //     error string when a missing extension wasn't installed.
 //
 // Non-TTY callers without --yes get the same actionable error
@@ -54,14 +54,13 @@ type LoadProjectInteractiveOptions struct {
 	// pluginhost.InstallFromRegistry is used.
 	InstallFn func(ctx context.Context, opts pluginhost.InstallOptions) (*pluginhost.InstallResult, error)
 
-	// IndexURL overrides the registry URL used to fetch plugin
-	// metadata for the prompt. Empty falls back to
+	// IndexURL overrides the registry URL kapi fetches plugin metadata
+	// from for the prompt. Empty falls back to
 	// pluginhost.DefaultIndexURL().
 	IndexURL string
 
-	// Channel pins the registry channel used to look up the plugin
-	// version satisfying the recipe constraint. Empty defaults to
-	// "stable".
+	// Channel pins the registry channel kapi looks up the plugin version
+	// satisfying the recipe constraint on. Empty defaults to "stable".
 	Channel string
 }
 
@@ -75,7 +74,7 @@ func (a *App) LoadProjectInteractive(ctx context.Context, recipePath string, opt
 	}
 
 	// A recipe that names an exec-class step runs code the recipe chose, so
-	// that decision is taken before anything else happens with the project —
+	// that decision is taken before anything else happens with the project,
 	// including installing the plugins it asks for. See host/exectrust.go.
 	if err := a.ensureExecTrust(recipePath, proj, opts); err != nil {
 		return nil, err
@@ -167,7 +166,7 @@ func (a *App) LoadProjectInteractive(ctx context.Context, recipePath string, opt
 
 	// Re-validate the requires block now that we've (hopefully)
 	// registered every missing extension. Surfaces the original
-	// actionable error if anything is still missing — e.g. the user
+	// actionable error if anything is still missing, e.g. the user
 	// declined a follow-up prompt or the install resolved to a plugin
 	// whose manifest doesn't register the expected extension group.
 	if err := proj.ValidateRequires(); err != nil {
@@ -178,7 +177,7 @@ func (a *App) LoadProjectInteractive(ctx context.Context, recipePath string, opt
 
 // refreshPluginHost re-runs plugin discovery and schema-extension
 // registration so the framework sees plugins installed mid-execution.
-// Cache is bypassed here — the install path mutates plugin dirs that
+// Cache is bypassed here, the install path mutates plugin dirs that
 // the cache may have stamped.
 func (a *App) refreshPluginHost() {
 	opts := pluginhost.DiscoverOptions{
@@ -189,16 +188,17 @@ func (a *App) refreshPluginHost() {
 			}
 		},
 	}
-	plugins := pluginhost.Discover(opts)
+	plugins, refused := pluginhost.DiscoverAll(opts)
 	// Best-effort cache rewrite so the next process startup sees the
 	// new plugin without rescanning.
-	_ = pluginhost.SaveCache(pluginhost.CacheLocation(), pluginhost.BuildCache(opts, plugins))
+	_ = pluginhost.SaveCache(pluginhost.CacheLocation(), pluginhost.BuildCache(opts, plugins, refused))
 
 	a.PluginHost = pluginhost.NewHost(plugins, func(s string) {
 		if !a.Quiet {
 			fmt.Fprintln(os.Stderr, "Warning: "+s)
 		}
 	})
+	a.PluginHost.SetRefused(refused)
 	pluginhost.RegisterSchemaExtensions(a.PluginHost, func(s string) {
 		if !a.Quiet {
 			fmt.Fprintln(os.Stderr, "Warning: "+s)
@@ -206,8 +206,8 @@ func (a *App) refreshPluginHost() {
 	})
 }
 
-// Confirm reads a Y/N answer from r, accepting empty (default yes), Y,
-// y, yes; rejects N, n, no.
+// Confirm reads a Y/N answer from r. It accepts an empty answer (the default
+// is yes) and Y, y or yes, and rejects N, n or no.
 func Confirm(r io.Reader, w io.Writer, prompt string) (bool, error) {
 	fmt.Fprint(w, prompt)
 	br := bufio.NewReader(r)
@@ -225,7 +225,7 @@ func Confirm(r io.Reader, w io.Writer, prompt string) (bool, error) {
 }
 
 // ConfirmDefaultNo reads a Y/N answer from r, accepting only an explicit y or
-// yes. Empty input — a bare Return, or a closed stdin — is no.
+// yes. Empty input, a bare Return, or a closed stdin, is no.
 //
 // It is the counterpart to Confirm for questions where the safe answer is the
 // one a distracted person gives. Confirm's empty-means-yes suits "install the
@@ -273,7 +273,7 @@ func lookupPluginInfo(ctx context.Context, indexURL, name, constraint, channel, 
 		License:     entry.License,
 		Homepage:    entry.Homepage,
 	}
-	// Best matching version for the prompt — same semantics as install.
+	// Best matching version for the prompt, same semantics as install.
 	if v, _, err := idx.Resolve(name, constraint, channel, kapiVer); err == nil {
 		out.Version = v
 		if ve, ok := entry.Versions[v]; ok && ve.Channel != "" {
@@ -307,7 +307,7 @@ func printPluginPromptHeader(w io.Writer, req project.MissingRequirement, info p
 	}
 }
 
-// defaultIsStdinTTY is the default IsTTYFn — checks whether os.Stdin
+// defaultIsStdinTTY is the default IsTTYFn, checks whether os.Stdin
 // is attached to a terminal. Tests can swap this via
 // LoadProjectInteractiveOptions.IsTTYFn.
 func defaultIsStdinTTY() bool {

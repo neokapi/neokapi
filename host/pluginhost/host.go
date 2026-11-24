@@ -72,6 +72,7 @@ func (p *Plugin) System() bool { return p.Source.Order >= systemSourceOrder }
 type Host struct {
 	mu      sync.RWMutex
 	plugins []*Plugin
+	refused []Refusal // found in a root and not loaded, with why (safety.go)
 
 	// Dispatch tables, built from plugins on construction.
 	commandDispatch   map[string]*CommandRoute         // command name → owning plugin + manifest entry
@@ -150,6 +151,36 @@ type SchemaExtensionRegistration struct {
 // (two plugins claiming the same command/mcp-tool/format name) cause
 // the conflicting capability to be omitted from dispatch tables; an
 // optional collector receives a description of every conflict.
+// Refused returns the plugins found in a discovery root and not loaded, each
+// with the reason and the fix, for a listing or a note that names them.
+func (h *Host) Refused() []Refusal {
+	if h == nil {
+		return nil
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return append([]Refusal(nil), h.refused...)
+}
+
+// SetRefused records the plugins discovery refused, for a host built
+// outside a Runtime.
+func (h *Host) SetRefused(refused []Refusal) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.refused = append([]Refusal(nil), refused...)
+}
+
+// RefusedPlugin returns the refusal for the plugin named name, if it was found
+// and not loaded.
+func (h *Host) RefusedPlugin(name string) (Refusal, bool) {
+	for _, r := range h.Refused() {
+		if r.Name == name {
+			return r, true
+		}
+	}
+	return Refusal{}, false
+}
+
 func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 	if conflicts == nil {
 		conflicts = func(string) {}

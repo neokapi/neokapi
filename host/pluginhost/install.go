@@ -43,7 +43,7 @@ func InstallTarget() (string, error) {
 // no directory is ErrEmptyPluginsDir.
 func InstallTargetFor(pluginsDir string) (string, error) {
 	if !onlyEnvDirFromEnv() {
-		return dataInstallTarget(), nil
+		return dataInstallTarget()
 	}
 	paths := splitPathList(pluginsDir)
 	if len(paths) == 0 {
@@ -52,18 +52,29 @@ func InstallTargetFor(pluginsDir string) (string, error) {
 	return filepath.Clean(paths[0]), nil
 }
 
+// DefaultDiscoverOptions are the discovery roots for a front end with no
+// --plugin-dir: $KAPI_PLUGINS_DIR, then the user root InstallTarget writes
+// to, then the system roots. The CLI, Kapi Desktop and the media-engine
+// probes all install there and search these, so a plugin one of them
+// installs is found by the others.
+func DefaultDiscoverOptions() DiscoverOptions {
+	return DiscoverOptions{EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR")}
+}
+
 // dataInstallTarget returns $XDG_DATA_HOME/kapi/plugins, the per-user install
-// root that discovery scans second.
-func dataInstallTarget() string {
+// root that discovery scans second. With no XDG_DATA_HOME and no home
+// directory there is no per-user place to install into, and it fails rather
+// than fall back to a shared directory another user could write to.
+func dataInstallTarget() (string, error) {
 	xdg := os.Getenv("XDG_DATA_HOME")
 	if xdg == "" {
-		if home, err := dataroot.UserHomeDir(); err == nil {
-			xdg = filepath.Join(home, ".local", "share")
-		} else {
-			xdg = filepath.Join(os.TempDir(), "kapi-data")
+		home, err := dataroot.UserHomeDir()
+		if err != nil || home == "" {
+			return "", errNoUserDataDir
 		}
+		xdg = filepath.Join(home, ".local", "share")
 	}
-	return filepath.Join(xdg, "kapi", "plugins")
+	return filepath.Join(xdg, "kapi", "plugins"), nil
 }
 
 // InstallOptions configures InstallFromRegistry.
@@ -199,8 +210,13 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}
 
 	pluginDir := filepath.Join(target, opts.PluginName)
-	if err := os.MkdirAll(target, 0o755); err != nil {
+	if err := os.MkdirAll(target, pluginDirMode); err != nil {
 		return nil, fmt.Errorf("install: mkdir %s: %w", target, err)
+	}
+	// A plugin is an executable: kapi installs one only where no other user
+	// can replace it (safety.go).
+	if err := checkPath(target); err != nil {
+		return nil, fmt.Errorf("install: %w", err)
 	}
 	// Remove any prior install of the same plugin name.
 	if _, err := os.Stat(pluginDir); err == nil {
@@ -244,7 +260,12 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	// here (it stalls the binary's first exec, proportional to size, up to
 	// ~1s for the larger plugins) rather than on the plugin's first real
 	// dispatch mid-workflow.
-	prewarmFirstExec(ctx, filepath.Join(pluginDir, filepath.FromSlash(m.Binary)))
+	prewarmFirstExec(ctx, &Plugin{
+		Dir:        pluginDir,
+		Source:     Source{Path: target},
+		Manifest:   m,
+		BinaryPath: filepath.Join(pluginDir, filepath.FromSlash(m.Binary)),
+	}, logf)
 
 	logf(fmt.Sprintf("✓ Installed %s %s to %s", opts.PluginName, version, pluginDir))
 
@@ -317,10 +338,9 @@ func extractPluginArchive(body []byte, sourceURL, target, pluginName string) err
 	return extractTarGz(body, target, pluginName)
 }
 
-// pluginEntryDest maps an archive entry name onto its on-disk destination
-// inside pluginRoot (target/<pluginName>). It strips an optional leading "./"
-// and an optional single wrapping top-level directory so the flat layout and
-// either wrapped layout resolve to the same place under pluginRoot:
+// pluginEntryDest maps an archive entry name onto its destination inside
+// pluginRoot (target/<pluginName>). It strips a leading "./" and one wrapping
+// top-level directory, so every layout resolves to the same place:
 //
 //   - "<pluginName>/"      the #438 prefixed convention; and
 //   - "kapi-<pluginName>/" the staged-binary-dir wrapper the ffmpeg/whisper
@@ -413,7 +433,7 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			// (malicious) entry may have planted at this path. The flag is
 			// platform-specific (oNoFollow); on js/wasm it is 0, as the
 			// wasm build has no filesystem symlink surface to harden against.
-			f, err := root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, os.FileMode(hdr.Mode)&0o777)
+			f, err := root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, os.FileMode(hdr.Mode)&installFileMask)
 			if err != nil {
 				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
@@ -449,6 +469,16 @@ func extractZip(body []byte, target, pluginName string) error {
 		return fmt.Errorf("zip reader: %w", err)
 	}
 	pluginRoot := filepath.Join(target, pluginName)
+	// As for a tarball, every entry is written through an os.Root on the
+	// plugin's own directory, so no name can resolve outside it.
+	if err := os.MkdirAll(pluginRoot, 0o755); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(pluginRoot)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	for _, f := range r.File {
 		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, f.Name, f.FileInfo().IsDir())
 		if err != nil {
@@ -457,33 +487,45 @@ func extractZip(body []byte, target, pluginName string) error {
 		if !ok {
 			continue // the plugin-dir root entry, nothing to write
 		}
+		rel, rerr := filepath.Rel(pluginRoot, clean)
+		if rerr != nil || !filepath.IsLocal(rel) {
+			return fmt.Errorf("zip entry %q lies outside plugin dir %q", f.Name, pluginRoot)
+		}
 		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(clean, 0o755); err != nil {
+			if err := root.MkdirAll(rel, 0o755); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
-			return err
+		if dir := filepath.Dir(rel); dir != "." {
+			if err := root.MkdirAll(dir, 0o755); err != nil {
+				return err
+			}
 		}
-		src, err := f.Open()
-		if err != nil {
-			return err
+		if err := writeZipEntry(root, rel, f); err != nil {
+			return fmt.Errorf("zip entry %q: %w", f.Name, err)
 		}
-		dst, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.Mode()&0o777)
-		if err != nil {
-			src.Close()
-			return err
-		}
-		if _, err := io.Copy(dst, src); err != nil {
-			src.Close()
-			dst.Close()
-			return err
-		}
-		src.Close()
-		dst.Close()
 	}
 	return nil
+}
+
+// writeZipEntry copies one zip entry to rel under root, with the install mode
+// cap applied (no setuid, setgid or sticky bit, nothing writable by others).
+func writeZipEntry(root *os.Root, rel string, f *zip.File) error {
+	src, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, f.Mode()&installFileMask)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		return err
+	}
+	return dst.Close()
 }
 
 // safeJoin joins target and elem and refuses to escape target.
@@ -525,11 +567,18 @@ func relWithin(rel string) bool {
 // plugin answers (the same one `kapi plugins doctor` uses). The assessment
 // completes at exec time, so even a plugin that mishandles the verb is warmed.
 // Best-effort and darwin-only; no other platform stalls on first exec.
-func prewarmFirstExec(ctx context.Context, binPath string) {
+//
+// It runs the binary only after CheckLaunch passes, as every launch does.
+func prewarmFirstExec(ctx context.Context, p *Plugin, logf func(string)) {
 	if runtime.GOOS != "darwin" {
 		return
 	}
+	binPath := p.BinaryPath
 	if _, err := os.Stat(binPath); err != nil {
+		return
+	}
+	if err := CheckLaunch(p); err != nil {
+		logf("Warning: " + err.Error())
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

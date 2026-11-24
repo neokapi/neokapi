@@ -26,6 +26,8 @@ type StatusOutput struct {
 	Project string           `json:"project,omitempty"`
 	Source  *SourceCoverage  `json:"source,omitempty"`
 	Locales []LocaleCoverage `json:"locales"`
+	// UnreadMedia names the files read without an engine their content needs.
+	UnreadMedia []UnreadMedia `json:"unread_media,omitempty"`
 	// Monolingual reports a project that names no target language. Its empty
 	// Locales list is then a fact about the project, not a project whose content
 	// has not been tracked yet, and the two need different reports.
@@ -204,6 +206,7 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		// project with nothing tracked yet must not hide where `up` would run.
 		fmt.Fprintln(w, "No target content tracked (no content collections with target locales).")
 	}
+	writeUnreadMedia(w, o.UnreadMedia)
 	if o.Server != nil {
 		writeServerLine(w, *o.Server)
 	}
@@ -271,6 +274,14 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 		}
 		cells = append(cells, pipelineCell(lc, bars))
 		t.Row(append(cells, shipCell(lc, s))...)
+	}
+	for _, row := range unreadMediaRows(o.UnreadMedia, o.Locales) {
+		cells := make([]string, 0, len(headers))
+		cells = append(cells, row[0], "—")
+		for range statusLadder {
+			cells = append(cells, "—")
+		}
+		t.Row(append(cells, row[1], s.Warn.Render("not read"))...)
 	}
 	t.Render()
 	o.writeBasisLines(w)
@@ -805,6 +816,9 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			out.Source = &src
 		}
 		a.warnUnreadableFormats(cmd, src.Unreadable)
+		if db, derr := a.ProjectDB(CmdContext(cmd), root); derr == nil {
+			out.UnreadMedia = unreadMedia(CmdContext(cmd), db, a.collectionsOf(proj, projectPath))
+		}
 		a.appendServerStatus(cmd, projectPath, proj, &out)
 		out.Venue = a.statusVenue(proj)
 		if st := a.ContextSyncStatus(CmdContext(cmd), root); st != nil {

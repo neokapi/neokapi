@@ -345,14 +345,22 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	}
 	// A file declared for its comments alone has no target to materialize, and
 	// neither has a file in a format no installed reader opens, nor one whose
-	// collection names no target: that content is source-only.
+	// collection names no target: that content is source-only. A media file
+	// last read without the engine its content needs (its drift stamp names
+	// the engine) gets no target either: its speech or image text was never
+	// read, so a copy of the source would claim a translation that is not
+	// there. The run reports it, and the next run after the engine is
+	// installed reads it again.
+	stamps := db.LoadSourceStamps(ctx)
 	kept := files[:0]
-	sourceOnly := 0
+	sourceOnly, readWithoutEngine := 0, 0
 	for _, f := range files {
 		switch {
 		case f.CommentsOnly():
 		case f.Item == nil || f.Item.Target == "":
 			sourceOnly++
+		case len(stamps[f.Relative].MissingEngines) > 0:
+			readWithoutEngine++
 		case !a.setAside(unread, filepath.Dir(projectPath), f):
 			kept = append(kept, f)
 		}
@@ -360,6 +368,9 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	files = kept
 	if len(files) == 0 {
 		switch {
+		case readWithoutEngine > 0:
+			// Every file with a target waits for an engine; the run says which.
+			return 0, staleDrafts{}, nil
 		case !unread.empty():
 			return 0, staleDrafts{}, fmt.Errorf("merge: nothing was materialized: %s", unread.summary())
 		case sourceOnly > 0:

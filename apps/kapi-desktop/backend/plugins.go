@@ -2,9 +2,12 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/asr"
 	"github.com/neokapi/neokapi/core/av"
@@ -61,12 +64,22 @@ func (a *App) ensureFormatPlugin(formatName string) {
 // enginePluginProviders maps a media format to the plugin that provides its
 // recognition/demux ENGINE: kapi-vision (image OCR), kapi-asr (audio speech),
 // kapi-av (video demux). Unlike formatPluginProviders, these formats already have
-// an in-core reader — the file opens as Media without the engine — so the
+// an in-core reader (the file opens as Media without the engine) so the
 // on-demand trigger is the engine's availability, not the reader's.
 var enginePluginProviders = map[string]string{
 	"image": "vision",
 	"audio": "asr",
 	"video": "av",
+}
+
+// readNeedsEngine reports whether reading formatName with config uses its
+// engine: an image only when OCR is on, which is the reader's default.
+func readNeedsEngine(formatName string, config map[string]any) bool {
+	if formatName == "image" {
+		ocr, ok := config["ocr"].(bool)
+		return !ok || ocr
+	}
+	return true
 }
 
 // mediaEngineAvailable reports whether the local engine that enriches a media
@@ -84,12 +97,13 @@ func mediaEngineAvailable(formatName string) bool {
 }
 
 // ensureMediaEngine installs, once and on demand, the engine plugin that enriches
-// a media format (OCR/ASR/demux) when that engine isn't already available. A
-// no-op when the engine is present or the format has no engine provider.
+// a media format (OCR/ASR/demux) when the read needs it and it isn't already
+// available. A no-op when the engine is present, when the read does not use
+// it (an image read with OCR off), or when the format has no engine provider.
 // Best-effort and synchronous, emitting the same plugin-* events as
 // ensureFormatPlugin so the UI can show progress.
-func (a *App) ensureMediaEngine(formatName string) {
-	if mediaEngineAvailable(formatName) {
+func (a *App) ensureMediaEngine(formatName string, config map[string]any) {
+	if !readNeedsEngine(formatName, config) || mediaEngineAvailable(formatName) {
 		return
 	}
 	if plugin, ok := enginePluginProviders[formatName]; ok {
@@ -126,9 +140,9 @@ func (a *App) installPluginOnDemand(plugin, forWhat string) {
 		a.emitEvent("plugin-error", map[string]string{"name": plugin, "error": err.Error()})
 		return
 	}
-	a.rescanPlugins() // re-registers a newly installed plugin's format reader
+	a.removeLegacyPlugin(plugin)
 	a.emitEvent("plugin-installed", map[string]string{"name": plugin})
-	a.emitEvent("plugins-changed", nil)
+	a.pluginsChanged(true) // re-registers a newly installed plugin's format reader
 }
 
 // AvailablePlugin represents a plugin available from the registry.
@@ -140,7 +154,7 @@ type AvailablePlugin struct {
 	Installed   bool   `json:"installed"`
 	// Available is true when the registry has a stable, kapi-compatible build
 	// of this plugin for the running OS/arch. When false the UI disables the
-	// Install button — e.g. a plugin with no windows/arm64 tarball.
+	// Install button: e.g. a plugin with no windows/arm64 tarball.
 	Available bool `json:"available"`
 	// Platform is the running OS/arch ("windows/arm64"), for the UI to explain
 	// why an unavailable plugin can't be installed.
@@ -222,10 +236,9 @@ func (a *App) InstallPlugin(name string) {
 			return
 		}
 
-		a.rescanPlugins()
+		a.removeLegacyPlugin(name)
 		a.emitEvent("plugin-installed", map[string]string{"name": name})
-		a.emitEvent("plugins-changed", nil)
-		a.emitEvent("registries-changed", nil)
+		a.pluginsChanged(true)
 	}()
 }
 
@@ -259,15 +272,14 @@ func (a *App) UpdatePlugin(name string) {
 			return
 		}
 
-		a.rescanPlugins()
+		a.removeLegacyPlugin(name)
 		a.emitEvent("plugin-installed", map[string]string{"name": name})
-		a.emitEvent("plugins-changed", nil)
-		a.emitEvent("registries-changed", nil)
+		a.pluginsChanged(true)
 	}()
 }
 
 // RemovePlugin uninstalls a plugin via the plugin host, which deletes it from
-// the directory it was discovered in — the same one InstallPlugin installs into.
+// the directory it was discovered in: the same one InstallPlugin installs into.
 //
 // The frontend may pass either a plugin name ("okapi-bridge") or the composite
 // installation ID surfaced by ListPlugins ("okapi-bridge/1.39.0"). We resolve
@@ -281,9 +293,7 @@ func (a *App) RemovePlugin(idOrName string) error {
 	if err := a.host().Remove(name); err != nil {
 		return fmt.Errorf("remove %s: %w", name, err)
 	}
-	a.rescanPlugins()
-	a.emitEvent("plugins-changed", nil)
-	a.emitEvent("registries-changed", nil)
+	a.pluginsChanged(true)
 	return nil
 }
 
@@ -381,4 +391,125 @@ func (a *App) installedPluginList() []project.InstalledPlugin {
 		})
 	}
 	return result
+}
+
+// pluginsChanged is the one place the desktop reacts to a change in its plugin
+// set, whatever made it: an install, update or removal on the Plugins page, an
+// on-demand install, or the watcher seeing another process change the roots.
+// It rescans (unless the caller already did), forgets the run's media-engine
+// discovery so the next read sees the engines installed now (a parse made
+// without an engine is then made again), and tells the frontend.
+func (a *App) pluginsChanged(rescan bool) {
+	if rescan {
+		a.rescanPlugins()
+	}
+	refreshMediaEngines()
+	a.emitEvent("plugins-changed", nil)
+	a.emitEvent("registries-changed", nil)
+}
+
+// refreshMediaEngines is host.RefreshMediaEngines, replaceable in a test that
+// counts the refreshes.
+var refreshMediaEngines = host.RefreshMediaEngines
+
+// legacyPluginDir is where earlier desktop releases installed plugins (the
+// config directory's plugins/), which no discovery root reads now.
+func legacyPluginDir() string { return filepath.Join(kapiConfigDir(), "plugins") }
+
+// legacyCacheFile is the dispatch cache earlier desktop releases kept beside
+// their plugins.
+const legacyCacheFile = "plugin-cache.json"
+
+// sameDirectory reports whether a and b name the same directory, through links: a
+// legacy directory that is a link to the shared one is the shared one.
+func sameDirectory(a, b string) bool {
+	ai, aerr := os.Stat(a)
+	bi, berr := os.Stat(b)
+	return aerr == nil && berr == nil && os.SameFile(ai, bi)
+}
+
+// migrateLegacyPlugins moves, once, the plugins an earlier desktop release
+// installed in legacyPluginDir into the shared plugin root the CLI and the
+// desktop both read, under the checks an install makes
+// (pluginhost.AdoptPluginDir). A plugin the shared root already holds in a
+// usable form keeps that copy and the old one is removed; an empty directory
+// there never wins. A plugin that fails the checks stays where it is, and the
+// log says why. The old copy is removed only once the shared one is complete. The old cache file goes, and the
+// directory with it once empty. It returns the plugins it moved, which the
+// frontend is told about once.
+func (a *App) migrateLegacyPlugins() []string {
+	legacy := legacyPluginDir()
+	if a.pluginDir == "" || sameDirectory(legacy, a.pluginDir) {
+		return nil
+	}
+	entries, err := os.ReadDir(legacy)
+	if err != nil {
+		return nil
+	}
+	var moved []string
+	for _, e := range entries {
+		old := filepath.Join(legacy, e.Name())
+		if !e.IsDir() {
+			if e.Name() == legacyCacheFile {
+				_ = os.Remove(old)
+			}
+			continue
+		}
+		err := pluginhost.AdoptPluginDir(old, a.pluginDir)
+		if errors.Is(err, pluginhost.ErrAlreadyInstalled) {
+			a.removeLegacyPlugin(e.Name())
+			continue
+		}
+		if err != nil {
+			a.logger.Printf("move the earlier install of %s: %v", e.Name(), err)
+			continue
+		}
+		moved = append(moved, e.Name())
+	}
+	removeIfEmpty(legacy)
+	if len(moved) > 0 {
+		a.logger.Printf("moved plugins from %s to %s: %s", legacy, a.pluginDir, strings.Join(moved, ", "))
+	}
+	return moved
+}
+
+// removeLegacyPlugin removes name's copy from legacyPluginDir once the plugin
+// is installed where it is found, so no unused executable stays behind, and
+// removes the old cache file and the directory when nothing else is left. The
+// directories are compared by identity: when the old directory is a link to
+// the shared one, the copy there is the plugin just installed, and nothing is
+// removed.
+func (a *App) removeLegacyPlugin(name string) {
+	legacy := legacyPluginDir()
+	if a.pluginDir == "" || sameDirectory(legacy, a.pluginDir) {
+		return
+	}
+	old := filepath.Join(legacy, name)
+	if _, err := os.Lstat(old); err != nil {
+		return
+	}
+	if sameDirectory(old, filepath.Join(a.pluginDir, name)) {
+		return
+	}
+	if err := os.RemoveAll(old); err != nil {
+		a.logger.Printf("remove the earlier install of %s at %s: %v", name, old, err)
+		return
+	}
+	removeIfEmpty(legacy)
+}
+
+// removeIfEmpty removes the legacy directory when it holds nothing but the old
+// cache file.
+func removeIfEmpty(legacy string) {
+	entries, err := os.ReadDir(legacy)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.Name() != legacyCacheFile {
+			return
+		}
+	}
+	_ = os.Remove(filepath.Join(legacy, legacyCacheFile))
+	_ = os.Remove(legacy)
 }
