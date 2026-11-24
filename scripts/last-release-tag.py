@@ -10,14 +10,15 @@ Release (not a draft), and its commit must be reachable from main. A tag that
 fails either check stops the run with the reason; the script never falls back
 to a lower tag, because a stray higher tag is exactly what it must not build.
 
-It reads the public tag list and two public API endpoints, so it needs no
-token. Exit status: 0 the tag is printed, 1 the highest tag fails a check or
+It reads the public tag list and two API endpoints, with GH_TOKEN when it is
+set (the scheduled run sets it, so a rate limit cannot stop it). Exit status: 0 the tag is printed, 1 the highest tag fails a check or
 none exists, 2 usage.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -51,8 +52,11 @@ def problems(tag: str, release: dict | None, on_main: str) -> list[str]:
 
 
 def api(repo: str, path: str) -> dict | None:
-    req = urllib.request.Request(f"https://api.github.com/repos/{repo}/{path}",
-                                 headers={"Accept": "application/vnd.github+json", "User-Agent": "last-release-tag"})
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "last-release-tag"}
+    token = os.environ.get("GH_TOKEN", "")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(f"https://api.github.com/repos/{repo}/{path}", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r)

@@ -53,6 +53,9 @@ jobs:
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          # The scheduled run, which publishes, asks the API with the read
+          # token, so a rate limit cannot stop it; a dispatch asks without.
+          GH_TOKEN: ${{ github.event_name == 'schedule' && github.token || '' }}
         run: |
           set -euo pipefail
           build_only=true
@@ -320,9 +323,9 @@ jobs:
     needs: [setup, build, scan-current]
     if: needs.setup.outputs.build_only != 'true'
     runs-on: ubuntu-latest
-    # The release jobs that move `latest` share this group, so a release and a
-    # rebuild never move it at once; the digest check catches a release that
-    # landed between the scan and this job.
+    # release-bowrain.yml's move-latest job shares this group, so a release and
+    # a rebuild never move latest at once; the digest check catches a release
+    # that landed between the scan and this job.
     concurrency:
       group: bowrain-latest
       cancel-in-progress: false
