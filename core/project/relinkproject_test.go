@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ func earlierCheckout(t *testing.T, root, recipe string) string {
 	withVault(t, l, `{"originals":"of the earlier project"}`)
 	_, err := EnsureLocalDir(l, SyncDirName)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(l.SyncDir(), "sync-cache.json"), []byte(`{"claim_token":"clm_earlier","server_url":"https://app.example","project_id":"p1"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(l.SyncDir(), "sync-cache.json"), []byte(`{"claim_token":"clm_earlier","server_url":"https://app.example","workspace":"team","project_id":"p1"}`), 0o600))
 	require.NoError(t, os.WriteFile(l.LocalFiltersPath(), []byte(`{"active":"mine"}`), 0o600))
 	dir := l.LocalStateDir()
 	require.NoError(t, os.RemoveAll(root))
@@ -166,9 +167,9 @@ func TestRelinkBringsTheSyncStateOnlyToItsServerProject(t *testing.T) {
 			assert.Equal(t, []string{"sync/sync-cache.json"}, targets(plan.Withheld))
 			assert.Contains(t, targets(plan.Files), "vault/redaction.json", "the vault of the same project comes across")
 			require.NotNil(t, plan.SyncProject)
-			assert.Equal(t, "https://app.example project p1", plan.SyncProject.String())
+			assert.Equal(t, "https://app.example project team/p1", plan.SyncProject.String())
 			require.Len(t, plan.WithheldWhy, 1)
-			assert.Contains(t, plan.WithheldWhy[0], "bound to https://app.example project p1, and this recipe connects to https://app.example project p2")
+			assert.Contains(t, plan.WithheldWhy[0], "bound to https://app.example project team/p1, and this recipe connects to https://app.example project team/p2")
 			assert.False(t, plan.RemovesSource)
 		}
 		plan, err := PlanRelink(later, root, RelinkOptions{SameProject: true})
@@ -234,4 +235,133 @@ func TestATransferThatStopsPartWayRemovesWhatItWrote(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, ApplyTransfer(l, again, false), "running it again starts over")
 	assert.FileExists(t, l.RedactionVaultPath())
+}
+
+// The workspace is part of the server project a sync state is bound to, and a
+// cache that does not record it cannot say.
+func TestRelinkComparesTheWorkspace(t *testing.T) {
+	captureStateNotices(t)
+	syncCache := func(t *testing.T, earlier, body string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(filepath.Join(earlier, SyncDirName, "sync-cache.json"), []byte(body), 0o600))
+	}
+	withheld := func(plan StateTransfer) bool {
+		for _, f := range plan.Withheld {
+			if f.Target == "sync/sync-cache.json" {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("another workspace on the same server", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "app")
+		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+		syncCache(t, earlier, `{"server_url":"https://app.example","workspace":"ws-a","project_id":"app"}`)
+		later := laterCheckout(t, root, "version: v1\nname: app\nid: prj_same\nbowrain:\n  url: https://app.example/ws-b/app\n")
+		plan, err := PlanRelink(later, root, RelinkOptions{SameProject: true})
+		require.NoError(t, err)
+		assert.True(t, withheld(plan), "another workspace keeps the sync state, whatever the person states")
+		assert.Contains(t, plan.WithheldWhy[0], "ws-a/app")
+	})
+
+	t.Run("the same workspace", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "app")
+		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+		syncCache(t, earlier, `{"server_url":"https://app.example","workspace":"ws-a","project_id":"app"}`)
+		later := laterCheckout(t, root, "version: v1\nname: app\nid: prj_same\nbowrain:\n  url: https://app.example/ws-a/app\n")
+		plan, err := PlanRelink(later, root, RelinkOptions{})
+		require.NoError(t, err)
+		assert.False(t, withheld(plan))
+	})
+
+	t.Run("a cache that records no workspace cannot say", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "app")
+		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+		syncCache(t, earlier, `{"server_url":"https://app.example","project_id":"app"}`)
+		later := laterCheckout(t, root, "version: v1\nname: app\nid: prj_same\nbowrain:\n  url: https://app.example/ws-a/app\n")
+		plan, err := PlanRelink(later, root, RelinkOptions{})
+		require.NoError(t, err)
+		assert.True(t, withheld(plan))
+		assert.Contains(t, plan.WithheldWhy[0], "one of them names no workspace")
+		asked, err := PlanRelink(later, root, RelinkOptions{SameProject: true})
+		require.NoError(t, err)
+		assert.False(t, withheld(asked), "--same-project takes it")
+	})
+
+	t.Run("servers compare through the host's normalisation", func(t *testing.T) {
+		prev := ServerURLNormalizer
+		ServerURLNormalizer = func(s string) string { return strings.TrimSuffix(strings.ToLower(strings.TrimRight(s, "/")), ":443") }
+		t.Cleanup(func() { ServerURLNormalizer = prev })
+		root := filepath.Join(t.TempDir(), "app")
+		earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+		syncCache(t, earlier, `{"server_url":"https://app.example:443","workspace":"ws-a","project_id":"app"}`)
+		later := laterCheckout(t, root, "version: v1\nname: app\nid: prj_same\nbowrain:\n  url: https://APP.example/ws-a/app\n")
+		plan, err := PlanRelink(later, root, RelinkOptions{})
+		require.NoError(t, err)
+		assert.False(t, withheld(plan))
+	})
+}
+
+// A temporary file a stopped write of the record left is not state, and no
+// plan takes it.
+func TestRelinkLeavesARecordTemporaryFile(t *testing.T) {
+	captureStateNotices(t)
+	root := filepath.Join(t.TempDir(), "app")
+	earlier := earlierCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+	require.NoError(t, os.WriteFile(filepath.Join(earlier, ".checkout.json.123456.tmp"), []byte("{"), 0o600))
+	later := laterCheckout(t, root, "version: v1\nname: app\nid: prj_same\n")
+	plan, err := PlanRelink(later, root, RelinkOptions{SameProject: true})
+	require.NoError(t, err)
+	for _, f := range append(plan.Files, plan.Withheld...) {
+		assert.NotContains(t, f.Source, ".checkout.json")
+	}
+}
+
+// Each cell of the comparison table answers as the table says: only a value
+// both sides name, equal after normalisation, is the same.
+func TestCompareFieldFollowsTheTable(t *testing.T) {
+	lower := strings.ToLower
+	for _, tt := range []struct {
+		name             string
+		recorded, recipe string
+		want             fieldVerdict
+	}{
+		{"both name it, equal", "A", "a", fieldSame},
+		{"both name it, different", "a", "b", fieldDiffers},
+		{"only the sync state names it", "a", "", fieldUnknown},
+		{"only the recipe names it", "", "a", fieldUnknown},
+		{"neither names it", "", "", fieldUnknown},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, compareField(tt.recorded, tt.recipe, lower))
+		})
+	}
+}
+
+// The server, the workspace and the project are decided by the one rule: a
+// field that differs makes another server project, every field the same makes
+// one, and anything else cannot say.
+func TestBindingVerdictDecidesEveryFieldByOneRule(t *testing.T) {
+	full := SyncBinding{Server: "https://app.example", Workspace: "ws", Project: "p"}
+	for _, tt := range []struct {
+		name             string
+		recorded, recipe SyncBinding
+		same, known      bool
+	}{
+		{"every field the same", full, full, true, true},
+		{"another server", full, SyncBinding{Server: "https://other.example", Workspace: "ws", Project: "p"}, false, true},
+		{"another workspace", full, SyncBinding{Server: "https://app.example", Workspace: "ws2", Project: "p"}, false, true},
+		{"another project", full, SyncBinding{Server: "https://app.example", Workspace: "ws", Project: "q"}, false, true},
+		{"the recipe names no workspace", full, SyncBinding{Server: "https://app.example", Project: "p"}, false, false},
+		{"the sync state names no workspace", SyncBinding{Server: "https://app.example", Project: "p"}, full, false, false},
+		{"neither names a workspace", SyncBinding{Server: "https://app.example", Project: "p"}, SyncBinding{Server: "https://app.example", Project: "p"}, false, false},
+		{"a difference outweighs a field nobody names", SyncBinding{Server: "https://app.example", Project: "p"}, SyncBinding{Server: "https://app.example", Workspace: "ws", Project: "q"}, false, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			same, known := bindingVerdict(tt.recorded, tt.recipe)
+			assert.Equal(t, tt.same, same, "same")
+			assert.Equal(t, tt.known, known, "known")
+		})
+	}
 }
