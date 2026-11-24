@@ -133,7 +133,7 @@ func (l removalLayout) Locate(ctx context.Context, doc string) (filehome.Doc, er
 func removalService(t *testing.T, dir string, reg *registry.FormatRegistry, name registry.FormatID) *change.Service {
 	t.Helper()
 	home := filehome.New(removalLayout{filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en", Format: string(name)}},
-		filehome.Options{LockDir: t.TempDir()})
+		filehome.Options{})
 	return change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 }
 

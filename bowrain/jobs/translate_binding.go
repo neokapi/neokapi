@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coreproject "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 	"github.com/neokapi/neokapi/terms"
@@ -67,6 +68,11 @@ type TranslateBinding struct {
 	TargetLocale     model.LocaleID
 	BatchSize        int
 	BatchConcurrency int
+
+	// Blocks are the stored blocks this translation drafts. A unit among them
+	// that a reviewer rejected is drafted with the rejection's reasons and
+	// note (reviewFeedback). Nil drafts without review feedback.
+	Blocks []*venue.StoredBlock
 }
 
 // BuildTranslateConfig configures server-side translation with:
@@ -74,7 +80,8 @@ type TranslateBinding struct {
 //   - per-locale term rules from workspace terms;
 //   - do-not-translate terms protected by masking;
 //   - content memory scoped to the block's context;
-//   - surrounding blocks to help disambiguate short text.
+//   - surrounding blocks to help disambiguate short text;
+//   - the reviewers' feedback on each rejected unit among b.Blocks.
 func BuildTranslateConfig(ctx context.Context, b TranslateBinding) tools.AITranslateConfig {
 	var source model.LocaleID
 	if b.Project != nil {
@@ -99,8 +106,9 @@ func BuildTranslateConfig(ctx context.Context, b TranslateBinding) tools.AITrans
 		// The blocks either side, as reference the model reads and does not
 		// translate. Both surfaces hand the tool one item's blocks in document
 		// order, which is the neighbourhood a reader of the item sees.
-		Context:       tools.ContextNeighbours,
-		ContextWindow: tools.DefaultContextWindow,
+		Context:        tools.ContextNeighbours,
+		ContextWindow:  tools.DefaultContextWindow,
+		ReviewFeedback: b.reviewFeedback(ctx),
 	}
 	if provider := b.memoryProvider(); provider != nil {
 		cfg.Memory = provider

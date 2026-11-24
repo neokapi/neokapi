@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	coreproj "github.com/neokapi/neokapi/core/project"
 )
 
 func TestNormalizeServerURL(t *testing.T) {
@@ -24,10 +26,22 @@ func TestNormalizeServerURL(t *testing.T) {
 		{"subdomain of landing not rewritten", "https://ctrl.bowrain.cloud", "https://ctrl.bowrain.cloud"},
 		{"case-insensitive host match", "https://BOWRAIN.CLOUD", "https://app.bowrain.cloud"},
 		{"not a URL returned as-is", "not a url", "not a url"},
+		{"scheme and host lowercased", "HTTPS://Bowrain.Example.COM", "https://bowrain.example.com"},
+		{"default https port dropped", "https://bowrain.example.com:443/", "https://bowrain.example.com"},
+		{"default http port dropped", "http://bowrain.example.com:80", "http://bowrain.example.com"},
+		{"other port kept", "https://bowrain.example.com:8443", "https://bowrain.example.com:8443"},
+		{"path kept", "https://example.com/bowrain/", "https://example.com/bowrain"},
+		{"ipv6 host kept bracketed", "http://[::1]:8080", "http://[::1]:8080"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, NormalizeServerURL(tt.in))
 		})
 	}
+}
+
+// The framework's relink compares servers through this normalisation, so it
+// and the claim check agree on what one server is.
+func TestTheFrameworkComparesServersThroughNormalizeServerURL(t *testing.T) {
+	assert.Equal(t, "https://bowrain.example.com", coreproj.ServerURLNormalizer("HTTPS://Bowrain.Example.com:443/"))
 }

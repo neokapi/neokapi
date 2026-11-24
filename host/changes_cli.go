@@ -109,9 +109,9 @@ func (c *commandChanges) build(ctx context.Context, opts ChangeServiceOptions) (
 // with every document located and read as For reads it, so a document is
 // named there by the reference For gives it. A command that prints an edited
 // document applies the change to a private copy this way and leaves the file
-// as it is. The copy's locks live under lockDir, and the service runs no
-// project's hooks: the copy belongs to the command alone.
-func (c *commandChanges) copyService(ctx context.Context, path, copy, lockDir string) (*change.Service, error) {
+// as it is. The service runs no project's hooks: the copy belongs to the
+// command alone.
+func (c *commandChanges) copyService(ctx context.Context, path, copy string) (*change.Service, error) {
 	cs, _, _, err := c.forFile(ctx, path)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (c *commandChanges) copyService(ctx context.Context, path, copy, lockDir st
 	}
 	opts := c.opts
 	opts.Project, opts.BackupSuffix = "", ""
-	h := changeHome{layout: copyLayout{inner: cs.home.layout, file: abs, copy: copy}, lockDir: lockDir}
+	h := changeHome{layout: copyLayout{inner: cs.home.layout, file: abs, copy: copy}}
 	return c.app.serviceOver(ctx, c.cmd, opts, h)
 }
 

@@ -52,7 +52,7 @@ func TestReadRefusesALinkSwappedInAfterOpen(t *testing.T) {
 	doc := filepath.Join(root, "locales", "en.json")
 	require.NoError(t, os.WriteFile(doc, []byte(`{"greeting": "Hello"}`), 0o644))
 	home := filehome.New(filehome.DirLayout{Root: root, Formats: newRegistry(), SourceLocale: model.LocaleID("en")},
-		filehome.Options{Root: root, LockDir: filepath.Join(t.TempDir(), "locks")})
+		filehome.Options{Root: root})
 	sess, err := home.Open(context.Background(), "locales/en.json")
 	require.NoError(t, err)
 	defer sess.Close()
@@ -87,7 +87,7 @@ func TestArchiveMemberReadRefusesALinkSwappedIn(t *testing.T) {
 	foreign := filepath.Join(outside, "other.zip")
 	zipOf(foreign, `{"hidden": "outside"}`)
 	home := filehome.New(filehome.DirLayout{Root: root, Formats: newRegistry(), SourceLocale: model.LocaleID("en")},
-		filehome.Options{Root: root, LockDir: filepath.Join(t.TempDir(), "locks")})
+		filehome.Options{Root: root})
 	sess, err := home.Open(context.Background(), "pack.zip!a.json")
 	require.NoError(t, err)
 	defer sess.Close()

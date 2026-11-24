@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/terms"
@@ -63,7 +64,9 @@ func TestExec_InAProjectRecordsWhatItChanged(t *testing.T) {
 	require.NotEmpty(t, rows, "the run records what it changed in the project")
 	assert.Equal(t, string(change.ActorTool), rows[0].Actor)
 	assert.Equal(t, "case-transform", rows[0].ActorName)
-	assert.DirExists(t, filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
+	lock, err := filehome.LockFile(filepath.Join(root, "docs", "page.html"))
+	require.NoError(t, err)
+	assert.FileExists(t, lock, "the run locks the page in the one lock file of the file")
 }
 
 // kapi exec -p names the project that governs the run, as -p does on every

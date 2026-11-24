@@ -2090,4 +2090,19 @@ var Migrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS agent_host TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     66,
+		Description: "the rejections of drafts of a unit's source",
+		SQL: `
+			-- How many drafts of one source a unit has had turned down: each
+			-- rejected draft, and each draft that came back in wording a
+			-- reviewer had rejected. The row keeps only the latest decision,
+			-- so the count sits beside it with the source revision it counts
+			-- for, and a rejection against another source starts it again.
+			-- Once it reaches the stop the platform drafts the unit no more.
+			-- A constant default is a catalog change, and no row is rewritten.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS rejection_basis TEXT NOT NULL DEFAULT '';
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS rejection_count INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }

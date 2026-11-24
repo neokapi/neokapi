@@ -65,3 +65,25 @@ func unlockFile(f *os.File) error {
 
 // releaseOnClose gives back the mutex a lock file being closed still holds.
 func releaseOnClose(f *os.File) { _ = unlockFile(f) }
+
+// tryLockFile takes the path's mutex when it is free, and reports whether it
+// did.
+func tryLockFile(f *os.File) (bool, error) {
+	m := pathMutex(f)
+	if !m.TryLock() {
+		return false, nil
+	}
+	inProcessMu.Lock()
+	held[f] = m
+	inProcessMu.Unlock()
+	return true, nil
+}
+
+// removeHeld removes the lock file while the path's mutex is held, then gives
+// the mutex back and closes the file.
+func (l *Lock) removeHeld() error {
+	err := os.Remove(l.path)
+	l.Unlock()
+	_ = l.Close()
+	return err
+}

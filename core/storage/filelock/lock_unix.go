@@ -32,3 +32,31 @@ func unlockFile(f *os.File) error {
 
 // releaseOnClose does nothing: closing the descriptor releases its lock.
 func releaseOnClose(*os.File) {}
+
+// tryLockFile takes an exclusive flock(2) when no one holds one, and reports
+// whether it did.
+func tryLockFile(f *os.File) (bool, error) {
+	for {
+		err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+		switch err {
+		case nil:
+			return true, nil
+		case unix.EWOULDBLOCK:
+			return false, nil
+		case unix.EINTR:
+			continue
+		default:
+			return false, err
+		}
+	}
+}
+
+// removeHeld removes the lock file while the lock on it is held, then gives
+// the lock back and closes the file. A waiter on the removed file wakes to a
+// path that names another file, or none, and opens it again (Acquire).
+func (l *Lock) removeHeld() error {
+	err := os.Remove(l.path)
+	l.Unlock()
+	_ = l.Close()
+	return err
+}

@@ -235,6 +235,11 @@ A deployment uses three images, `bowrain-server`, `bowrain-worker`, and
 `latest` moves only with a release or with the weekly rebuild of that release.
 To control when your deployment changes, pin a version instead.
 
+If you ran `latest` before 2026-11-24, you ran builds of the main branch, not
+a release. Your database already carries main's migrations. Pin `main` or the
+image digest you run now, and don't move to a release tag until a release
+includes those migrations.
+
 Pull a specific version (keep server, worker, and web on the same tag):
 
 ```bash

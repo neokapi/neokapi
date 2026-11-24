@@ -46,6 +46,43 @@ func TestAITranslate_ARepeatedRejectedDraftIsNotKept(t *testing.T) {
 	assert.Equal(t, []string{"site-b1"}, reported, "the host is told once")
 }
 
+// The rejections reach the model for the unit the feedback is keyed by
+// (Block.UnitKey), whatever the block's name: a block with a key and no name
+// is told why its draft was rejected, as it is refused a repeat.
+func TestAITranslate_TheRejectionsReachTheModelByUnitKey(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		key  string
+		bn   string
+	}{
+		{"a block with no name", "", ""},
+		{"a block whose key is not its name", "settings.save", "Save button"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var sent []aiprovider.TranslateRequest
+			mock := aiprovider.NewMockProvider()
+			mock.TranslateFunc = func(_ context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
+				sent = append(sent, req)
+				return &aiprovider.TranslateResponse{Translation: "Enregistrer", Model: "m"}, nil
+			}
+			b := newSrcBlock("b1", "Save")
+			b.Key, b.Name = tc.key, tc.bn
+			tl := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
+				SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+				Provider: "anthropic", Model: "claude-x",
+				ReviewFeedback: tool.ReviewFeedbackGrant{Units: tool.ReviewFeedback{
+					b.UnitKey(): {Rejections: []tool.ReviewRejection{{Text: "Sauver", Reasons: []string{"wrong_term"}, Note: "Use Enregistrer."}}},
+				}},
+			})
+			translateBlockDirect(t, tl, b)
+
+			if assert.Len(t, sent, 1) && assert.Len(t, sent[0].BlockContext.Rejections, 1) {
+				assert.Equal(t, "Use Enregistrer.", sent[0].BlockContext.Rejections[0].Note)
+			}
+		})
+	}
+}
+
 // A retry that returns other wording is kept, and nothing is reported.
 func TestAITranslate_ARetryWithNewWordingIsKept(t *testing.T) {
 	const rejected = "Bonjour à vous"

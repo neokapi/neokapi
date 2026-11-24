@@ -18,7 +18,7 @@ import (
 )
 
 // editorFakeVoiceStore resolves profiles by ID from a fixed set. Embedding the
-// interface means only GetProfile is implemented — the resolution path uses
+// interface means only GetProfile is implemented, the resolution path uses
 // nothing else.
 type editorFakeVoiceStore struct {
 	coreprofile.Store
@@ -93,13 +93,13 @@ func editorVoiceContextFixture(t *testing.T) (platstore.ContentStore, editorVoic
 // TestEditorTranslateConfigCarriesVoiceContext proves the interactive editor
 // translate config carries the same standing brand context a worker job does:
 // the voice profile resolved through the voicescope ladder (with the target
-// locale's override applied) and the terms store-derived rules — the exact
+// locale's override applied) and the terms store-derived rules, the exact
 // fields the AI translate tool injects into every prompt.
 func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 	cs, voiceCtx, proj := editorVoiceContextFixture(t)
 
 	cfg := editorTranslateConfig(t.Context(), cs, voiceCtx, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", Provider: "demo"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", Provider: "demo"}, nil)
 
 	require.NotNil(t, cfg.Profile)
 	assert.Equal(t, "Acme Voice", cfg.Profile.Name)
@@ -114,7 +114,7 @@ func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 
 // TestEditorTranslateConfigBareWithoutVoiceContext pins the control case: a
 // server with no voice/terms wiring (or a workspace with nothing bound)
-// constructs exactly the pre-existing bare config — no profile, no term rules,
+// constructs exactly the pre-existing bare config, no profile, no term rules,
 // locales and batching intact.
 func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
@@ -123,7 +123,7 @@ func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 	require.NoError(t, cs.CreateProject(t.Context(), proj))
 
 	cfg := editorTranslateConfig(t.Context(), cs, editorVoiceContext{}, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", BatchSize: 7, Concurrency: 2})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr", BatchSize: 7, Concurrency: 2}, nil)
 
 	assert.Nil(t, cfg.Profile)
 	assert.Nil(t, cfg.TermRules)
@@ -149,7 +149,7 @@ func TestEditorTranslateConfigCarriesDNTTerms(t *testing.T) {
 	require.NoError(t, cs.CreateProject(t.Context(), proj))
 
 	cfg := editorTranslateConfig(t.Context(), cs, editorVoiceContext{}, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"}, nil)
 
 	assert.Equal(t, []string{"Kapi", "Bowrain"}, cfg.DNT)
 	assert.Equal(t, jobs.ProjectDNTTerms(proj), cfg.DNT,
@@ -174,7 +174,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 	}
 
 	cfg := editorTranslateConfig(t.Context(), cs, voiceCtx, proj,
-		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+		"p1", "main", "hello.txt", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"}, nil)
 
 	assert.Nil(t, cfg.Profile, "unresolvable profile → bare, not fatal")
 	assert.Nil(t, cfg.TermRules, "unopenable terms → bare, not fatal")

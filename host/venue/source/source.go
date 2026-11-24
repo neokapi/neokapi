@@ -177,7 +177,6 @@ func NewSourceConnector(ctx context.Context, app *host.App, project *Project, fo
 		cache.ServerURL = serverURL
 		cache.ProjectID = projectID
 	}
-
 	// The refs are destination-keyed in their own right: Load discards a file
 	// belonging to another server or project rather than reconciling it.
 	refs := refcache.Load(project.Layout, serverURL, projectID)
@@ -993,6 +992,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Recipe.Server.ServerURL()
 	c.cache.ProjectID = c.project.Recipe.Server.ProjectID()
+	c.cache.Workspace = recipeWorkspaceFor(c.project.Recipe.Server, c.cache.ServerURL, c.cache.ProjectID)
 
 	c.refs.Consume(c.stream, lastCursor)
 	c.recordGovernanceAfterPush(ctx, pushID, ingest, served)
@@ -2654,4 +2654,20 @@ func readInRoot(root, path string) ([]byte, error) {
 	}
 	defer f.Close()
 	return io.ReadAll(f)
+}
+
+// recipeWorkspaceFor is the workspace a sync cache records after a push the
+// server confirmed: the workspace of the recipe's own connection, when that
+// connection names the server and project the push reached. A push an
+// environment override sent elsewhere records none, so a relink of that
+// cache cannot say it belongs to the recipe's server project.
+func recipeWorkspaceFor(server *schema.ServerSpec, serverURL, projectID string) string {
+	if server == nil {
+		return ""
+	}
+	own := schema.ParseProjectURL(server.URL)
+	if config.NormalizeServerURL(own.ServerURL) != config.NormalizeServerURL(serverURL) || own.ProjectID != projectID {
+		return ""
+	}
+	return own.Workspace
 }

@@ -58,12 +58,12 @@ var (
 //
 // Both are opened lazily, on the first request that needs them, and the entry
 // then caches them for the process's lifetime. mu guards that opening: it is
-// held across the nil check and the assignment, so two concurrent requests for
-// the same workspace open one store between them rather than each opening its
+// held across the nil check and the assignment. So two concurrent requests for
+// the same workspace open one store between them, rather than each opening its
 // own and racing to publish it.
 //
-// The lock is per entry rather than the map's own lock because opening a
-// PostgreSQL-backed store runs migrations — holding workspaceStores.mu for that
+// The lock is per entry rather than the map's own lock, because opening a
+// PostgreSQL-backed store runs migrations. Holding workspaceStores.mu for that
 // would stall every other workspace's lookup behind one workspace's first use.
 type workspaceMemoryTerms struct {
 	mu     sync.Mutex
@@ -195,8 +195,8 @@ type ProjectInfoResponse struct {
 	Streams               []store.Stream        `json:"streams,omitempty"`
 	ActiveStream          string                `json:"active_stream,omitempty"`
 	// Type is the project-type rollup over its collections' origins plus the
-	// project-level source-connector signal: "connected" (all connector-sourced
-	// — read-only source), "managed" (UI-native — editable), or "hybrid" (a
+	// project-level source-connector signal: "connected" (all connector-sourced,
+	// read-only source), "managed" (UI-native, editable), or "hybrid" (a
 	// mix). Editable is the derived project-level gate. Both are filled by
 	// annotateProjectOrigin on the project-detail read; the summary list view
 	// leaves them empty.
@@ -248,7 +248,7 @@ type ProjectItemResponse struct {
 // the same content model the gRPC editor uses; there is no coded-text form.
 //
 // Targets carries, per locale, the committed target's plain text AND its
-// per-locale review status (model.Edition.Status — the ladder the convergence /
+// per-locale review status (model.Edition.Status, the ladder the convergence /
 // coverage engine consumes), so the editor reads status as
 // block.targets[locale].status. Blocks written before per-locale status carry
 // only the legacy block-global Properties["translation-status"], which readers
@@ -506,12 +506,12 @@ type SaveProviderConfigRequest struct {
 // It checks the URL path param first (stream-scoped routes), then falls back
 // to a query param, then defaults to "main".
 // refParam extracts the ref (stream or tag) from the request.
-// Bowrain AD-011: resource-first ref pattern — ref comes from :ref path param.
+// Bowrain AD-011: resource-first ref pattern, ref comes from :ref path param.
 // Falls back to :stream (legacy) and ?stream= query param for backward compat.
 //
 // Path params are unescaped here because Echo hands them over as they appear
-// in the URL. A ref with a slash — every `$auto` stream named after a
-// git branch like fix/thing — MUST arrive percent-encoded to route at all, and
+// in the URL. A ref with a slash, every `$auto` stream named after a
+// git branch like fix/thing, MUST arrive percent-encoded to route at all, and
 // taking it raw stored "fix%2Fthing" as a stream name.
 func refParam(c *echo.Context) string {
 	if s := unescapeParam(c.Param("ref")); s != "" {
@@ -565,7 +565,7 @@ func streamParamWithProject(c *echo.Context, p *store.Project) string {
 }
 
 // projectParam extracts the project ID from either :id or :pid path parameter.
-// Bowrain AD-011 uses :id consistently, but some handlers historically use :pid.
+// Bowrain AD-011 uses :id, and some handlers' routes name it :pid.
 func projectParam(c *echo.Context) string {
 	if id := c.Param("id"); id != "" {
 		return id
@@ -583,12 +583,12 @@ const maxItemNameLen = 1024
 
 // safeItemName reports whether name may be stored as an item name.
 //
-// An item name is not just a label: it is a repository-relative path that the
-// delivery side joins onto a checkout root to decide which file to write. It
-// therefore has to be a path that stays inside the tree it is relative to.
-// Nested names are ordinary and stay allowed — "locales/en/messages.json" is
-// the common case, so filepath.Base would be wrong — but the name must be
-// relative, canonical, and free of parent references.
+// An item name is a repository-relative path that the delivery side joins onto
+// a checkout root to decide which file to write. It therefore has to be a path
+// that stays inside the tree it is relative to. Nested names are ordinary and
+// stay allowed ("locales/en/messages.json" is the common case, so
+// filepath.Base would be wrong), and the name must be relative, canonical, and
+// free of parent references.
 //
 // The rule is expressed in slash terms rather than the host's, because an item
 // name means the same thing on every platform: it is stored on one OS and may
@@ -613,8 +613,8 @@ func safeItemName(name string) bool {
 	if path.Clean(name) != name {
 		return false
 	}
-	// Clean keeps a leading ".." on a relative path — "../x" is already
-	// canonical — so the escape has to be rejected on its own.
+	// Clean keeps a leading ".." on a relative path, "../x" is already
+	// canonical, so the escape has to be rejected on its own.
 	return name != "." && name != ".." && !strings.HasPrefix(name, "../")
 }
 
@@ -740,7 +740,7 @@ func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, stre
 }
 
 // editorQueryBlocks runs an arbitrary block query and formats the page for the
-// API — the filtered form of editorGetBlocks, used by the surfaces that narrow
+// API, the filtered form of editorGetBlocks, used by the surfaces that narrow
 // by status, locale or search text.
 func editorQueryBlocks(ctx context.Context, cs store.ContentStore, query store.BlockQuery, targetLocales []string) ([]BlockInfoResponse, error) {
 	storedBlocks, err := cs.GetBlocks(ctx, query)
@@ -793,15 +793,15 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, commit co
 }
 
 // editorVoiceContext bundles the optional stores the synchronous editor
-// translate and check paths use to bind the project's standing context — the
-// voice profile, the term rules and the content memory — mirroring the
+// translate and check paths use to bind the project's standing context, the
+// voice profile, the term rules and the content memory, mirroring the
 // worker's WorkerDeps context fields (jobs/voice_context.go). Every field is
 // optional: a zero value translates bare, exactly as before.
 type editorVoiceContext struct {
 	// Voice reads voice profiles. Nil translates without voice.
 	Voice coreprofile.Store
 	// WorkspaceDefault resolves the workspace-level default voice
-	// profile — the base rung of the voicescope resolution ladder. Nil skips
+	// profile, the base rung of the voicescope resolution ladder. Nil skips
 	// the workspace rung.
 	WorkspaceDefault voicescope.WorkspaceDefault
 	// Stores yields the per-workspace terms and content memory. Nil
@@ -809,7 +809,7 @@ type editorVoiceContext struct {
 	Stores *workspaceStores
 }
 
-// editorVoiceContext binds the server's own stores — the same instances the
+// editorVoiceContext binds the server's own stores, the same instances the
 // voice and terminology surfaces use. Everything in it is optional: a missing
 // store means a bare translation or an ungoverned check, never an error.
 func (s *Server) editorVoiceContext() editorVoiceContext {
@@ -825,12 +825,13 @@ func (s *Server) editorVoiceContext() editorVoiceContext {
 //
 // The governing context is assembled by jobs.BuildTranslateConfig, the one
 // assembly the worker's jobs also use, so a translation a person starts from
-// the editor carries exactly what a queued one does: the voice profile
+// the editor carries exactly what a queued one does. That is the voice profile
 // resolved through the voicescope ladder, the per-locale term rules from the
-// workspace terms, the project's do-not-translate terms, the workspace content
-// memory, the surrounding blocks, and the point the item sits at. Every
-// binding is best-effort — absence or a resolution failure leaves the field
-// unset and the translation runs bare, never fails.
+// workspace terms and the project's do-not-translate terms. It is also the
+// workspace content memory, the surrounding blocks, the point the item sits
+// at, and the reviewers' feedback on each rejected unit among blocks. Every binding is
+// best-effort: absence or a resolution failure leaves the field unset, and the
+// translation runs bare rather than failing.
 func editorTranslateConfig(
 	ctx context.Context,
 	cs store.ContentStore,
@@ -838,6 +839,7 @@ func editorTranslateConfig(
 	proj *store.Project,
 	projectID, stream, itemName, workspaceID, workspaceSlug string,
 	req TranslateRequest,
+	blocks []*venue.StoredBlock,
 ) tools.AITranslateConfig {
 	b := jobs.TranslateBinding{
 		Store:            cs,
@@ -851,6 +853,7 @@ func editorTranslateConfig(
 		TargetLocale:     model.LocaleID(req.TargetLocale),
 		BatchSize:        req.BatchSize,
 		BatchConcurrency: req.Concurrency,
+		Blocks:           blocks,
 	}
 	b.Terms = editorTerms(ctx, voiceCtx, workspaceSlug, projectID)
 	b.Memory = editorMemory(ctx, voiceCtx, workspaceSlug)
@@ -974,7 +977,7 @@ func editorAITranslate(
 	} else if platform.Provider != "" {
 		// Platform path: the server chooses the AI backend (the hosted cloud's
 		// Bedrock provider via the task role, no API key), ignoring any
-		// client-named provider/model — the platform default wins, exactly as it
+		// client-named provider/model, the platform default wins, exactly as it
 		// does for async jobs. Usage is metered in credits below.
 		prov, _, err = platform.Build(req.Model)
 		if err != nil {
@@ -988,7 +991,7 @@ func editorAITranslate(
 	}
 
 	translateTool := tools.NewAITranslateTool(prov,
-		editorTranslateConfig(ctx, cs, voiceCtx, proj, projectID, stream, itemName, workspaceID, workspaceSlug, req))
+		editorTranslateConfig(ctx, cs, voiceCtx, proj, projectID, stream, itemName, workspaceID, workspaceSlug, req, storedBlocks))
 
 	outParts, err := tool.RunOnParts(ctx, translateTool, parts)
 	if err != nil {
@@ -1014,7 +1017,7 @@ func editorAITranslate(
 		})
 	}
 
-	// Deduct billing credits based on actual token usage from the provider — but
+	// Deduct billing credits based on actual token usage from the provider, but
 	// only for the platform-held key. A workspace bring-your-own key (an inline
 	// api_key or a saved provider_config_id) burns NO credits (Epic 004): it is
 	// capped via ai_usage above, not charged here. The reference id is unique per
@@ -1083,7 +1086,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, commit co
 	return editorComputeStats(outParts, targetLocale), nil
 }
 
-// TermEnforceResultResponse represents a terminology violation in a block —
+// TermEnforceResultResponse represents a terminology violation in a block,
 // the API shape for POST /:ws/:id/actions/:ref/term-enforce. The server owns
 // the check by running the framework terms.TermEnforceTool, so the desktop
 // no longer hand-reimplements the matching logic.
@@ -1457,8 +1460,8 @@ type projectAggregates struct {
 // editorBuildProjectSummary computes a project's aggregates without
 // materializing (or shipping) the per-item array: item count, total block
 // count, translatable source words, and the per-collection tally. It uses
-// GetBlockStats — the same lightweight projection the translation dashboard
-// uses — instead of a full GetBlocks per item, so no targets, properties, or
+// GetBlockStats, the same lightweight projection the translation dashboard
+// uses, instead of a full GetBlocks per item, so no targets, properties, or
 // overlays are deserialized.
 func editorBuildProjectSummary(ctx context.Context, cs store.ContentStore, projID, stream string) (projectAggregates, error) {
 	items, err := cs.ListItems(ctx, projID, stream)
@@ -1502,7 +1505,7 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 }
 
 // editorBuildProjectSummaryInfo builds the project's metadata shape: the
-// project's own fields, its collections and streams, and the aggregates —
+// project's own fields, its collections and streams, and the aggregates,
 // everything except the per-item array. It costs one item listing plus one
 // block-stats projection, where the full builder costs a full block read per
 // item, so a project's surfaces that only need its name, locales, streams or
@@ -1700,7 +1703,7 @@ func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProv
 // zero value (Provider == "") means no platform provider is configured.
 //
 // Values are read from the instance-wide platform_config service (ctrl-managed),
-// which falls back to the BOWRAIN_PLATFORM_* env bootstrap defaults when unset —
+// which falls back to the BOWRAIN_PLATFORM_* env bootstrap defaults when unset,
 // so an admin switching provider/model in ctrl takes effect on the next request
 // without a redeploy, while an un-provisioned instance behaves exactly as before.
 // The API key comes from the environment through jobs.PlatformAPIKey, the same
@@ -1857,7 +1860,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		targetLocaleSet[l] = true
 	}
 
-	// Single lightweight query — no full block deserialization.
+	// Single lightweight query, no full block deserialization.
 	blockStats, err := cs.GetBlockStats(ctx, proj.ID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("get block stats: %w", err)
@@ -2098,7 +2101,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		collStats = append(collStats, stat)
 	}
 	// collAggs is a map, so order it before it reaches the wire: by collection
-	// name — falling back to the id for a bucket whose collection row is gone —
+	// name, falling back to the id for a bucket whose collection row is gone,
 	// with the ungrouped bucket last.
 	collSortKey := func(c store.CollectionTranslationStats) string {
 		if c.CollectionName == "" {
@@ -2130,7 +2133,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 
 // dashboardItemSortKey returns the sortable value(s) for one item under the
 // given column: name (case-insensitive), words (word_count), or completion
-// (average percentage across the project's target locales — the same average
+// (average percentage across the project's target locales, the same average
 // the file-progress table displays).
 func dashboardItemCompletion(it store.ItemTranslationStats) float64 {
 	if len(it.Locales) == 0 {
@@ -2171,12 +2174,12 @@ func sortDashboardItems(items []store.ItemTranslationStats, field, dir string) {
 
 // dashboardItemWindow is the item-list request a dashboard read carries: which
 // collection's items are wanted, then how that list is ordered and sliced. The
-// zero value asks for every item in ListItems order — the legacy response.
+// zero value asks for every item in ListItems order, the legacy response.
 type dashboardItemWindow struct {
 	// collectionID scopes the list to one collection. Empty means every item;
 	// the items belonging to no collection are asked for with ungrouped.
 	collectionID string
-	// ungrouped scopes the list to the items belonging to no collection — the
+	// ungrouped scopes the list to the items belonging to no collection, the
 	// same bucket CollectionStats marks with Ungrouped. A collection id can
 	// never select it, because that bucket's id is the empty string.
 	ungrouped bool
@@ -2202,7 +2205,7 @@ func (w dashboardItemWindow) itemInScope(it store.ItemTranslationStats) bool {
 // when it is a generated catalog, otherwise the item itself.
 //
 // Mirrors itemDisplayPath in the UI's collections/itemBase.ts. Both surfaces
-// show the same path, so both must trim the same one — a base computed over
+// show the same path, so both must trim the same one, a base computed over
 // item names prefixes none of the source paths shown beside them, and every row
 // would read whole.
 func itemDisplayPath(it store.ItemTranslationStats) string {

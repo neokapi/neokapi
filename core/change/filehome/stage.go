@@ -297,7 +297,7 @@ func (st *staged) refuseEdition(key string, k model.EditionKey, err *change.Erro
 func (st *staged) lockKeys() error {
 	st.keys = st.keys[:0]
 	for _, f := range st.files {
-		p, err := st.s.h.lockPath(f.path)
+		p, err := LockFile(f.path)
 		if err != nil {
 			return err
 		}
@@ -914,12 +914,8 @@ func (st *staged) Lock(ctx context.Context, key string) error {
 	if len(st.held) == 0 && st.s.h.beforeSettle != nil {
 		st.s.h.beforeSettle(st.s.doc.Ref)
 	}
-	l, err := st.s.h.openLock(key)
+	l, err := st.s.h.takeLock(ctx, key)
 	if err != nil {
-		return err
-	}
-	if err := l.Lock(ctx); err != nil {
-		_ = l.Close()
 		return err
 	}
 	if st.held == nil {

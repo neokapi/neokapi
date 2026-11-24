@@ -14,7 +14,7 @@ import (
 )
 
 // fakeVoiceStore resolves profiles by ID from a fixed set. Embedding the
-// interface means only GetProfile is implemented — the resolution path uses
+// interface means only GetProfile is implemented, the resolution path uses
 // nothing else.
 type fakeVoiceStore struct {
 	coreprofile.Store
@@ -52,11 +52,6 @@ func seedConcept(t *testing.T, tb terms.Terminology, id, projectID, source, targ
 	}))
 }
 
-// TestResolveJobTermRules_BuildsFromConcepts proves the rule derivation:
-// workspace-scoped concepts and this project's concepts contribute
-// source→preferred-target pairs; other projects' concepts are excluded; a
-// concept with no target-locale rendering contributes nothing; and a
-// project-scoped rendering beats a workspace-scoped one for the same source
 // jobTermRules is the term-rule half of the shared assembly, resolved the way a
 // job resolves it: the worker's terms resolver, this job's project, and the
 // locale pair under test.
@@ -66,6 +61,11 @@ func jobTermRules(ctx context.Context, deps *WorkerDeps, job *TranslationJob, so
 	return b.termRules(ctx, source)
 }
 
+// TestResolveJobTermRules_BuildsFromConcepts proves the rule derivation.
+// Workspace-scoped concepts and this project's concepts contribute
+// source→preferred-target pairs, and other projects' concepts are excluded. A
+// concept with no target-locale rendering contributes nothing. A
+// project-scoped rendering beats a workspace-scoped one for the same source
 // term.
 func TestResolveJobTermRules_BuildsFromConcepts(t *testing.T) {
 	tb := terms.NewInMemoryStore()
@@ -186,7 +186,7 @@ func TestResolveJobTermRules_DegradesGracefully(t *testing.T) {
 
 // TestResolveJobVoiceProfile_WorkspaceDefault resolves the base rung of the
 // ladder: no project/stream binding, but the workspace carries a default
-// profile — the job gets it, with the target locale's override applied.
+// profile, the job gets it, with the target locale's override applied.
 func TestResolveJobVoiceProfile_WorkspaceDefault(t *testing.T) {
 	profile := &coreprofile.VoiceProfile{
 		ID:   "bp-1",
@@ -209,7 +209,7 @@ func TestResolveJobVoiceProfile_WorkspaceDefault(t *testing.T) {
 }
 
 // TestResolveJobVoiceProfile_DegradesGracefully pins the never-fail contract:
-// no voice store, or nothing bound at any rung, yields nil — never an error.
+// no voice store, or nothing bound at any rung, yields nil, never an error.
 func TestResolveJobVoiceProfile_DegradesGracefully(t *testing.T) {
 	job := &TranslationJob{ID: "j1", WorkspaceID: "ws-1", ProjectID: "p", TargetLocale: "fr"}
 
@@ -233,7 +233,7 @@ func TestJobTranslateConfig_BareWithoutVoiceDeps(t *testing.T) {
 	}
 	job := &TranslationJob{ID: "j1", ProjectID: "p", TargetLocale: "fr"}
 
-	cfg := jobTranslateConfig(t.Context(), &WorkerDeps{}, job, proj)
+	cfg := jobTranslateConfig(t.Context(), &WorkerDeps{}, job, proj, nil)
 	assert.Nil(t, cfg.Profile)
 	assert.Nil(t, cfg.TermRules)
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
@@ -245,7 +245,7 @@ func TestJobTranslateConfig_BareWithoutVoiceDeps(t *testing.T) {
 
 // TestJobTranslateConfig_CarriesVoiceContext proves the constructed translate
 // config carries the resolved voice profile (rendering to the expected guide
-// text) and the terms store-derived rules — the exact fields the AI translate
+// text) and the terms store-derived rules, the exact fields the AI translate
 // tool injects into every prompt.
 func TestJobTranslateConfig_CarriesVoiceContext(t *testing.T) {
 	profile := &coreprofile.VoiceProfile{
@@ -264,7 +264,7 @@ func TestJobTranslateConfig_CarriesVoiceContext(t *testing.T) {
 	proj := &store.Project{ID: "p", DefaultSourceLanguage: "en"}
 	job := &TranslationJob{ID: "j1", WorkspaceID: "ws-1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
-	cfg := jobTranslateConfig(t.Context(), deps, job, proj)
+	cfg := jobTranslateConfig(t.Context(), deps, job, proj, nil)
 
 	require.NotNil(t, cfg.Profile)
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)

@@ -9,13 +9,13 @@ import (
 )
 
 // The key is sent by default. A bare "Save" is a coin flip between a verb and a
-// noun, and the key is the cheapest signal that settles it — already in the
+// noun, and the key is the cheapest signal that settles it, already in the
 // document, a handful of tokens, and what every localization vendor sends.
 func TestContextDefaultsToKey(t *testing.T) {
 	tool := NewAITranslateTool(nil, AITranslateConfig{Provider: "anthropic"})
 	assert.Equal(t, ContextKey, tool.contextPolicy)
 
-	got := tool.contextFor(t.Context(), "tu1", "app.settings.save", "")
+	got := tool.contextFor(t.Context(), "tu1", "app.settings.save", "", "")
 	assert.Equal(t, "app.settings.save", got.Key)
 	assert.Empty(t, got.Before, "neighbours are opt-in: they cost tokens and widen the cache key")
 	assert.Empty(t, got.After)
@@ -24,7 +24,7 @@ func TestContextDefaultsToKey(t *testing.T) {
 func TestContextNoneSendsNothing(t *testing.T) {
 	tool := NewAITranslateTool(nil, AITranslateConfig{Provider: "anthropic", Context: ContextNone})
 
-	assert.True(t, tool.contextFor(t.Context(), "tu1", "app.settings.save", "").Empty(),
+	assert.True(t, tool.contextFor(t.Context(), "tu1", "app.settings.save", "", "").Empty(),
 		"context: none must send nothing about the block but the block")
 }
 
@@ -45,7 +45,7 @@ func TestNeighboursComeFromDocumentOrder(t *testing.T) {
 		tool.docEntries[i] = blockEntry{index: i, block: b, sourceText: txt}
 	}
 
-	got := tool.contextFor(t.Context(), "tu3", "key.Save", "") // the middle block
+	got := tool.contextFor(t.Context(), "tu3", "key.Save", "", "") // the middle block
 	assert.Equal(t, "key.Save", got.Key)
 	assert.Equal(t, []string{"Unsaved changes", "Discard"}, got.Before)
 	assert.Equal(t, []string{"Cancel", "Settings"}, got.After)
@@ -108,7 +108,7 @@ func TestContextPolicyChangesTheConfigFingerprint(t *testing.T) {
 
 // Neighbours need the document in order, and only the buffering path has it. So
 // `batching: single` + `context: neighbours` must still route through the batched
-// path — which is exactly the shape the evidence favours: large non-translated
+// path, which is exactly the shape the evidence favours: large non-translated
 // context, small translation unit.
 func TestNeighboursForceTheBufferingPath(t *testing.T) {
 	single := NewAITranslateTool(nil, AITranslateConfig{

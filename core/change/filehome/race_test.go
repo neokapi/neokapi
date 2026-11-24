@@ -42,7 +42,6 @@ const raceDoc = `<!DOCTYPE html>
 const (
 	raceChildEnv   = "FILEHOME_RACE_CHILD"
 	raceDirEnv     = "FILEHOME_RACE_DIR"
-	raceLocksEnv   = "FILEHOME_RACE_LOCKS"
 	raceBlockEnv   = "FILEHOME_RACE_BLOCK"
 	raceRevEnv     = "FILEHOME_RACE_REV"
 	raceFindEnv    = "FILEHOME_RACE_FIND"
@@ -52,8 +51,8 @@ const (
 )
 
 // TestMain runs a writer when the test binary is started as one. Otherwise
-// it runs the tests and removes the data root the binary was given, where a
-// home that names no lock directory locks.
+// it runs the tests and removes the data root the binary was given, where
+// every lock file lives.
 func TestMain(m *testing.M) {
 	if os.Getenv(raceChildEnv) != "" {
 		os.Exit(raceChild())
@@ -77,7 +76,7 @@ func raceChild() int {
 		}
 	}
 	home := filehome.New(filehome.DirLayout{Root: dir, Formats: newRegistry(), SourceLocale: "en"},
-		filehome.Options{LockDir: os.Getenv(raceLocksEnv), BeforeSettle: barrier})
+		filehome.Options{BeforeSettle: barrier})
 	svc := change.NewService(filehome.Formats{Registry: newRegistry()}, change.OneHome(home))
 	find := os.Getenv(raceFindEnv)
 	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{{
@@ -131,7 +130,8 @@ func TestFileHome_TwoProcessesEditingDifferentBlocksLoseNoEdit(t *testing.T) {
 	}
 	exe, err := os.Executable()
 	require.NoError(t, err)
-	locks := t.TempDir()
+	// The writers share one data root, where every lock file lives.
+	data := t.TempDir()
 
 	const rounds = 50
 	for round := range rounds {
@@ -139,7 +139,7 @@ func TestFileHome_TwoProcessesEditingDifferentBlocksLoseNoEdit(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "race.html"), []byte(raceDoc), 0o644))
 		f := &fixture{dir: dir}
 		svc := change.NewService(filehome.Formats{Registry: newRegistry()},
-			change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: newRegistry(), SourceLocale: "en"}, filehome.Options{LockDir: locks})))
+			change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: newRegistry(), SourceLocale: "en"}, filehome.Options{})))
 		page, err := svc.Read(context.Background(), change.ReadRequest{Doc: "race.html"})
 		require.NoError(t, err)
 		var first, second change.BlockRead
@@ -170,7 +170,7 @@ func TestFileHome_TwoProcessesEditingDifferentBlocksLoseNoEdit(t *testing.T) {
 			defer wg.Done()
 			cmd := exec.Command(exe, "-test.run=^$")
 			cmd.Env = append(os.Environ(),
-				raceChildEnv+"=1", raceDirEnv+"="+dir, raceLocksEnv+"="+locks, raceNameEnv+"="+name,
+				raceChildEnv+"=1", raceDirEnv+"="+dir, dataroot.EnvDir+"="+data, raceNameEnv+"="+name,
 				raceBlockEnv+"="+block, raceRevEnv+"="+rev, raceFindEnv+"="+find, raceTextEnv+"="+text,
 				raceWaitForEnv+"="+waitFor)
 			out, err := cmd.CombinedOutput()
@@ -205,7 +205,6 @@ func lastLine(s string) string {
 func TestFileHome_TwoWritersOfOneBlockConflict(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.json"), []byte(`{"title": "Hello"}`+"\n"), 0o644))
-	locks := t.TempDir()
 	staged := make(chan struct{}, 2)
 	release := make(chan struct{})
 	var once sync.Once
@@ -215,7 +214,7 @@ func TestFileHome_TwoWritersOfOneBlockConflict(t *testing.T) {
 	}
 	newSvc := func(hook func(string)) *change.Service {
 		return change.NewService(filehome.Formats{Registry: newRegistry()},
-			change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: newRegistry(), SourceLocale: "en"}, filehome.Options{LockDir: locks, BeforeSettle: hook})))
+			change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: newRegistry(), SourceLocale: "en"}, filehome.Options{BeforeSettle: hook})))
 	}
 	reader := newSvc(nil)
 	page, err := reader.Read(context.Background(), change.ReadRequest{Doc: "a.json"})

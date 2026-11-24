@@ -58,7 +58,7 @@ func TestFileHome_RemovingATranslationABilingualFileHolds(t *testing.T) {
 			f := newFixture(t, map[string]string{tc.doc: tc.body})
 			f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(
 				filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en", TargetLocale: tc.target},
-				filehome.Options{LockDir: t.TempDir()})))
+				filehome.Options{})))
 			ctx := context.Background()
 			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: tc.doc})
 			require.NoError(t, err)
@@ -256,7 +256,7 @@ func TestFileHome_ABilingualFileTakesOnlyTheEditionsItHolds(t *testing.T) {
 			f := newFixture(t, map[string]string{tc.doc: tc.body})
 			f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(
 				filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en", TargetLocale: tc.target},
-				filehome.Options{LockDir: t.TempDir()})))
+				filehome.Options{})))
 			ctx := context.Background()
 			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: tc.doc})
 			require.NoError(t, err)
@@ -311,7 +311,6 @@ func (l catalogLayout) Locate(ctx context.Context, doc string) (filehome.Doc, er
 func newCatalogFixture(t *testing.T, files map[string]string, opts filehome.Options) *fixture {
 	t.Helper()
 	f := newFixture(t, files)
-	opts.LockDir = t.TempDir()
 	home := filehome.New(catalogLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}, opts)
 	f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(home))
 	return f

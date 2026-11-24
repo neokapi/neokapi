@@ -85,7 +85,7 @@ func assertLargeEditBounded(t *testing.T, key, text, want string, ceiling uint64
 	size := writeCatalog(t, filepath.Join(dir, "catalog.json"), n)
 	reg := newRegistry()
 	svc := change.NewService(filehome.Formats{Registry: reg},
-		change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, filehome.Options{LockDir: t.TempDir()})))
+		change.OneHome(filehome.New(filehome.DirLayout{Root: dir, Formats: reg, SourceLocale: "en"}, filehome.Options{})))
 
 	ctx := context.Background()
 	page, err := svc.Read(ctx, change.ReadRequest{Doc: "catalog.json", Blocks: []string{key}})

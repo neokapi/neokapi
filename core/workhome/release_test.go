@@ -2,7 +2,6 @@ package workhome_test
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -277,6 +276,6 @@ func serviceOver(t *testing.T, dir string, keeper filehome.Keeper) *change.Servi
 	t.Helper()
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
-	home := filehome.New(keptLayout{root: dir, reg: reg, home: keeper}, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks")})
+	home := filehome.New(keptLayout{root: dir, reg: reg, home: keeper}, filehome.Options{})
 	return change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 }

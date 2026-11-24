@@ -195,7 +195,7 @@ func TestFileHome_AnEditionFileThatMovesDuringTheStageIsReadAgain(t *testing.T) 
 	// Read 1 is the caller's read; read 2 is the stage's join.
 	layout := writeAfterRead{targetLayout: targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}},
 		reads: &reads, fire: 2, path: filepath.Join(f.dir, "de", "guide.json"), body: other}
-	svc := change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(layout, filehome.Options{LockDir: t.TempDir()})))
+	svc := change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(layout, filehome.Options{})))
 	ctx := context.Background()
 	de := mustEdition(t, "de")
 	page, err := svc.Read(ctx, change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
@@ -237,7 +237,7 @@ func TestFileHome_ACommitInterruptedAfterOneFileReportsWhatLanded(t *testing.T) 
 	t.Cleanup(func() { _ = os.Chmod(deDir, 0o755) })
 	f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(
 		targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}},
-		filehome.Options{LockDir: t.TempDir(), BeforeSettle: func(string) {
+		filehome.Options{BeforeSettle: func(string) {
 			// The German file's staged copy is in place beside it; its
 			// directory stops taking renames before the commit.
 			require.NoError(t, os.Chmod(deDir, 0o555))
