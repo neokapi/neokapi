@@ -2,15 +2,13 @@ name: Reference Data Drift Gate
 
 # CI gate: the committed reference dataset under packages/reference-data/data
 # must match what `make generate-reference-docs` produces from the current
-# source. A tool/format whose schema, description, or doc sidecar changed
-# without regenerating the dataset fails this job before it can ship stale
-# docs to the website /tools and /formats pages.
+# source, so a changed schema, description or doc sidecar cannot ship stale
+# /tools and /formats pages.
 #
-# The okapi-bridge plugin is not present in this repo's CI (it lives in a
-# separate repo), so the gate compares only the built-in subset of each
-# dataset — the part wholly controlled by this repo's Go source and the
-# authored sidecars under scripts/gen-refs/nativedocs. The okapi entries are
-# only validated when BRIDGE_PLUGIN points at a populated plugin dir.
+# The okapi-bridge plugin lives in its own repository and is not in this CI,
+# so the gate compares the built-in subset of each dataset: what this repo's
+# Go source and scripts/gen-refs/nativedocs control. The okapi entries are
+# validated only when BRIDGE_PLUGIN names a populated plugin directory.
 
 on:
   workflow_dispatch:
@@ -194,19 +192,10 @@ jobs:
 
       # The committed static per-entry reference pages under web/docs/reference
       # are generated from the dataset above (plus the slug helper). Regenerate
-      # them and fail if a committed page is stale — gen-reference-pages.ts needs
-      # only the @neokapi/reference-data package resolvable, so vp install
-      # suffices (no i18n-react/wasm build).
-      - uses: voidzero-dev/setup-vp@v1.22.0
-        with:
-          node-version: "26"
-          cache: true
-          # Only a run on main saves the dependency cache; any other ref restores it.
-          cache-save: ${{ github.ref == 'refs/heads/main' }}
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install workspace dependencies
-        run: vp install --frozen-lockfile
+      # them and fail if a committed page is stale. gen-reference-pages.ts needs
+      # only the @neokapi/reference-data package resolvable, which the shared
+      # setup installs; only main saves the cache.
+      - uses: ./.github/actions/setup-node-ui
 
       - name: Static reference pages are fresh
         run: |

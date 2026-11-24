@@ -45,16 +45,8 @@ jobs:
           # The preview's channel banner names the version from `git describe`,
           # which needs the tags a shallow clone leaves behind.
           fetch-depth: 0
-      - uses: voidzero-dev/setup-vp@v1.22.0
-        with:
-          node-version: "26"
-          cache: true
-          # Only a run on main saves the dependency cache; any other ref restores it.
-          cache-save: ${{ github.ref == 'refs/heads/main' }}
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install workspace dependencies
-        run: vp install --frozen-lockfile
+      # Vite+, Node and the workspace dependencies; only main saves the cache.
+      - uses: ./.github/actions/setup-node-ui
 
       # Bowrain docs videos and screenshots come from the harness on a desktop
       # against a running stack, which CI cannot reproduce. For push and

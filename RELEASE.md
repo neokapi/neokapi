@@ -166,6 +166,14 @@ so both platforms show the same publisher.
 
 ## Prerequisites
 
+### Release tags
+
+The repository ruleset "release tags" lets only an administrator move or delete
+`refs/tags/v*` and `refs/tags/*-v*`. Creating one stays open, so the coordinated
+release can create its tags with the workflow token. The weekly image rebuild
+guards itself against a stray tag: it builds a tag only when it has a published
+GitHub Release and a commit on main.
+
 ### CI (one-time; already configured)
 
 GitHub Actions repo secrets used by `release.yml`:

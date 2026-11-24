@@ -6,6 +6,18 @@ inputs:
     description: Node.js version to install
     required: false
     default: "26"
+  cache:
+    description: "The dependency cache: true restores it and saves it on main, restore only restores it, false neither"
+    required: false
+    default: "true"
+  install:
+    description: "true installs the workspace dependencies and builds @neokapi/i18n-react; false sets up the toolchain only"
+    required: false
+    default: "true"
+  working-directory:
+    description: The workspace to install, when it is not the repository root (a second checkout)
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -40,10 +52,10 @@ runs:
       with:
         version: "1.7.0"
         node-version: ${{ inputs.node-version }}
-        cache: true
-        # Only a run on main saves the dependency cache; every other run restores.
-        cache-save: ${{ github.ref == 'refs/heads/main' }}
-        cache-dependency-path: pnpm-lock.yaml
+        cache: ${{ inputs.cache != 'false' }}
+        # Only a run on main saves the dependency cache, and only when cache is true.
+        cache-save: ${{ inputs.cache == 'true' && github.ref == 'refs/heads/main' }}
+        cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
         run-install: false
 
     - name: Report the Vite+ setup failure before retrying
@@ -61,18 +73,22 @@ runs:
       with:
         version: "1.7.0"
         node-version: ${{ inputs.node-version }}
-        cache: true
-        # Only a run on main saves the dependency cache; every other run restores.
-        cache-save: ${{ github.ref == 'refs/heads/main' }}
-        cache-dependency-path: pnpm-lock.yaml
+        cache: ${{ inputs.cache != 'false' }}
+        # Only a run on main saves the dependency cache, and only when cache is true.
+        cache-save: ${{ inputs.cache == 'true' && github.ref == 'refs/heads/main' }}
+        cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
         run-install: false
 
     - name: Install workspace dependencies
+      if: inputs.install == 'true'
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: vp install --frozen-lockfile
 
     - name: Guard — the vite catalog alias names the core vite-plus uses
+      if: inputs.install == 'true'
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: bash scripts/audit-vite-alias.sh --installed
 
     # @neokapi/i18n-react ships dist-only subpath exports (./runtime, ./vite, …)
@@ -82,6 +98,7 @@ runs:
     # avoids each job re-deriving that ordering (and forgetting it, which broke
     # the desktop typecheck: "Cannot find module '@neokapi/i18n-react/runtime'").
     - name: Build @neokapi/i18n-react
+      if: inputs.install == 'true'
       shell: bash
-      working-directory: packages/i18n-react
+      working-directory: ${{ inputs.working-directory }}/packages/i18n-react
       run: vp run build

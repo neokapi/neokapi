@@ -50,7 +50,7 @@ import yaml
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-WORKFLOWS = ("release.yml", "release-bowrain.yml", "release-check.yml", "release-sat.yml")
+WORKFLOWS = ("release.yml", "release-bowrain.yml", "release-check.yml", "release-sat.yml", "rebuild-release-images.yml")
 
 _spec = importlib.util.spec_from_file_location("check_ci_caches", os.path.join(HERE, "check-ci-caches.py"))
 cc = importlib.util.module_from_spec(_spec)

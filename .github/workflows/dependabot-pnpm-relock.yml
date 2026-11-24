@@ -4,10 +4,12 @@ name: Dependabot pnpm Relock
 # not the version pinned in package.json#packageManager. Its lockfile drops the
 # `tarball:` fields the base lockfile carries and can move packages the update
 # never named. scripts/dependabot-relock.py starts from the base branch's
-# lockfile, has the pinned pnpm apply the package.json changes and update by
-# name the packages Dependabot raised, and checks the result against both
-# lockfiles before anything is pushed; its docstring has the rules. The result is also what scripts/check-lockfile-idempotent.sh
-# expects. It is the npm counterpart of dependabot-go-tidy.yml.
+# lockfile. The pinned pnpm applies the package.json changes and updates by
+# name the packages Dependabot raised, and the script checks the result
+# against both lockfiles before anything is pushed; its docstring has the
+# rules. The result
+# is what scripts/check-lockfile-idempotent.sh expects. It is the npm
+# counterpart of dependabot-go-tidy.yml.
 
 on: pull_request
 
@@ -40,17 +42,10 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ steps.bot.outputs.token || github.token }}
 
-      # Mirrors .github/actions/setup-node-ui without the install and the
-      # i18n-react build: relocking needs the toolchain, not the workspace.
-      - uses: voidzero-dev/setup-vp@v1.22.0
+      # The toolchain only: relocking needs Vite+ and Node, not the workspace.
+      - uses: ./.github/actions/setup-node-ui
         with:
-          version: "1.7.0"
-          node-version: "26"
-          cache: true
-          # Only a run on main saves the dependency cache; any other ref restores it.
-          cache-save: ${{ github.ref == 'refs/heads/main' }}
-          cache-dependency-path: pnpm-lock.yaml
-          run-install: false
+          install: "false"
 
       - name: Re-resolve with the pinned pnpm, keeping only the update
         env:
