@@ -24,8 +24,20 @@ type StateTransferOutput struct {
 	// To is the checkout's state directory.
 	To    string            `json:"to"`
 	Files []StateFileOutput `json:"files"`
-	// Servers are the servers the sync state among Files was issued by.
+	// Servers are the servers the sync state among Files and Withheld was
+	// issued by.
 	Servers []string `json:"servers,omitempty"`
+	// Project names the project a relink's state was recorded for.
+	Project string `json:"project,omitempty"`
+	// Unverified is set when kapi's record cannot say the state is this
+	// project's.
+	Unverified bool `json:"unverified,omitempty"`
+	// Withheld are the vault and sync state files an unverified relink leaves
+	// where they are; --same-project takes them.
+	Withheld []StateFileOutput `json:"withheld,omitempty"`
+	// RemovesSource is set when a relink removes the directory it takes from,
+	// once every file is in place and read back.
+	RemovesSource bool `json:"removes_source,omitempty"`
 	// Taken is set when the files were taken.
 	Taken bool `json:"taken"`
 	// SourceRemoved is set when the source files were removed after.
@@ -42,6 +54,9 @@ func (o StateTransferOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Took %d file(s) from %s into %s.\n", len(o.Files), o.From, o.To)
 	if o.Action == "import" && !o.SourceRemoved {
 		fmt.Fprintf(w, "The copies in %s are left as they were; kapi no longer reads them, and you can delete them.\n", o.From)
+	}
+	if len(o.Withheld) > 0 {
+		fmt.Fprintf(w, "The vault and the sync state stay in %s; if that state is this project's, run the relink again with --same-project.\n", o.From)
 	}
 	return nil
 }

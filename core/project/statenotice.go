@@ -74,9 +74,11 @@ func NoticeState(l Layout) {
 		if !StateNotice(earlierAtPathMessage(l)) {
 			return
 		}
-		if _, _, err := dataroot.EnsureCheckoutDir(l.Root); err != nil {
+		dir, _, err := dataroot.EnsureCheckoutDir(l.Root)
+		if err != nil {
 			return
 		}
+		recordCheckoutProject(l, dir)
 	}
 	noticeStateInTree(l)
 }
@@ -114,6 +116,7 @@ func tellOnce(l Layout, name, msg string) {
 	if err != nil {
 		return
 	}
+	recordCheckoutProject(l, dir)
 	_, _ = dataroot.MarkTold(dir, name)
 }
 
@@ -131,6 +134,9 @@ func noticeEarlierAtPath(l Layout, earlier []dataroot.Checkout) {
 // earlierAtPathMessage is the line about state recorded for another directory
 // at the checkout's location.
 func earlierAtPathMessage(l Layout) string {
+	if other := otherProjectAt(l); other != "" {
+		return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to %s, another project, so this checkout starts with none and kapi keeps that state where it is.", l.Root, other)
+	}
 	return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to another directory, so this checkout starts with none; if it is this checkout's, run `kapi state relink --from %s`.",
 		l.Root, l.Root)
 }

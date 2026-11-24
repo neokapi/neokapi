@@ -44,12 +44,36 @@ const CheckoutRecordFilename = "checkout.json"
 
 // CheckoutRecord is what kapi records about a checkout beside its state: where
 // it was and the identity its root directory had. Told lists the one-time
-// notices the person was given for it.
+// notices the person was given for it. Project names the project whose state
+// it holds; a record written before kapi recorded it has none.
 type CheckoutRecord struct {
-	Path     string          `json:"path"`
-	Identity string          `json:"identity"`
-	Created  string          `json:"created"`
-	Told     map[string]bool `json:"told,omitempty"`
+	Path     string           `json:"path"`
+	Identity string           `json:"identity"`
+	Created  string           `json:"created"`
+	Told     map[string]bool  `json:"told,omitempty"`
+	Project  *CheckoutProject `json:"project,omitempty"`
+}
+
+// CheckoutProject is the project a checkout's state belongs to, as its recipe
+// stated it when kapi last wrote the state: the recipe's id, and its name for
+// a person to read. Either may be empty.
+type CheckoutProject struct {
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+// SetRecordProject records the project the state in dir belongs to, when the
+// record says otherwise.
+func SetRecordProject(dir string, p CheckoutProject) error {
+	rec, err := ReadRecord(dir)
+	if err != nil {
+		return err
+	}
+	if rec.Project != nil && *rec.Project == p {
+		return nil
+	}
+	rec.Project = &p
+	return writeRecord(dir, rec)
 }
 
 // Checkout is one checkout's state directory and its record.

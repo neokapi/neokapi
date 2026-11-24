@@ -351,6 +351,7 @@ func EnsureLayout(layout Layout) error {
 		if err != nil {
 			return fmt.Errorf("project: create the state of %s: %w", layout.Root, err)
 		}
+		recordCheckoutProject(layout, dir)
 		local = dir
 		noticeEarlierAtPath(layout, earlier)
 		noticeStateInTree(layout)

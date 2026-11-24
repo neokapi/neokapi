@@ -55,8 +55,9 @@ func TestACheckoutsStateLivesOutsideIt(t *testing.T) {
 	assert.NoDirExists(t, filepath.Join(root, ".kapi"))
 }
 
-// A repository cloned where another checkout was sees none of that checkout's
-// state, and kapi tells the person at the terminal, once.
+// A repository of another project cloned where a checkout was sees none of
+// that checkout's state, and kapi tells the person at the terminal, once,
+// that the state belongs to another project.
 func TestACheckoutClonedWhereAnotherWasSeesNoneOfItsState(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "app")
@@ -71,7 +72,7 @@ func TestACheckoutClonedWhereAnotherWasSeesNoneOfItsState(t *testing.T) {
 	require.NoError(t, os.RemoveAll(root))
 	second, _ := writeBareProject(t, "second")
 	require.NoError(t, os.Rename(second, root))
-	const notice = "belongs to another directory, so this checkout starts with none"
+	const notice = `belongs to "first", another project, so this checkout starts with none`
 	out, err := kapiAtTerminal(t, "status", "-p", recipe)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, notice)
@@ -124,7 +125,9 @@ func TestStateInsideACheckoutIsImportedOnlyByAPerson(t *testing.T) {
 	assert.FileExists(t, vault, "the copy in the checkout stays without --remove")
 }
 
-// A copied checkout starts without the state; relink takes it across.
+// A copied checkout starts without the state; relink takes it across. The
+// recipe has no id, so kapi cannot say the state is this project's: the vault
+// stays until the person states it is, with --same-project.
 func TestACopiedCheckoutRelinksItsState(t *testing.T) {
 	root, recipe := writeBareProject(t, "original")
 	kapi(t, "status", "-p", recipe)
@@ -142,7 +145,35 @@ func TestACopiedCheckoutRelinksItsState(t *testing.T) {
 	require.NoError(t, os.RemoveAll(root))
 	got, err := kapiAllowFail(t, "state", "relink", "--from", root, "--yes", "-p", copyRecipe)
 	require.NoError(t, err, got)
+	assert.Contains(t, got, "pass --same-project to take them")
+	assert.NoFileExists(t, filepath.Join(statePath(t, copyRecipe), "vault", "redaction.json"))
+
+	got, err = kapiAllowFail(t, "state", "relink", "--from", root, "--yes", "--same-project", "-p", copyRecipe)
+	require.NoError(t, err, got)
 	assert.FileExists(t, filepath.Join(statePath(t, copyRecipe), "vault", "redaction.json"))
+}
+
+// A repository of another project cloned where a checkout was does not take
+// that checkout's state, and kapi names both projects.
+func TestRelinkRefusesAnotherProjectsState(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "app")
+	first, _ := writeBareProject(t, "billing")
+	require.NoError(t, os.Rename(first, root))
+	recipe := filepath.Join(root, "kapi.yaml")
+	kapi(t, "status", "-p", recipe)
+	earlier := statePath(t, recipe)
+	require.NoError(t, os.MkdirAll(filepath.Join(earlier, "vault"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(earlier, "vault", "redaction.json"), []byte(`{"version":3,"values":[]}`), 0o600))
+
+	require.NoError(t, os.RemoveAll(root))
+	second, _ := writeBareProject(t, "docs")
+	require.NoError(t, os.Rename(second, root))
+	out, err := kapiAllowFail(t, "state", "relink", "--from", root, "--yes", "--same-project", "-p", recipe)
+	require.Error(t, err, out)
+	assert.Contains(t, out, `belongs to "billing", and this checkout is "docs"`)
+	assert.NoFileExists(t, filepath.Join(statePath(t, recipe), "vault", "redaction.json"))
+	assert.FileExists(t, filepath.Join(earlier, "vault", "redaction.json"))
 }
 
 // The CI sequence the convergence-in-CI guide gives, on runners that each start

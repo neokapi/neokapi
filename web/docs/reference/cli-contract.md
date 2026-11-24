@@ -190,10 +190,12 @@ The directory is found by the checkout's location and the identity of its folder
 - **The same folder typed in another spelling** on a volume that ignores case (`~/src/App` and `~/src/app`): the same state.
 - **A copied checkout, a restored backup or a checkout moved to another volume:** no state. kapi rebuilds `work/`. Bring the vault, the sync state and the filters across with `kapi state relink --from <old location>`.
 - **A volume mounted again with new device numbers:** fresh state, and kapi says once that the earlier state at that location was kept; the vault and the sync state wait for `kapi state relink --from <location>`.
-- **Another folder at a location where a checkout was** (one deleted and another cloned in its place): no state, and kapi says once that the earlier state was kept, with the `kapi state relink` command for it.
+- **Another folder at a location where a checkout was** (one deleted and another cloned in its place): no state, and kapi says once that the earlier state was kept. When that state belongs to this project, kapi gives the `kapi state relink` command for it; when it belongs to another project, kapi says so and keeps it where it is.
 - **State an earlier kapi left in the checkout's `.kapi/`:** kapi says once that `.kapi/work` is no longer used, and that the vault, sync state or filters there need `kapi state import -p <project>`.
 
 `kapi state import` and `kapi state relink` list every file with its size and the server any sync state was issued by, ask you to confirm (or take `--yes`), take exactly what they listed, and refuse a link or an irregular file. `import` leaves the copies in `.kapi/` unless you pass `--remove`. An agent cannot run either.
+
+`kapi state relink` takes only this project's state. kapi records the project (the recipe's `id:`, and its name) beside each checkout's state, and refuses state recorded for another project, naming both, so one project's vault and server sign-in stay out of another project's checkout. When the record cannot say which project the state belongs to (an earlier kapi wrote it, or a recipe has no `id:`), relink brings the saved filters and leaves the vault and the sync state where they are; pass `--same-project` to take those too. Relink removes the directory it took from only once every file is in place and read back, and says so before you confirm. `kapi init --mint-id` gives a recipe an id.
 
 A claim token in the sync state is sent only to the server and project the sync state records it for. A sync state that records none sends no token, and kapi says why.
 

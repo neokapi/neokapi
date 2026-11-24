@@ -41,9 +41,32 @@ type StateTransfer struct {
 	From    string      `json:"from"`
 	Files   []StateFile `json:"files"`
 	Servers []string    `json:"servers,omitempty"`
-	// Retire is the state directory a relink takes from, removed once its
-	// files are in place; empty for an import.
+	// Project names the project a relink's state was recorded for.
+	Project string `json:"project,omitempty"`
+	// Unverified reports a relink whose record cannot say the state is this
+	// project's: a record kapi wrote before it recorded the project, or a
+	// recipe with no id.
+	Unverified bool `json:"unverified,omitempty"`
+	// Withheld are the vault and sync state files an unverified relink leaves
+	// where they are, unless the person states that the state is this
+	// project's (RelinkOptions.SameProject).
+	Withheld []StateFile `json:"withheld,omitempty"`
+	// RemovesSource reports a relink that removes the state directory it takes
+	// from, once every file is in place and read back.
+	RemovesSource bool `json:"removes_source,omitempty"`
+	// Retire is the state directory a relink takes from; empty for an import.
 	Retire string `json:"-"`
+	// sameProject is the RelinkOptions the plan was made with, so applying it
+	// plans it again the same way.
+	sameProject bool
+}
+
+// RelinkOptions are what a person states when asking for a relink.
+type RelinkOptions struct {
+	// SameProject states that the earlier checkout's state belongs to this
+	// project when its record cannot say so, so the vault and the sync state
+	// come across too.
+	SameProject bool
 }
 
 // importSources maps where an earlier kapi kept state inside a checkout
@@ -92,9 +115,18 @@ func PlanImport(l Layout) (StateTransfer, error) {
 
 // PlanRelink lists the state of the checkout kapi recorded at from that
 // `kapi state relink` would move into the layout's checkout: the vault, the
-// sync state and the saved filters. The work directory is rebuilt instead. The record must
-// name exactly one other state directory at that location.
-func PlanRelink(l Layout, from string) (StateTransfer, error) {
+// sync state and the saved filters. The work directory is rebuilt instead.
+// The record must name exactly one other state directory at that location.
+//
+// The state must be this project's. A record of another project is refused,
+// naming both. A record that cannot say (written before kapi recorded the
+// project, or a recipe with no id) is unverified: the plan leaves the vault
+// and the sync state where they are, and keeps the state directory, unless
+// opts.SameProject states that the state is this project's. The vault holds
+// the original values of this checkout's withheld text and the sync state
+// holds the sign-in for a server project, and neither belongs in another
+// project's checkout.
+func PlanRelink(l Layout, from string, opts RelinkOptions) (StateTransfer, error) {
 	path := dataroot.NormalizePath(from)
 	own := l.LocalStateDir()
 	var found []dataroot.Checkout
@@ -111,7 +143,13 @@ func PlanRelink(l Layout, from string) (StateTransfer, error) {
 		return StateTransfer{}, fmt.Errorf("project: kapi recorded the state of %d checkouts at %s; remove the ones you do not want from %s and run again", len(found), path, dataroot.CheckoutsDir())
 	}
 	src := found[0].Dir
-	out := StateTransfer{From: src, Retire: src}
+	out := StateTransfer{From: src, Retire: src, sameProject: opts.SameProject, Project: describeProject(found[0].Record.Project)}
+	current, _ := checkoutProjectOf(l)
+	verified, err := relinkVerdict(found[0].Record.Project, current)
+	if err != nil {
+		return StateTransfer{}, err
+	}
+	out.Unverified = !verified
 	root, err := os.OpenRoot(src)
 	if err != nil {
 		return out, err
@@ -128,9 +166,15 @@ func PlanRelink(l Layout, from string) (StateTransfer, error) {
 			continue
 		}
 		p := filepath.ToSlash(f.path)
-		out.Files = append(out.Files, StateFile{Source: p, Target: p, Size: f.size, Digest: f.digest})
+		file := StateFile{Source: p, Target: p, Size: f.size, Digest: f.digest}
+		if out.Unverified && !opts.SameProject && (strings.HasPrefix(p, VaultDirName+"/") || strings.HasPrefix(p, SyncDirName+"/")) {
+			out.Withheld = append(out.Withheld, file)
+			continue
+		}
+		out.Files = append(out.Files, file)
 	}
-	out.Servers = syncServers(root, out.Files)
+	out.Servers = syncServers(root, append(slices.Clone(out.Files), out.Withheld...))
+	out.RemovesSource = len(out.Withheld) == 0
 	return out, nil
 }
 
@@ -138,9 +182,10 @@ func PlanRelink(l Layout, from string) (StateTransfer, error) {
 // directory. The transfer is planned again first, and anything that differs
 // from what was shown (a file added, removed or changed) refuses the whole
 // transfer. A file whose target already holds different content is refused
-// too: nothing kapi keeps is overwritten. removeSource removes each source
-// file once every file is in place; a relink always removes the state
-// directory it took from.
+// too: nothing kapi keeps is overwritten. Every file is read back from where
+// it was written before any source is removed. removeSource removes each
+// source file of an import; a relink removes the state directory it took from
+// when its plan says so (RemovesSource).
 func ApplyTransfer(l Layout, shown StateTransfer, removeSource bool) error {
 	var now StateTransfer
 	var err error
@@ -149,7 +194,7 @@ func ApplyTransfer(l Layout, shown StateTransfer, removeSource bool) error {
 		if rerr != nil {
 			return rerr
 		}
-		now, err = PlanRelink(l, rec.Path)
+		now, err = PlanRelink(l, rec.Path, RelinkOptions{SameProject: shown.sameProject})
 	} else {
 		now, err = PlanImport(l)
 	}
@@ -198,8 +243,14 @@ func ApplyTransfer(l Layout, shown StateTransfer, removeSource bool) error {
 			return err
 		}
 	}
+	for _, f := range now.Files {
+		data, err := dst.ReadFile(filepath.FromSlash(f.Target))
+		if err != nil || digestOf(data) != f.Digest {
+			return fmt.Errorf("project: %s did not read back as it was written, so the source is kept; run the command again", f.Target)
+		}
+	}
 	switch {
-	case now.Retire != "":
+	case now.Retire != "" && now.RemovesSource:
 		// The state directory a relink took from sits in the data root's
 		// checkouts directory; it is removed through a root on that directory.
 		checkouts, err := os.OpenRoot(filepath.Dir(now.Retire))
@@ -219,15 +270,8 @@ func ApplyTransfer(l Layout, shown StateTransfer, removeSource bool) error {
 }
 
 func sameTransfer(a, b StateTransfer) bool {
-	if a.From != b.From || len(a.Files) != len(b.Files) {
-		return false
-	}
-	for i := range a.Files {
-		if a.Files[i] != b.Files[i] {
-			return false
-		}
-	}
-	return true
+	return a.From == b.From && a.RemovesSource == b.RemovesSource &&
+		slices.Equal(a.Files, b.Files) && slices.Equal(a.Withheld, b.Withheld)
 }
 
 // listedFile is one regular file under a transfer's source.
