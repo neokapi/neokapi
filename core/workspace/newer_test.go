@@ -1,7 +1,6 @@
 package workspace_test
 
 import (
-	"database/sql"
 	"os"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 // the tables shaped as the runner writes them.
 func registryLedgers(t *testing.T, path string) []string {
 	t.Helper()
-	db, err := sql.Open("sqlite3", path)
+	db, err := storage.Open(path)
 	require.NoError(t, err)
 	defer db.Close()
 	rows, err := db.QueryContext(t.Context(), `
@@ -40,7 +39,7 @@ func registryLedgers(t *testing.T, path string) []string {
 // a newer kapi's migration would.
 func advanceLedger(t *testing.T, path, ledger string) {
 	t.Helper()
-	db, err := sql.Open("sqlite3", path)
+	db, err := storage.Open(path)
 	require.NoError(t, err)
 	defer db.Close()
 	_, err = db.ExecContext(t.Context(),

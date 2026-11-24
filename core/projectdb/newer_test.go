@@ -1,7 +1,6 @@
 package projectdb_test
 
 import (
-	"database/sql"
 	"fmt"
 	"testing"
 
@@ -43,7 +42,7 @@ func ledgersIn(t *testing.T, path string) []string {
 // newer kapi's migration would.
 func advance(t *testing.T, path, ledger string) int {
 	t.Helper()
-	db, err := sql.Open("sqlite3", path)
+	db, err := storage.Open(path)
 	require.NoError(t, err)
 	defer db.Close()
 	var newest int
