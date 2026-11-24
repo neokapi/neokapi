@@ -96,11 +96,71 @@ export class StateTransferOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Servers are the servers the sync state among Files was issued by.
+             * Servers are the servers the sync state among Files and Withheld was
+             * issued by.
              * @member
              * @type {string[] | undefined}
              */
             this["servers"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Project names the project a relink's state was recorded for.
+             * @member
+             * @type {string | undefined}
+             */
+            this["project"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Unverified is set when kapi's record cannot say the state is this
+             * project's.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["unverified"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Withheld are the files a relink leaves where they are, and WithheldWhy
+             * says why, one line for each group.
+             * @member
+             * @type {StateFileOutput[] | undefined}
+             */
+            this["withheld"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["withheld_why"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SyncServer and SyncProject name the server project the sync state among
+             * the files is bound to, when its sync cache names one. SyncProject is
+             * <workspace>/<project> when the cache records the workspace.
+             * @member
+             * @type {string | undefined}
+             */
+            this["sync_server"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["sync_project"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RemovesSource is set when a relink removes the directory it takes from,
+             * once every file is in place and read back.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["removes_source"] = undefined;
         }
         if (!("taken" in $$source)) {
             /**
@@ -117,6 +177,14 @@ export class StateTransferOutput {
              * @type {boolean}
              */
             this["source_removed"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Remaining are the copies an import was asked to remove and could not.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["remaining"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -138,12 +206,24 @@ export class StateTransferOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType1;
         const $$createField4_0 = $$createType2;
+        const $$createField7_0 = $$createType1;
+        const $$createField8_0 = $$createType2;
+        const $$createField14_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField3_0($$parsedSource["files"]);
         }
         if ("servers" in $$parsedSource) {
             $$parsedSource["servers"] = $$createField4_0($$parsedSource["servers"]);
+        }
+        if ("withheld" in $$parsedSource) {
+            $$parsedSource["withheld"] = $$createField7_0($$parsedSource["withheld"]);
+        }
+        if ("withheld_why" in $$parsedSource) {
+            $$parsedSource["withheld_why"] = $$createField8_0($$parsedSource["withheld_why"]);
+        }
+        if ("remaining" in $$parsedSource) {
+            $$parsedSource["remaining"] = $$createField14_0($$parsedSource["remaining"]);
         }
         return new StateTransferOutput(/** @type {Partial<StateTransferOutput>} */($$parsedSource));
     }

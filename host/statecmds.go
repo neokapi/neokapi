@@ -62,18 +62,7 @@ func (a *App) StatePath(recipePath string) (output.StatePathOutput, error) {
 
 // stateTransfer shows a transfer, confirms it with the person, and applies it.
 func (a *App) stateTransfer(cmd Command, layout project.Layout, action string, plan project.StateTransfer, removeSource bool) (output.StateTransferOutput, error) {
-	out := output.StateTransferOutput{Action: action, From: plan.From, To: layout.LocalStateDir(), Servers: plan.Servers,
-		Project: plan.Project, Unverified: plan.Unverified, RemovesSource: plan.RemovesSource}
-	for _, f := range plan.Files {
-		out.Files = append(out.Files, output.StateFileOutput{Source: f.Source, Target: f.Target, Size: f.Size})
-	}
-	for _, f := range plan.Withheld {
-		out.Withheld = append(out.Withheld, output.StateFileOutput{Source: f.Source, Target: f.Target, Size: f.Size})
-	}
-	out.WithheldWhy = plan.WithheldWhy
-	if plan.SyncProject != nil {
-		out.SyncServer, out.SyncProject = plan.SyncProject.Server, plan.SyncProject.Project
-	}
+	out := transferOutput(layout, action, plan)
 	if a.agentRunning() {
 		return out, errors.New("an agent is running this command, and only a person can bring state into a checkout")
 	}
@@ -95,12 +84,45 @@ func (a *App) stateTransfer(cmd Command, layout project.Layout, action string, p
 		out.Reason = "not confirmed"
 		return out, nil
 	}
-	if err := project.ApplyTransfer(layout, plan, removeSource); err != nil {
+	return applyTransfer(layout, plan, removeSource, out)
+}
+
+// applyTransfer applies plan and reports it in out. An import that took every
+// file and could not remove some copies it was asked to remove is reported as
+// taken, with the copies that remain.
+func applyTransfer(layout project.Layout, plan project.StateTransfer, removeSource bool, out output.StateTransferOutput) (output.StateTransferOutput, error) {
+	err := project.ApplyTransfer(layout, plan, removeSource)
+	if kept, ok := errors.AsType[*project.SourcesKeptError](err); ok {
+		out.Taken = true
+		out.Remaining = kept.Files
+		return out, nil
+	}
+	if err != nil {
 		return out, err
 	}
 	out.Taken = true
 	out.SourceRemoved = removeSource
 	return out, nil
+}
+
+// transferOutput is the plan as a surface shows it.
+func transferOutput(layout project.Layout, action string, plan project.StateTransfer) output.StateTransferOutput {
+	out := output.StateTransferOutput{Action: action, From: plan.From, To: layout.LocalStateDir(), Servers: plan.Servers,
+		Project: plan.Project, Unverified: plan.Unverified, RemovesSource: plan.RemovesSource}
+	for _, f := range plan.Files {
+		out.Files = append(out.Files, output.StateFileOutput{Source: f.Source, Target: f.Target, Size: f.Size})
+	}
+	for _, f := range plan.Withheld {
+		out.Withheld = append(out.Withheld, output.StateFileOutput{Source: f.Source, Target: f.Target, Size: f.Size})
+	}
+	out.WithheldWhy = plan.WithheldWhy
+	if plan.SyncProject != nil {
+		out.SyncServer, out.SyncProject = plan.SyncProject.Server, plan.SyncProject.Project
+		if ws := plan.SyncProject.Workspace; ws != "" {
+			out.SyncProject = ws + "/" + out.SyncProject
+		}
+	}
+	return out
 }
 
 // printStateTransfer shows what a transfer would take.

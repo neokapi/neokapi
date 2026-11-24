@@ -965,12 +965,34 @@ export interface StateTransfer {
   action: "import" | "relink";
   from: string;
   to: string;
-  files: { source: string; target: string; size: number }[];
+  files: StateFile[];
   /** The servers the sync state among the files was issued by. */
   servers?: string[];
+  /** The project a relink's state was recorded for. */
+  project?: string;
+  /** kapi's record cannot say the state is this project's. */
+  unverified?: boolean;
+  /** Files an unverified relink leaves where they are: withheld text and the saved sign-in. */
+  withheld?: StateFile[];
+  /** A relink removes the earlier copy once every file is in place and read back. */
+  removes_source?: boolean;
+  /** Why each group of withheld files stays, in the terminal's words. */
+  withheld_why?: string[];
+  /** The server and project the sync state among the files is bound to. */
+  sync_server?: string;
+  sync_project?: string;
   taken: boolean;
   source_removed: boolean;
+  /** Copies an import was asked to remove and could not. */
+  remaining?: string[];
   reason?: string;
+}
+
+/** One file a state transfer takes, by its path in the checkout's state. */
+export interface StateFile {
+  source: string;
+  target: string;
+  size: number;
 }
 
 /** A one-time line about a checkout's state, with the transfer it offers. */
@@ -981,6 +1003,8 @@ export interface CheckoutStateNotice {
   transfer?: StateTransfer;
   /** Names the transfer as shown; taking it is refused once the plan changed. */
   digest?: string;
+  /** The project an earlier record here belongs to, when it is another project. */
+  other_project?: string;
 }
 
 /** What a pull merged. */

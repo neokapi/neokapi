@@ -24,7 +24,7 @@ func stateDialogCheckout(t *testing.T) string {
 	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: legacy\n"), 0o644))
 	for rel, data := range map[string]string{
 		".kapi/vault/redaction.json":  `{"version":3,"values":[]}`,
-		".kapi/sync/sync-cache.json":  `{"claim_token":"clm","server_url":"https://app.example"}`,
+		".kapi/sync/sync-cache.json":  `{"claim_token":"clm","server_url":"https://app.example","project_id":"p1"}`,
 		".kapi/work/cache/stale.json": `{}`,
 	} {
 		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o700))
@@ -49,6 +49,8 @@ func TestPendingCheckoutStateListsTheLinesAndTheirTransfers(t *testing.T) {
 	assert.Equal(t, "import", pending[1].Transfer.Action)
 	assert.Len(t, pending[1].Transfer.Files, 2)
 	assert.Equal(t, []string{"https://app.example"}, pending[1].Transfer.Servers)
+	assert.Equal(t, "https://app.example", pending[1].Transfer.SyncServer)
+	assert.Equal(t, "p1", pending[1].Transfer.SyncProject, "the dialog names the server project the state is bound to")
 	assert.NotEmpty(t, pending[1].Digest)
 	assert.False(t, dataroot.CheckoutExists(root), "asking creates no record")
 
@@ -101,15 +103,15 @@ func TestApplyCheckoutStateTransferTakesWhatWasShown(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(root, ".kapi", "vault", "redaction.json"), "with remove the copies go")
 }
 
-// A checkout cloned where another was is offered the relink of the earlier
-// state, and taking it brings that state across.
+// A checkout of the same project cloned where another was is offered the
+// relink of the earlier state, and taking it brings that state across.
 func TestApplyCheckoutStateTransferRelinksAnEarlierRecord(t *testing.T) {
 	parent, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	root := filepath.Join(parent, "app")
 	require.NoError(t, os.MkdirAll(root, 0o755))
 	recipe := filepath.Join(root, "kapi.yaml")
-	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: first\n"), 0o644))
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: first\nid: prj_aaaaaaaaaaaaaaaaaaaaaaaa\n"), 0o644))
 	first, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
 	_, err = project.EnsureLocalDir(first, project.VaultDirName)
@@ -118,7 +120,7 @@ func TestApplyCheckoutStateTransferRelinksAnEarlierRecord(t *testing.T) {
 
 	require.NoError(t, os.RemoveAll(root))
 	require.NoError(t, os.MkdirAll(root, 0o755))
-	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: second\n"), 0o644))
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: second\nid: prj_aaaaaaaaaaaaaaaaaaaaaaaa\n"), 0o644))
 
 	pending, err := PendingCheckoutState(recipe)
 	require.NoError(t, err)
@@ -130,10 +132,67 @@ func TestApplyCheckoutStateTransferRelinksAnEarlierRecord(t *testing.T) {
 	out, err := (&App{}).ApplyCheckoutStateTransfer(recipe, pending[0].Name, pending[0].Digest, true)
 	require.NoError(t, err)
 	assert.True(t, out.Taken)
-	assert.False(t, out.SourceRemoved, "a relink removes nothing it was not asked to")
+	assert.True(t, pending[0].Transfer.RemovesSource, "the plan says the earlier directory goes")
 	second, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
 	data, err := os.ReadFile(second.RedactionVaultPath())
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"mine":true}`, string(data))
+}
+
+// State recorded at the location for another project is named, and offers no
+// transfer.
+func TestPendingCheckoutStateOffersNoTransferOfAnotherProjectsState(t *testing.T) {
+	parent, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	root := filepath.Join(parent, "app")
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: billing\n"), 0o644))
+	first, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	_, err = project.EnsureLocalDir(first, project.VaultDirName)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(first.RedactionVaultPath(), []byte(`{"theirs":true}`), 0o600))
+
+	require.NoError(t, os.RemoveAll(root))
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: docs\n"), 0o644))
+
+	pending, err := PendingCheckoutState(recipe)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	assert.Equal(t, project.NoticeEarlierAtPath, pending[0].Name)
+	assert.Contains(t, pending[0].Message, `belongs to "billing", another project`)
+	assert.Equal(t, `"billing"`, pending[0].OtherProject)
+	assert.Nil(t, pending[0].Transfer)
+	_, err = (&App{}).ApplyCheckoutStateTransfer(recipe, pending[0].Name, "", false)
+	require.Error(t, err)
+	second, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	assert.NoFileExists(t, second.RedactionVaultPath())
+}
+
+// An import that takes every file and cannot remove some of the copies it was
+// asked to remove is reported as taken, with the copies that remain.
+func TestApplyCheckoutStateTransferReportsTheCopiesThatRemain(t *testing.T) {
+	recipe := stateDialogCheckout(t)
+	root := filepath.Dir(recipe)
+	pending, err := PendingCheckoutState(recipe)
+	require.NoError(t, err)
+	shown := pending[1]
+	syncDir := filepath.Join(root, ".kapi", "sync")
+	require.NoError(t, os.Chmod(syncDir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(syncDir, 0o700) })
+
+	out, err := (&App{}).ApplyCheckoutStateTransfer(recipe, shown.Name, shown.Digest, true)
+	require.NoError(t, err)
+	assert.True(t, out.Taken)
+	assert.False(t, out.SourceRemoved)
+	assert.Equal(t, []string{"sync/sync-cache.json"}, out.Remaining)
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	assert.FileExists(t, layout.RedactionVaultPath())
+	assert.FileExists(t, filepath.Join(layout.SyncDir(), "sync-cache.json"))
+	assert.NoFileExists(t, filepath.Join(root, ".kapi", "vault", "redaction.json"))
 }

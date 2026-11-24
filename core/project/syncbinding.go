@@ -153,11 +153,17 @@ func syncWithheld(l Layout, root *os.Root, opts RelinkOptions) (bool, string) {
 	}
 }
 
-// recordedSyncBinding reads the server project the sync cache in the state
-// directory dir is bound to. ok is false when there is no sync cache or it
+// recordedSyncBinding reads the server project the sync cache in a state
+// directory (root) is bound to. ok is false when there is no sync cache or it
 // names no project.
 func recordedSyncBinding(root *os.Root) (SyncBinding, bool) {
-	data, err := root.ReadFile(filepath.Join(SyncDirName, "sync-cache.json"))
+	return syncBindingAt(root, filepath.Join(SyncDirName, "sync-cache.json"))
+}
+
+// syncBindingAt reads the server project the sync cache at rel in root is
+// bound to.
+func syncBindingAt(root *os.Root, rel string) (SyncBinding, bool) {
+	data, err := root.ReadFile(rel)
 	if err != nil {
 		return SyncBinding{}, false
 	}

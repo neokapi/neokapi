@@ -59,10 +59,10 @@ func describeProject(p *dataroot.CheckoutProject) string {
 	}
 }
 
-// otherProjectAt names the project of state recorded for another directory at
+// OtherProjectAt names the project of state recorded for another directory at
 // the layout's location when it is a different project from the layout's, and
 // returns "" otherwise. Such state is never offered for a relink.
-func otherProjectAt(l Layout) string {
+func OtherProjectAt(l Layout) string {
 	path := dataroot.NormalizePath(l.Root)
 	current, _ := checkoutProjectOf(l)
 	for _, c := range dataroot.Checkouts() {

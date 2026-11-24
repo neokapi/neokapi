@@ -122,7 +122,7 @@ func RecordStateNoticeGiven(l Layout, name string) error {
 // at the checkout's location. It offers the relink only for this project's
 // state.
 func earlierAtPathMessage(l Layout) string {
-	if other := otherProjectAt(l); other != "" {
+	if other := OtherProjectAt(l); other != "" {
 		return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to %s, another project, so this checkout starts with none and kapi keeps that state where it is.", l.Root, other)
 	}
 	return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to another directory, so this checkout starts with none; if it is this checkout's, run `kapi state relink --from %s`.", l.Root, l.Root)

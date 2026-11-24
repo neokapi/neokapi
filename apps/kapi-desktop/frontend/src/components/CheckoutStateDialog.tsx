@@ -10,7 +10,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
-import type { CheckoutStateNotice, StateTransfer } from "../types/api";
+import type { CheckoutStateNotice, StateFile, StateTransfer } from "../types/api";
 
 export interface CheckoutStateDialogProps {
   /** The project the lines are about, named because its tab need not be the one in front. */
@@ -23,12 +23,11 @@ export interface CheckoutStateDialogProps {
 }
 
 /**
- * Shown once when a project opens whose checkout holds state an earlier kapi
- * left inside it, or whose location has state recorded for another folder.
- * It lists what an import or a relink would take, with the sizes and the
- * servers its sync state was issued by, and takes exactly that when the
- * person confirms. The terminal says the same through `kapi state import`
- * and `kapi state relink`.
+ * Shown once when a project opens whose folder holds state an earlier kapi
+ * kept there, or whose location has state kept for an earlier checkout. Each
+ * part says what the state is, how many files and how large, and takes exactly
+ * those files when the person confirms. The terminal offers the same through
+ * `kapi state import` and `kapi state relink`.
  */
 export function CheckoutStateDialog({
   projectName,
@@ -49,15 +48,11 @@ export function CheckoutStateDialog({
           <p data-slot="checkout-state-project" className="font-medium" translate="no">
             {projectName}
           </p>
-          <DialogDescription>
-            {t(
-              "kapi keeps this checkout's own state outside it. Take state into this checkout only if it is yours: a vault holds withheld originals, and sync state can hold a token for a server project.",
-            )}
-          </DialogDescription>
+          <DialogDescription>{t("Use it only if it is yours.")}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 text-sm">
+        <div className="space-y-5 text-sm">
           {notices.map((n) => (
-            <NoticeRow key={n.name} notice={n} onApply={onApply} />
+            <NoticeSection key={n.name} notice={n} onApply={onApply} />
           ))}
         </div>
         <DialogFooter>
@@ -70,18 +65,77 @@ export function CheckoutStateDialog({
   );
 }
 
-function noticeTitle(name: CheckoutStateNotice["name"]): string {
-  switch (name) {
+/** formatSize writes a byte count for a person: bytes, KB or MB. */
+export function formatSize(bytes: number): string {
+  const [value, unit] =
+    bytes < 1024
+      ? [bytes, "B"]
+      : bytes < 1024 * 1024
+        ? [bytes / 1024, "KB"]
+        : [bytes / (1024 * 1024), "MB"];
+  const n = new Intl.NumberFormat(undefined, { maximumFractionDigits: unit === "B" ? 0 : 1 });
+  return `${n.format(value)} ${unit}`;
+}
+
+/**
+ * What the files are, for a person: withheld text, the saved sign-in for the
+ * server project the sync state is bound to, saved filters.
+ */
+function contentsOf(files: StateFile[], transfer: StateTransfer): string[] {
+  const out: string[] = [];
+  if (files.some((f) => f.target.startsWith("vault/")))
+    out.push(t("The original text of withheld values"));
+  if (files.some((f) => f.target.startsWith("sync/"))) {
+    const servers = transfer.servers ?? [];
+    out.push(
+      transfer.sync_server && transfer.sync_project
+        ? t("The saved sign-in for {server}, project {project}", {
+            server: transfer.sync_server,
+            project: transfer.sync_project,
+          })
+        : servers.length > 0
+          ? t("The saved sign-in for {servers}", { servers: servers.join(", ") })
+          : t("The saved sign-in for a server"),
+    );
+  }
+  if (files.some((f) => f.target === "filters.json")) out.push(t("Your saved filters"));
+  return out;
+}
+
+function sectionTitle(notice: CheckoutStateNotice): string {
+  switch (notice.name) {
     case "earlier-at-path":
-      return t("State recorded for an earlier checkout at this location");
+      return notice.other_project
+        ? t("Kept for another project at this location")
+        : t("Kept for an earlier checkout at this location");
     case "work-in-tree":
-      return t(".kapi/work is no longer used, and you can delete it");
+      return t(".kapi/work is no longer used");
     case "state-in-tree":
-      return t("State left inside this checkout");
+      return t("Kept inside this project's folder");
   }
 }
 
-function NoticeRow({
+function FileSummary({ files, slot }: { files: StateFile[]; slot: string }) {
+  const total = files.reduce((sum, f) => sum + f.size, 0);
+  return (
+    <div data-slot={slot}>
+      <p className="tabular-nums">
+        <span data-slot="checkout-state-count">
+          {t("{count, plural, one {# file} other {# files}}", { count: files.length })}
+        </span>
+        {" · "}
+        <span data-slot="checkout-state-total">{formatSize(total)}</span>
+      </p>
+      <ul className="font-mono text-xs text-muted-foreground" translate="no">
+        {files.map((f) => (
+          <li key={f.source}>{f.target}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function NoticeSection({
   notice,
   onApply,
 }: {
@@ -108,42 +162,79 @@ function NoticeRow({
 
   return (
     <section data-slot={`checkout-state-${notice.name}`} className="space-y-2">
-      <h3 className="font-medium">{noticeTitle(notice.name)}</h3>
+      <h3 className="font-medium">{sectionTitle(notice)}</h3>
+      {notice.name === "work-in-tree" && (
+        <p className="text-muted-foreground">{t("You can delete it.")}</p>
+      )}
+      {notice.other_project && (
+        <p data-slot="checkout-state-other-project" className="text-muted-foreground">
+          {t("It belongs to {project}, so kapi keeps it where it is.", {
+            project: notice.other_project,
+          })}
+        </p>
+      )}
       {transfer && (
         <>
-          <ul className="font-mono text-xs" translate="no">
-            {transfer.files.map((f) => (
-              <li key={f.source}>
-                {f.source} <span className="text-muted-foreground">({f.size} B)</span>
-              </li>
+          <ul data-slot="checkout-state-contents" className="list-disc pl-5">
+            {contentsOf([...transfer.files, ...(transfer.withheld ?? [])], transfer).map((line) => (
+              <li key={line}>{line}</li>
             ))}
           </ul>
-          {transfer.servers && transfer.servers.length > 0 && (
-            <p data-slot="checkout-state-servers">
-              <span className="font-medium">{t("Sync state issued by")}:</span>{" "}
-              <span className="font-mono text-xs" translate="no">
-                {transfer.servers.join(", ")}
-              </span>
+          <FileSummary files={transfer.files} slot="checkout-state-files" />
+          {transfer.withheld && transfer.withheld.length > 0 && (
+            <p data-slot="checkout-state-withheld" className="text-muted-foreground">
+              {transfer.unverified
+                ? t(
+                    "kapi cannot tell whether this state belongs to this project, so withheld text and the saved sign-in stay where they are.",
+                  )
+                : t(
+                    "The saved sign-in stays where it is, because this project does not connect to the server project it belongs to.",
+                  )}
             </p>
           )}
           {done?.taken ? (
-            <p data-slot="checkout-state-taken">
-              {transfer.action === "import" ? t("Imported.") : t("Relinked.")}
-            </p>
+            <div data-slot="checkout-state-taken" className="space-y-1">
+              <p>{t("This state is now in use here.")}</p>
+              {done.remaining && done.remaining.length > 0 && (
+                <div data-slot="checkout-state-remaining">
+                  <p className="text-muted-foreground">
+                    {t("These copies could not be removed from the folder:")}
+                  </p>
+                  <ul className="font-mono text-xs" translate="no">
+                    {done.remaining.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="space-y-2">
               {transfer.action === "import" && (
-                <label className="flex items-center gap-2">
+                <label className="flex items-start gap-2">
                   <input
                     type="checkbox"
+                    className="mt-1"
                     checked={removeSource}
                     onChange={(e) => setRemoveSource(e.target.checked)}
                   />
-                  {t("Remove the copies from the checkout")}
+                  <span>
+                    {t("Remove the copies from the folder")}
+                    <span className="block text-muted-foreground">
+                      {t("They are deleted from .kapi once kapi has its own copy.")}
+                    </span>
+                  </span>
                 </label>
               )}
+              {transfer.action === "relink" && transfer.removes_source && (
+                <p className="text-muted-foreground">
+                  {t("The earlier copy is deleted once its files are in place here.")}
+                </p>
+              )}
               <Button size="sm" disabled={busy} onClick={() => void apply()}>
-                {transfer.action === "import" ? t("Import") : t("Relink")}
+                {transfer.action === "import"
+                  ? t("Bring in the state from this folder")
+                  : t("Use this state here")}
               </Button>
             </div>
           )}

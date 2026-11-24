@@ -33,6 +33,9 @@ type CheckoutStateNotice struct {
 	// Digest names the transfer as shown; ApplyCheckoutStateTransfer takes it
 	// only while the plan still digests to it.
 	Digest string `json:"digest,omitempty"`
+	// OtherProject names the project an earlier record at the location
+	// belongs to when it is another project; such state offers no transfer.
+	OtherProject string `json:"other_project,omitempty"`
 }
 
 // PendingCheckoutState lists the one-time lines about the state of the checkout
@@ -47,6 +50,9 @@ func PendingCheckoutState(recipePath string) ([]CheckoutStateNotice, error) {
 	var out []CheckoutStateNotice
 	for _, n := range project.PendingStateNotices(layout) {
 		item := CheckoutStateNotice{Name: n.Name, Message: n.Message}
+		if n.Name == project.NoticeEarlierAtPath {
+			item.OtherProject = project.OtherProjectAt(layout)
+		}
 		if action, plan, ok := planFor(layout, n.Name); ok && len(plan.Files) > 0 {
 			t := transferOutput(layout, action, plan)
 			item.Transfer = &t
@@ -100,12 +106,7 @@ func (a *App) ApplyCheckoutStateTransfer(recipePath, name, digest string, remove
 	if action != "import" {
 		removeSource = false
 	}
-	if err := project.ApplyTransfer(layout, plan, removeSource); err != nil {
-		return out, err
-	}
-	out.Taken = true
-	out.SourceRemoved = removeSource
-	return out, nil
+	return applyTransfer(layout, plan, removeSource, out)
 }
 
 // planFor plans the transfer the line name offers: a relink from the
@@ -126,21 +127,16 @@ func planFor(layout project.Layout, name string) (action string, plan project.St
 	return action, plan, err == nil
 }
 
-// transferOutput is the plan as a surface shows it.
-func transferOutput(layout project.Layout, action string, plan project.StateTransfer) output.StateTransferOutput {
-	out := output.StateTransferOutput{Action: action, From: plan.From, To: layout.LocalStateDir(), Servers: plan.Servers}
-	for _, f := range plan.Files {
-		out.Files = append(out.Files, output.StateFileOutput{Source: f.Source, Target: f.Target, Size: f.Size})
-	}
-	return out
-}
-
-// planDigest names a plan by where it takes from, each file with its content
-// digest, and the servers its sync state was issued by.
+// planDigest names a plan by where it takes from, each file it takes and each
+// it leaves with its content digest, whether it removes its source, and the
+// servers its sync state was issued by.
 func planDigest(plan project.StateTransfer) string {
-	parts := []string{"kapi-state-transfer/v1", plan.From}
+	parts := []string{"kapi-state-transfer/v2", plan.From, strconv.FormatBool(plan.RemovesSource)}
 	for _, f := range plan.Files {
-		parts = append(parts, f.Source, f.Target, strconv.FormatInt(f.Size, 10), f.Digest)
+		parts = append(parts, "take", f.Source, f.Target, strconv.FormatInt(f.Size, 10), f.Digest)
+	}
+	for _, f := range plan.Withheld {
+		parts = append(parts, "leave", f.Source, f.Target, strconv.FormatInt(f.Size, 10), f.Digest)
 	}
 	parts = append(parts, plan.Servers...)
 	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))

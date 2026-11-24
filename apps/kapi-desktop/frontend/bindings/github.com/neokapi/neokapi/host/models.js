@@ -1089,6 +1089,15 @@ export class CheckoutStateNotice {
              */
             this["digest"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * OtherProject names the project an earlier record at the location
+             * belongs to when it is another project; such state offers no transfer.
+             * @member
+             * @type {string | undefined}
+             */
+            this["other_project"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -4513,6 +4522,16 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * UnreadMedia names the files read without an engine their content needs
+             * (speech recognition, OCR). Their text is not translated, so a run with
+             * any is not up to date.
+             * @member
+             * @type {UnreadMedia[] | undefined}
+             */
+            this["unread_media"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Findings holds the failing findings of a program step whose output
              * changed a redaction placeholder (tools.RulePlaceholder). Each such block
              * was left as it was, and the run exits with the code a failed check uses.
@@ -4546,6 +4565,7 @@ export class ConvergeOutput {
         const $$createField19_0 = $$createType102;
         const $$createField20_0 = $$createType104;
         const $$createField21_0 = $$createType106;
+        const $$createField22_0 = $$createType108;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4556,11 +4576,14 @@ export class ConvergeOutput {
         if ("warnings" in $$parsedSource) {
             $$parsedSource["warnings"] = $$createField19_0($$parsedSource["warnings"]);
         }
+        if ("unread_media" in $$parsedSource) {
+            $$parsedSource["unread_media"] = $$createField20_0($$parsedSource["unread_media"]);
+        }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField20_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField21_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField21_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField22_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4807,7 +4830,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType108;
+        const $$createField2_0 = $$createType110;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -4909,7 +4932,7 @@ export class ExecTrustRequest {
      * @returns {ExecTrustRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType110;
+        const $$createField1_0 = $$createType112;
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
@@ -5007,9 +5030,9 @@ export class FindingsReport {
      * @returns {FindingsReport}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType111;
-        const $$createField1_0 = $$createType112;
-        const $$createField2_0 = $$createType114;
+        const $$createField0_0 = $$createType113;
+        const $$createField1_0 = $$createType114;
+        const $$createField2_0 = $$createType116;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
@@ -5267,7 +5290,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType116;
+        const $$createField0_0 = $$createType118;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -5285,6 +5308,57 @@ export class RulesFilesResult {
  * the generated Wails bindings — are unchanged.
  * @typedef {convergence$0.ShipState} ShipState
  */
+
+/**
+ * UnreadMedia is a source file read without an engine its content needs.
+ */
+export class UnreadMedia {
+    /**
+     * Creates a new UnreadMedia instance.
+     * @param {Partial<UnreadMedia>} [$$source = {}] - The source object to create the UnreadMedia.
+     */
+    constructor($$source = {}) {
+        if (!("file" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["file"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Collection is the recipe collection the file belongs to, when it still
+             * resolves to one.
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+        if (!("engines" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["engines"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UnreadMedia instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UnreadMedia}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("engines" in $$parsedSource) {
+            $$parsedSource["engines"] = $$createField2_0($$parsedSource["engines"]);
+        }
+        return new UnreadMedia(/** @type {Partial<UnreadMedia>} */($$parsedSource));
+    }
+}
 
 /**
  * UpPlanOutput is the structured result of `kapi up --plan`: the dry-run work
@@ -5439,11 +5513,11 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType118;
-        const $$createField4_0 = $$createType117;
-        const $$createField7_0 = $$createType120;
+        const $$createField3_0 = $$createType120;
+        const $$createField4_0 = $$createType119;
+        const $$createField7_0 = $$createType122;
         const $$createField11_0 = $$createType102;
-        const $$createField12_0 = $$createType121;
+        const $$createField12_0 = $$createType123;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5785,22 +5859,24 @@ const $$createType99 = ParkedScope.createFrom;
 const $$createType100 = $Create.Array($$createType99);
 const $$createType101 = check$0.Warning.createFrom;
 const $$createType102 = $Create.Array($$createType101);
-const $$createType103 = FindingsReport.createFrom;
-const $$createType104 = $Create.Nullable($$createType103);
-const $$createType105 = PreReviewResult.createFrom;
+const $$createType103 = UnreadMedia.createFrom;
+const $$createType104 = $Create.Array($$createType103);
+const $$createType105 = FindingsReport.createFrom;
 const $$createType106 = $Create.Nullable($$createType105);
-const $$createType107 = DigestGroup.createFrom;
-const $$createType108 = $Create.Array($$createType107);
-const $$createType109 = output$0.TrustSite.createFrom;
+const $$createType107 = PreReviewResult.createFrom;
+const $$createType108 = $Create.Nullable($$createType107);
+const $$createType109 = DigestGroup.createFrom;
 const $$createType110 = $Create.Array($$createType109);
-const $$createType111 = check$0.Target.createFrom;
-const $$createType112 = check$0.Summary.createFrom;
-const $$createType113 = check$0.Diagnostic.createFrom;
-const $$createType114 = $Create.Array($$createType113);
-const $$createType115 = RulesFile.createFrom;
+const $$createType111 = output$0.TrustSite.createFrom;
+const $$createType112 = $Create.Array($$createType111);
+const $$createType113 = check$0.Target.createFrom;
+const $$createType114 = check$0.Summary.createFrom;
+const $$createType115 = check$0.Diagnostic.createFrom;
 const $$createType116 = $Create.Array($$createType115);
-const $$createType117 = UpPlanScope.createFrom;
+const $$createType117 = RulesFile.createFrom;
 const $$createType118 = $Create.Array($$createType117);
-const $$createType119 = UpPlanProviderGroup.createFrom;
+const $$createType119 = UpPlanScope.createFrom;
 const $$createType120 = $Create.Array($$createType119);
-const $$createType121 = project$0.StoreDrift.createFrom;
+const $$createType121 = UpPlanProviderGroup.createFrom;
+const $$createType122 = $Create.Array($$createType121);
+const $$createType123 = project$0.StoreDrift.createFrom;
