@@ -156,7 +156,8 @@ func redactMessages(ctx context.Context, messages []Message) (context.Context, [
 // redactTranslate returns req with every field the prompt renders redacted
 // under the Egress ctx carries: the source, the term renderings, the
 // do-not-translate terms, the voice guide, the instruction and the block's
-// context (its key, its neighbours and its prior version).
+// context (its key, its neighbours, its prior version and its rejected
+// drafts).
 func redactTranslate(ctx context.Context, req TranslateRequest) (context.Context, TranslateRequest, error) {
 	e := redaction.EgressFrom(ctx)
 	if e == nil {
@@ -173,6 +174,12 @@ func redactTranslate(ctx context.Context, req TranslateRequest) (context.Context
 	texts = append(texts, bc.After...)
 	if bc.Prior != nil {
 		texts = append(texts, bc.Prior.Source, bc.Prior.Target)
+	}
+	// A rejected draft and the reviewer's note are text about the block. The
+	// reasons are phrases kapi writes (tool.RejectionReasonPhrase) and go as
+	// they are.
+	for _, r := range bc.Rejections {
+		texts = append(texts, r.Text, r.Note)
 	}
 	red, err := e.Redact(ctx, texts)
 	if err != nil {
@@ -211,6 +218,14 @@ func redactTranslate(ctx context.Context, req TranslateRequest) (context.Context
 	}
 	if bc.Prior != nil {
 		bc.Prior = &prompt.PriorVersion{Source: next(), Target: next()}
+	}
+	if n := len(bc.Rejections); n > 0 {
+		rejections := make([]prompt.Rejection, n)
+		for i, r := range bc.Rejections {
+			r.Text, r.Note = next(), next()
+			rejections[i] = r
+		}
+		bc.Rejections = rejections
 	}
 	req.BlockContext = bc
 	return redaction.WithEgress(ctx, nil), req, nil
