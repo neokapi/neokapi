@@ -2,7 +2,6 @@ package project
 
 import (
 	"encoding/json"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,28 +99,19 @@ func bindingVerdict(recorded, recipe SyncBinding) (same, known bool) {
 func identity(s string) string { return s }
 
 // recipeSyncBinding reads the server project the layout's recipe connects to,
-// from its venue block (RecipeVenue). The compound URL is
-// <server>/<workspace>/<project>, <server>/projects/<project> or
-// <server>/<project>, as the venue's own parser reads it. ok is false for a
-// recipe that names no server project.
+// from its venue block (RecipeVenue), through ParseVenueURL, the parser the
+// venue reads its connection with. ok is false for a recipe that names no
+// server project.
 func recipeSyncBinding(l Layout) (SyncBinding, bool) {
 	v, ok, err := RecipeVenue(l.RecipePath)
 	if err != nil || !ok {
 		return SyncBinding{}, false
 	}
-	u, err := url.Parse(strings.TrimSpace(v.URL))
-	if err != nil || u.Scheme == "" || u.Host == "" {
+	parts := ParseVenueURL(strings.TrimSpace(v.URL))
+	if parts.Project == "" || parts.Server == "://" {
 		return SyncBinding{}, false
 	}
-	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(segments) == 0 || len(segments) > 2 || segments[len(segments)-1] == "" {
-		return SyncBinding{}, false
-	}
-	b := SyncBinding{Server: u.Scheme + "://" + u.Host, Project: segments[len(segments)-1]}
-	if len(segments) == 2 && segments[0] != "projects" {
-		b.Workspace = segments[0]
-	}
-	return b, true
+	return SyncBinding(parts), true
 }
 
 // syncWithheld reports whether a relink leaves the recorded sync state where

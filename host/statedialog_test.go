@@ -196,3 +196,35 @@ func TestApplyCheckoutStateTransferReportsTheCopiesThatRemain(t *testing.T) {
 	assert.FileExists(t, filepath.Join(layout.SyncDir(), "sync-cache.json"))
 	assert.NoFileExists(t, filepath.Join(root, ".kapi", "vault", "redaction.json"))
 }
+
+// A relink that leaves the original text of hidden values and the saved
+// sign-in, because kapi cannot confirm the state is this project's, names the
+// terminal command a person who knows it is runs; nothing in the dialog takes
+// them.
+func TestPendingCheckoutStateNamesTheCommandThatStatesTheSameProject(t *testing.T) {
+	parent, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	root := filepath.Join(parent, "my app")
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: app\n"), 0o644))
+	first, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	_, err = project.EnsureLocalDir(first, project.VaultDirName)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(first.RedactionVaultPath(), []byte(`{"mine":true}`), 0o600))
+
+	require.NoError(t, os.RemoveAll(root))
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: app\n"), 0o644))
+
+	pending, err := PendingCheckoutState(recipe)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	n := pending[0]
+	require.NotNil(t, n.Transfer, "a plan that only leaves files is still shown")
+	assert.True(t, n.Transfer.Unverified)
+	assert.Empty(t, n.Transfer.Files)
+	assert.Len(t, n.Transfer.Withheld, 1)
+	assert.Equal(t, "kapi state relink --from '"+root+"' --same-project -p '"+root+"'", n.SameProjectCommand)
+}

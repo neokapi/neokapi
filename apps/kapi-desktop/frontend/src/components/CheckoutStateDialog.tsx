@@ -10,6 +10,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
+import { writeClipboardText } from "../lib/clipboard";
 import type { CheckoutStateNotice, StateFile, StateTransfer } from "../types/api";
 
 export interface CheckoutStateDialogProps {
@@ -44,7 +45,7 @@ export function CheckoutStateDialog({
     >
       <DialogContent data-testid="checkout-state" className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>{t("State from an earlier kapi")}</DialogTitle>
+          <DialogTitle>{t("Saved data from an earlier kapi")}</DialogTitle>
           <p data-slot="checkout-state-project" className="font-medium" translate="no">
             {projectName}
           </p>
@@ -84,7 +85,7 @@ export function formatSize(bytes: number): string {
 function contentsOf(files: StateFile[], transfer: StateTransfer): string[] {
   const out: string[] = [];
   if (files.some((f) => f.target.startsWith("vault/")))
-    out.push(t("The original text of withheld values"));
+    out.push(t("The original text of values hidden before translation"));
   if (files.some((f) => f.target.startsWith("sync/"))) {
     const servers = transfer.servers ?? [];
     out.push(
@@ -180,21 +181,26 @@ function NoticeSection({
               <li key={line}>{line}</li>
             ))}
           </ul>
-          <FileSummary files={transfer.files} slot="checkout-state-files" />
+          {transfer.files.length > 0 && (
+            <FileSummary files={transfer.files} slot="checkout-state-files" />
+          )}
           {transfer.withheld && transfer.withheld.length > 0 && (
             <p data-slot="checkout-state-withheld" className="text-muted-foreground">
               {transfer.unverified
                 ? t(
-                    "kapi cannot tell whether this state belongs to this project, so withheld text and the saved sign-in stay where they are.",
+                    "kapi cannot confirm this data belongs to this project, so the original text of hidden values and the saved sign-in stay where they are.",
                   )
                 : t(
                     "The saved sign-in stays where it is, because this project does not connect to the server project it belongs to.",
                   )}
             </p>
           )}
+          {notice.same_project_command && !done?.taken && (
+            <SameProjectCommand command={notice.same_project_command} />
+          )}
           {done?.taken ? (
             <div data-slot="checkout-state-taken" className="space-y-1">
-              <p>{t("This state is now in use here.")}</p>
+              <p>{t("This saved data is now in use here.")}</p>
               {done.remaining && done.remaining.length > 0 && (
                 <div data-slot="checkout-state-remaining">
                   <p className="text-muted-foreground">
@@ -231,11 +237,13 @@ function NoticeSection({
                   {t("The earlier copy is deleted once its files are in place here.")}
                 </p>
               )}
-              <Button size="sm" disabled={busy} onClick={() => void apply()}>
-                {transfer.action === "import"
-                  ? t("Bring in the state from this folder")
-                  : t("Use this state here")}
-              </Button>
+              {transfer.files.length > 0 && (
+                <Button size="sm" disabled={busy} onClick={() => void apply()}>
+                  {transfer.action === "import"
+                    ? t("Bring in the saved data from this folder")
+                    : t("Use this saved data here")}
+                </Button>
+              )}
             </div>
           )}
           {error && (
@@ -246,6 +254,37 @@ function NoticeSection({
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * The terminal command that takes what kapi left because it could not confirm
+ * the data belongs to this project, for a person who knows it does. The
+ * dialog states nothing on their behalf; the command is theirs to run.
+ */
+function SameProjectCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div data-slot="checkout-state-same-project" className="space-y-1">
+      <p className="text-muted-foreground">{t("If it is yours, run this in a terminal:")}</p>
+      <div className="flex items-center gap-2">
+        <code
+          className="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1 font-mono text-xs"
+          translate="no"
+        >
+          {command}
+        </code>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            void writeClipboardText(command).then(() => setCopied(true));
+          }}
+        >
+          {copied ? t("Copied") : t("Copy")}
+        </Button>
+      </div>
+    </div>
   );
 }
 

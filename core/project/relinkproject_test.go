@@ -365,3 +365,41 @@ func TestBindingVerdictDecidesEveryFieldByOneRule(t *testing.T) {
 		})
 	}
 }
+
+// The path is part of a server's identity: the same server under the same
+// path is the same, and another path, or a path against none, is another
+// server.
+func TestAServersPathIsPartOfItsIdentity(t *testing.T) {
+	for _, tt := range []struct {
+		name             string
+		recorded, recipe string
+		want             fieldVerdict
+	}{
+		{"the same path", "https://host.example/bowrain", "https://HOST.example/bowrain/", fieldSame},
+		{"another path", "https://host.example/bowrain", "https://host.example/other", fieldDiffers},
+		{"a path against none", "https://host.example/bowrain", "https://host.example", fieldDiffers},
+		{"none against a path", "https://host.example", "https://host.example/bowrain", fieldDiffers},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, compareField(tt.recorded, tt.recipe, ServerURLNormalizer))
+		})
+	}
+}
+
+// A recipe's server project is read with the one parser of the venue URL,
+// the one the venue's connection and the sync state's record are written
+// from.
+func TestParseVenueURL(t *testing.T) {
+	for _, tt := range []struct {
+		raw  string
+		want VenueURL
+	}{
+		{"https://app.example/ws/app", VenueURL{Server: "https://app.example", Workspace: "ws", Project: "app"}},
+		{"https://app.example/projects/app", VenueURL{Server: "https://app.example", Project: "app"}},
+		{"https://app.example/app", VenueURL{Server: "https://app.example", Project: "app"}},
+		{"https://app.example/a/b/c", VenueURL{Server: "https://app.example"}},
+		{"", VenueURL{}},
+	} {
+		assert.Equal(t, tt.want, ParseVenueURL(tt.raw), tt.raw)
+	}
+}

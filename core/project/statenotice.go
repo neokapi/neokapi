@@ -88,7 +88,7 @@ func PendingStateNotices(l Layout) []PendingStateNotice {
 	if _, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, WorkDirName)); err == nil && !told[NoticeWorkInTree] {
 		out = append(out, PendingStateNotice{
 			Name:    NoticeWorkInTree,
-			Message: fmt.Sprintf("kapi: %s/%s in this checkout is no longer used; kapi keeps the checkout's state outside it, and you can delete it.", StateDirName, WorkDirName),
+			Message: fmt.Sprintf("kapi: %s/%s in this checkout is no longer used; kapi keeps the checkout's saved data outside it, and you can delete it.", StateDirName, WorkDirName),
 		})
 	}
 	if legacy := LegacyStateIn(l); len(legacy) > 0 && !told[NoticeStateInTree] {
@@ -98,7 +98,7 @@ func PendingStateNotices(l Layout) []PendingStateNotice {
 		}
 		out = append(out, PendingStateNotice{
 			Name:    NoticeStateInTree,
-			Message: fmt.Sprintf("kapi: %s in this checkout hold state kapi no longer reads; to use it here, run `kapi state import -p %s`.", strings.Join(names, ", "), l.Root),
+			Message: fmt.Sprintf("kapi: %s in this checkout hold saved data kapi no longer reads; to use it here, run `kapi state import -p %s`.", strings.Join(names, ", "), l.Root),
 		})
 	}
 	return out
@@ -123,9 +123,9 @@ func RecordStateNoticeGiven(l Layout, name string) error {
 // state.
 func earlierAtPathMessage(l Layout) string {
 	if other := OtherProjectAt(l); other != "" {
-		return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to %s, another project, so this checkout starts with none and kapi keeps that state where it is.", l.Root, other)
+		return fmt.Sprintf("kapi: saved data recorded for an earlier checkout at %s belongs to %s, another project, so this checkout starts with none and kapi keeps that data where it is.", l.Root, other)
 	}
-	return fmt.Sprintf("kapi: state recorded for an earlier checkout at %s belongs to another directory, so this checkout starts with none; if it is this checkout's, run `kapi state relink --from %s`.", l.Root, l.Root)
+	return fmt.Sprintf("kapi: saved data recorded for an earlier checkout at %s belongs to another directory, so this checkout starts with none; if it is this checkout's, run `kapi state relink --from %s`.", l.Root, l.Root)
 }
 
 // NoticeState gives the one-time lines about the checkout's state

@@ -1098,6 +1098,17 @@ export class CheckoutStateNotice {
              */
             this["other_project"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * SameProjectCommand is the terminal command that takes what a relink
+             * leaves because kapi cannot confirm the state is this project's: the
+             * person who knows it is states so there. Empty when stating it would take
+             * nothing more.
+             * @member
+             * @type {string | undefined}
+             */
+            this["same_project_command"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

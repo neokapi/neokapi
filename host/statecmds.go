@@ -151,5 +151,5 @@ func printStateTransfer(w io.Writer, o output.StateTransferOutput) {
 	if o.RemovesSource {
 		fmt.Fprintf(w, "Once every file is in place and read back, kapi removes %s.\n", o.From)
 	}
-	fmt.Fprintln(w, "Take it only if this state is yours: a vault holds withheld originals, and sync state can hold a token for a server project.")
+	fmt.Fprintln(w, "Take it only if this saved data is yours: a vault holds the original text of values hidden before translation, and sync state can hold the saved sign-in for a server project.")
 }

@@ -16,6 +16,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
+	coreproj "github.com/neokapi/neokapi/core/project"
 )
 
 // ServerSpec captures the optional bowrain-server connection details for a
@@ -25,7 +27,7 @@ import (
 //
 // Only the connection coordinates live here. Lifecycle policy
 // (automations) and content/governance features (assets, voice) are
-// top-level on KapiProject — they describe project policy that may run
+// top-level on KapiProject: they describe project policy that may run
 // regardless of which CLI is driving the recipe.
 type ServerSpec struct {
 	// URL is a compound project URL that encodes the server, workspace, and
@@ -36,20 +38,18 @@ type ServerSpec struct {
 	URL string `yaml:"url,omitempty" json:"url,omitempty"`
 
 	// Stream determines which content stream to sync with.
-	// Default: "$auto" — auto-detect from git branch / CI environment.
+	// Default: "$auto", which detects it from the git branch or CI environment.
 	// Set to a specific name (e.g. "v2.0") to always use that stream.
 	// Empty is treated as "$auto".
 	Stream string `yaml:"stream,omitempty" json:"stream,omitempty"`
 
 	// Converge is the server-side continuous-convergence policy: whether the
 	// server starts a convergence run of its own when a push completes.
-	//   on-push (default when empty) — every push that lands content triggers a
-	//                                   server convergence run (the loop, with
-	//                                   checks, gates, and parking).
-	//   manual                        — a push never converges on its own; a run
-	//                                   starts only from `kapi up` or the REST
-	//                                   convergence-run endpoint.
-	// Transport (`kapi push`) is pure regardless of this value — it moves state
+	//   on-push (default when empty): every push that lands content triggers
+	//     a server convergence run (the loop, with checks, gates, and parking).
+	//   manual: a push never converges on its own; a run starts only from
+	//     `kapi up` or the REST convergence-run endpoint.
+	// Transport (`kapi push`) is pure regardless of this value: it moves state
 	// and never produces translations; this policy governs the *server's* own
 	// clock, the way "push triggers CI" is a repo policy, not a property of push.
 	Converge ConvergePolicy `yaml:"converge,omitempty" json:"converge,omitempty"`
@@ -84,7 +84,7 @@ func (s *ServerSpec) ResolvedConverge() ConvergePolicy {
 // It exists for dogfooding. A repo whose committed recipe points at production
 // cannot be iterated on locally without editing that recipe, and an edited
 // recipe is one `git commit -a` away from redirecting everyone's pushes. This
-// makes the local run an environment variable instead — the same shape as
+// makes the local run an environment variable instead, the same shape as
 // BOWRAIN_AUTH_TOKEN, which already supplies the credential the same way.
 //
 // It REDIRECTS, it does not CONNECT: a recipe with no server block stays a
@@ -155,7 +155,9 @@ type ProjectURLInfo struct {
 	ProjectID string
 }
 
-// ParseProjectURL parses a compound project URL into its parts.
+// ParseProjectURL parses a compound project URL into its parts, through
+// core/project.ParseVenueURL, the parser the framework's relink reads a
+// recipe's server project with.
 //
 // Supported formats:
 //
@@ -163,40 +165,8 @@ type ProjectURLInfo struct {
 //	https://server.com/projects/project-id    → direct project (no workspace)
 //	""                                        → empty (no server)
 func ParseProjectURL(rawURL string) ProjectURLInfo {
-	if rawURL == "" {
-		return ProjectURLInfo{}
-	}
-
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return ProjectURLInfo{}
-	}
-
-	path := strings.Trim(u.Path, "/")
-	segments := strings.Split(path, "/")
-
-	serverURL := u.Scheme + "://" + u.Host
-
-	switch {
-	case len(segments) == 2 && segments[0] == "projects":
-		return ProjectURLInfo{
-			ServerURL: serverURL,
-			ProjectID: segments[1],
-		}
-	case len(segments) == 2:
-		return ProjectURLInfo{
-			ServerURL: serverURL,
-			Workspace: segments[0],
-			ProjectID: segments[1],
-		}
-	case len(segments) == 1 && segments[0] != "":
-		return ProjectURLInfo{
-			ServerURL: serverURL,
-			ProjectID: segments[0],
-		}
-	default:
-		return ProjectURLInfo{ServerURL: serverURL}
-	}
+	v := coreproj.ParseVenueURL(rawURL)
+	return ProjectURLInfo{ServerURL: v.Server, Workspace: v.Workspace, ProjectID: v.Project}
 }
 
 // FormatProjectURL constructs a compound project URL from its parts.

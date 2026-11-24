@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/project"
@@ -36,6 +37,11 @@ type CheckoutStateNotice struct {
 	// OtherProject names the project an earlier record at the location
 	// belongs to when it is another project; such state offers no transfer.
 	OtherProject string `json:"other_project,omitempty"`
+	// SameProjectCommand is the terminal command that takes what a relink
+	// leaves because kapi cannot confirm the state is this project's: the
+	// person who knows it is states so there. Empty when stating it would take
+	// nothing more.
+	SameProjectCommand string `json:"same_project_command,omitempty"`
 }
 
 // PendingCheckoutState lists the one-time lines about the state of the checkout
@@ -53,10 +59,15 @@ func PendingCheckoutState(recipePath string) ([]CheckoutStateNotice, error) {
 		if n.Name == project.NoticeEarlierAtPath {
 			item.OtherProject = project.OtherProjectAt(layout)
 		}
-		if action, plan, ok := planFor(layout, n.Name); ok && len(plan.Files) > 0 {
+		if action, plan, ok := planFor(layout, n.Name); ok && len(plan.Files)+len(plan.Withheld) > 0 {
 			t := transferOutput(layout, action, plan)
 			item.Transfer = &t
 			item.Digest = planDigest(plan)
+			if action == "relink" && len(plan.Withheld) > 0 {
+				if asked, err := project.PlanRelink(layout, layout.Root, project.RelinkOptions{SameProject: true}); err == nil && len(asked.Withheld) < len(plan.Withheld) {
+					item.SameProjectCommand = "kapi state relink --from " + shellWord(layout.Root) + " --same-project -p " + shellWord(layout.Root)
+				}
+			}
 		}
 		out = append(out, item)
 	}
@@ -141,4 +152,20 @@ func planDigest(plan project.StateTransfer) string {
 	parts = append(parts, plan.Servers...)
 	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))
 	return hex.EncodeToString(sum[:])
+}
+
+// shellWord quotes s for a POSIX shell when it holds anything but the
+// characters a path usually has.
+func shellWord(s string) string {
+	safe := true
+	for _, r := range s {
+		if !(r == '/' || r == '.' || r == '-' || r == '_' || r == '~' || r == ':' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+			safe = false
+			break
+		}
+	}
+	if safe && s != "" {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

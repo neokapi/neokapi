@@ -1005,6 +1005,8 @@ export interface CheckoutStateNotice {
   digest?: string;
   /** The project an earlier record here belongs to, when it is another project. */
   other_project?: string;
+  /** The terminal command that takes what an unconfirmed relink leaves, for a person who knows it is theirs. */
+  same_project_command?: string;
 }
 
 /** What a pull merged. */

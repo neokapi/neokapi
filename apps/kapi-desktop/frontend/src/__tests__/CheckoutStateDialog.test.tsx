@@ -49,6 +49,7 @@ const RELINK: CheckoutStateNotice = {
     source_removed: false,
   },
   digest: "r1",
+  same_project_command: "kapi state relink --from /p --same-project -p /p",
 };
 
 function Harness({ tabID, enabled = true }: { tabID: string | null; enabled?: boolean }) {
@@ -97,7 +98,7 @@ describe("telling a person about state an earlier kapi kept", () => {
     );
     const row = slot("checkout-state-state-in-tree", dialog)!;
     const contents = slot("checkout-state-contents", row)!.textContent;
-    expect(contents).toContain("The original text of withheld values");
+    expect(contents).toContain("The original text of values hidden before translation");
     expect(contents).toContain("The saved sign-in for https://app.example, project p1");
     expect(slot("checkout-state-count", row)?.textContent).toBe("2 files");
     expect(slot("checkout-state-total", row)?.textContent).toBe(formatSize(3072));
@@ -109,11 +110,13 @@ describe("telling a person about state an earlier kapi kept", () => {
 
     await userEvent.click(within(row).getByRole("checkbox"));
     await userEvent.click(
-      within(row).getByRole("button", { name: "Bring in the state from this folder" }),
+      within(row).getByRole("button", { name: "Bring in the saved data from this folder" }),
     );
     expect(apply).toHaveBeenCalledWith("t1", "state-in-tree", "d1", true);
     await waitFor(() =>
-      expect(slot("checkout-state-taken", row)?.textContent).toBe("This state is now in use here."),
+      expect(slot("checkout-state-taken", row)?.textContent).toBe(
+        "This saved data is now in use here.",
+      ),
     );
 
     await userEvent.click(within(dialog).getAllByRole("button", { name: "Close" })[0]);
@@ -134,17 +137,17 @@ describe("telling a person about state an earlier kapi kept", () => {
     const row = slot("checkout-state-state-in-tree", dialog)!;
     await userEvent.click(within(row).getByRole("checkbox"));
     await userEvent.click(
-      within(row).getByRole("button", { name: "Bring in the state from this folder" }),
+      within(row).getByRole("button", { name: "Bring in the saved data from this folder" }),
     );
     await waitFor(() => expect(slot("checkout-state-taken", row)).not.toBeNull());
     expect(slot("checkout-state-taken", row)?.textContent).toContain(
-      "This state is now in use here.",
+      "This saved data is now in use here.",
     );
     expect(slot("checkout-state-remaining", row)?.textContent).toContain("sync/sync-cache.json");
     expect(slot("checkout-state-error", row)).toBeNull();
   });
 
-  it("offers an unverified relink without the withheld text and sign-in", async () => {
+  it("offers an unverified relink without the hidden values and sign-in, and names the command that states it", async () => {
     vi.spyOn(api, "pendingCheckoutState").mockResolvedValue([RELINK]);
     const apply = vi.spyOn(api, "applyCheckoutStateTransfer").mockResolvedValue({
       ...RELINK.transfer!,
@@ -156,11 +159,31 @@ describe("telling a person about state an earlier kapi kept", () => {
     expect(row.textContent).toContain("Kept for an earlier checkout at this location");
     expect(slot("checkout-state-count", row)?.textContent).toBe("1 file");
     expect(slot("checkout-state-withheld", row)?.textContent).toContain(
-      "withheld text and the saved sign-in stay where they are",
+      "the original text of hidden values and the saved sign-in stay where they are",
     );
     expect(within(row).queryByRole("checkbox")).toBeNull();
-    await userEvent.click(within(row).getByRole("button", { name: "Use this state here" }));
+    expect(slot("checkout-state-same-project", row)?.textContent).toContain(
+      "kapi state relink --from /p --same-project -p /p",
+    );
+    await userEvent.click(within(row).getByRole("button", { name: "Use this saved data here" }));
     expect(apply).toHaveBeenCalledWith("t1", "earlier-at-path", "r1", false);
+  });
+
+  it("offers no action when everything stays, and the command to copy", async () => {
+    vi.spyOn(api, "pendingCheckoutState").mockResolvedValue([
+      { ...RELINK, transfer: { ...RELINK.transfer!, files: [] } },
+    ]);
+    const copy = vi
+      .spyOn(await import("../lib/clipboard"), "writeClipboardText")
+      .mockResolvedValue();
+    render(<Harness tabID="t1" />);
+    const dialog = await screen.findByTestId("checkout-state");
+    const row = slot("checkout-state-earlier-at-path", dialog)!;
+    expect(within(row).queryByRole("button", { name: "Use this saved data here" })).toBeNull();
+    expect(slot("checkout-state-files", row)).toBeNull();
+    await userEvent.click(within(row).getByRole("button", { name: "Copy" }));
+    expect(copy).toHaveBeenCalledWith("kapi state relink --from /p --same-project -p /p");
+    await waitFor(() => expect(within(row).getByRole("button", { name: "Copied" })).toBeTruthy());
   });
 
   it("leaves the sign-in of another server project and says which project it belongs to", async () => {
@@ -223,7 +246,7 @@ describe("telling a person about state an earlier kapi kept", () => {
     const dialog = await screen.findByTestId("checkout-state");
     const row = slot("checkout-state-state-in-tree", dialog)!;
     await userEvent.click(
-      within(row).getByRole("button", { name: "Bring in the state from this folder" }),
+      within(row).getByRole("button", { name: "Bring in the saved data from this folder" }),
     );
     expect(apply).toHaveBeenCalledWith("t1", "state-in-tree", "d1", false);
     await waitFor(() =>
