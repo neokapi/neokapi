@@ -11,9 +11,9 @@ name: Deploy Landing + Docs
 #   /docs/next/  next, built from every push to main
 #
 # The landing deploys from main only. A dispatch takes a `ref`: run it from
-# main with `ref: docs/stable` to publish the stable docs with main's steps.
-# Each channel syncs only its own prefix; see
-# docs/internals/docs-release-channels.md.
+# main with `ref: docs/stable` to publish the stable docs. The workflow's steps
+# are main's; a repository action it calls (setup-node-ui) is the ref's copy.
+# See docs/internals/docs-release-channels.md.
 
 on:
   workflow_dispatch:

@@ -2,7 +2,8 @@
 """Decide whether a rebuilt image may replace the image `latest` points at.
 
     scripts/image-scan-compare.py compare <candidate.json> --image-id <sha256:...>
-                                  (--current <current.json> | --no-current)
+                                  (--current <current.json> --current-ref <image@digest>
+                                   | --no-current)
     scripts/image-scan-compare.py image-id <oci-layout-dir> <os/arch>
     scripts/image-scan-compare.py --self-test
 
@@ -12,8 +13,10 @@ secret scanners; both are compared. Misconfiguration scanning is not run on
 images, so there is nothing of it to compare.
 
 A report counts as evidence only when it names the scanner version, has at
-least one result with a package inventory, and (for the candidate) its image
-id is the config digest of the archive about to be published. Anything less
+least one result with a package inventory, and is tied to its image: the
+candidate's image id is the config digest of the layout about to be
+published, and the current report scanned the exact digest `latest` pointed
+at (--current-ref, its ArtifactName). Anything less
 is an error, never "no worse": a scan that inspected nothing proves nothing.
 
 A finding is (target, class, identifier, package, installed version), so a
@@ -69,7 +72,8 @@ def describe(f: tuple) -> str:
     return f"{kind} {ident} in {pkg} {version} ({target})"
 
 
-def decide(candidate: object, image_id: str, current: object | None, no_current: bool) -> tuple[int, list[str]]:
+def decide(candidate: object, image_id: str, current: object | None, no_current: bool,
+           current_ref: str = "") -> tuple[int, list[str]]:
     """Return (exit status, lines to print)."""
     lines = []
     problems = evidence_problems(candidate)
@@ -84,6 +88,8 @@ def decide(candidate: object, image_id: str, current: object | None, no_current:
             lines.append(f"::error::finding in a first publish: {describe(f)}")
         return (1 if cand else 0), lines
     problems = evidence_problems(current)
+    if not problems and current.get("ArtifactName") != current_ref:
+        problems.append(f"it scanned {current.get('ArtifactName')!r}, not {current_ref!r}")
     if problems:
         return CURRENT_INVALID, [f"::error::the current image's report is not evidence: {p}" for p in problems]
     cur = findings(current)
@@ -142,16 +148,18 @@ def main(argv: list[str]) -> int:
             flag = args.pop(0)
             if flag == "--no-current":
                 opts["no_current"] = True
-            elif flag in ("--image-id", "--current") and args:
+            elif flag in ("--image-id", "--current", "--current-ref") and args:
                 opts[flag] = args.pop(0)
             else:
                 print(__doc__)
                 return USAGE
-        if "--image-id" not in opts or ("--current" in opts) == bool(opts.get("no_current")):
+        if "--image-id" not in opts or ("--current" in opts) == bool(opts.get("no_current")) \
+                or ("--current" in opts) != ("--current-ref" in opts):
             print(__doc__)
             return USAGE
         current = load(opts["--current"]) if "--current" in opts else None
-        status, lines = decide(load(argv[1]), opts["--image-id"], current, bool(opts.get("no_current")))
+        status, lines = decide(load(argv[1]), opts["--image-id"], current, bool(opts.get("no_current")),
+                               opts.get("--current-ref", ""))
         for line in lines:
             print(line)
         return status
@@ -162,8 +170,11 @@ def main(argv: list[str]) -> int:
 def self_test() -> int:
     image = "sha256:aaa"
 
-    def report(*vulns, packages=True, image_id=image, version="0.76.2"):
+    ref = "ghcr.io/neokapi/x@sha256:ccc"
+
+    def report(*vulns, packages=True, image_id=image, version="0.76.2", artifact=ref):
         return {
+            "ArtifactName": artifact,
             "Trivy": {"Version": version} if version else {},
             "Metadata": {"ImageID": image_id} if image_id else {},
             "Results": [{
@@ -186,17 +197,18 @@ def self_test() -> int:
         ("same findings", report(("CVE-1", "libxml2", "2.13.9-r2")), base, False, 0),
         ("current report empty", report(), {"Results": []}, False, CURRENT_INVALID),
         ("current report unreadable", report(), {"_unreadable": "x"}, False, CURRENT_INVALID),
+        ("current report of another digest", report(), report(artifact="ghcr.io/neokapi/x:latest"), False, CURRENT_INVALID),
         ("missing baseline, clean candidate", report(), None, True, 0),
         ("missing baseline, candidate with a finding", report(("CVE-1", "libxml2", "2.13.9-r2")), None, True, 1),
     ]
     failures = []
     for name, cand, cur, no_current, want in cases:
-        got, lines = decide(cand, image, cur, no_current)
+        got, lines = decide(cand, image, cur, no_current, "" if no_current else ref)
         if got != want:
             failures.append(f"{name}: exit {got}, want {want} ({lines})")
     secret = report()
     secret["Results"][0]["Secrets"] = [{"RuleID": "aws-access-key-id", "Category": "AWS", "StartLine": 3}]
-    if decide(secret, image, report(), False)[0] != 1:
+    if decide(secret, image, report(), False, ref)[0] != 1:
         failures.append("a new secret is worse")
     if failures:
         print("image-scan-compare self-test: FAIL")

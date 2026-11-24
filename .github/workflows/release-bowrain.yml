@@ -605,6 +605,10 @@ jobs:
   docker-manifest:
     name: Docker Manifests
     runs-on: ubuntu-latest
+    # Moves `latest`; the weekly rebuild's publish job shares the group.
+    concurrency:
+      group: bowrain-latest
+      cancel-in-progress: false
     needs: [setup, docker]
     if: needs.setup.outputs.build_only != 'true'
     permissions:
@@ -650,6 +654,10 @@ jobs:
   docker-keycloak:
     name: Docker (bowrain-keycloak)
     runs-on: ubuntu-latest
+    # Moves `latest`; the weekly rebuild's publish job shares the group.
+    concurrency:
+      group: bowrain-latest
+      cancel-in-progress: false
     needs: [setup, package-bowrain-cli, publish-bowrain-cli]
     if: needs.setup.outputs.build_only != 'true'
     permissions:
@@ -758,6 +766,7 @@ jobs:
           image-ref: ghcr.io/neokapi/${{ matrix.image }}:${{ needs.setup.outputs.version }}
           severity: CRITICAL,HIGH
           format: json
+          list-all-pkgs: true
           output: records/${{ matrix.image }}-${{ matrix.arch }}.scan.json
           exit-code: "0"
           trivyignores: ${{ matrix.ignorefile || '' }}
@@ -787,8 +796,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          # The index digest, and this platform's manifest digest within it.
           docker buildx imagetools inspect "ghcr.io/neokapi/$IMAGE:$VERSION" --format '{{json .Manifest}}' \
-            | jq -r '.digest' > "records/$IMAGE-$ARCH.digest.txt"
+            | jq -r --arg arch "$ARCH" '"index " + .digest, (.manifests[] | select(.platform.architecture == $arch and .platform.os == "linux") | "linux/" + $arch + " " + .digest)' \
+            > "records/$IMAGE-$ARCH.digest.txt"
           echo "ghcr.io/neokapi/$IMAGE:$VERSION $(cat "records/$IMAGE-$ARCH.digest.txt")"
           gh release upload "$TAG" records/"$IMAGE-$ARCH".* --clobber
 

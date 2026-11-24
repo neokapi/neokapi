@@ -41,9 +41,16 @@ jobs:
       rebuild_tag: ${{ steps.r.outputs.rebuild_tag }}
       build_only: ${{ steps.r.outputs.build_only }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/last-release-tag.py
+          sparse-checkout-cone-mode: false
+
+      # The highest bowrain-v* tag, which must have a published GitHub Release
+      # and a commit on main; otherwise the run stops (scripts/last-release-tag.py).
       - id: r
         env:
-          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
         run: |
@@ -52,16 +59,7 @@ jobs:
           if [ "$EVENT" = schedule ] && [ "$REF" = refs/heads/main ]; then
             build_only=false
           fi
-          # The highest bowrain-v* version tag, release candidates included,
-          # with a release candidate below its release (~ sorts first).
-          tag="$(git ls-remote --tags --refs "$REPO_URL" 'refs/tags/bowrain-v*' \
-            | sed 's|.*refs/tags/||' \
-            | grep -E '^bowrain-v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$' \
-            | sed 's/-rc/~rc/' | sort -V | tail -1 | sed 's/~rc/-rc/')"
-          if [ -z "$tag" ]; then
-            echo "::error::no bowrain-v* version tag found"
-            exit 1
-          fi
+          tag="$(python3 scripts/last-release-tag.py "$REPO")"
           version="${tag#bowrain-v}"
           {
             echo "tag=$tag"
@@ -254,17 +252,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Is an image published under latest?
+      # The digest `latest` points at now: the scan reads that digest, and the
+      # publish moves `latest` only while it still points there. An image that
+      # is not there is "absent"; any other failure to read it stops the run.
+      - name: Read the digest under latest
         id: exists
         env:
           IMAGE: ${{ matrix.image }}
         run: |
+          set -uo pipefail
           mkdir -p "$RUNNER_TEMP/current"
-          if docker buildx imagetools inspect "ghcr.io/neokapi/$IMAGE:latest" > /dev/null; then
+          if out="$(docker buildx imagetools inspect "ghcr.io/neokapi/$IMAGE:latest" --format '{{json .Manifest}}' 2>"$RUNNER_TEMP/inspect.err")"; then
+            digest="$(printf '%s' "$out" | jq -r .digest)"
+            echo "$digest" > "$RUNNER_TEMP/current/digest.txt"
             echo "present=true" >> "$GITHUB_OUTPUT"
-          else
+            echo "ref=ghcr.io/neokapi/$IMAGE@$digest" >> "$GITHUB_OUTPUT"
+            echo "latest is $digest"
+          elif grep -qiE 'not found|manifest unknown' "$RUNNER_TEMP/inspect.err"; then
             echo "no image under latest" > "$RUNNER_TEMP/current/absent"
             echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::could not read ghcr.io/neokapi/$IMAGE:latest: $(cat "$RUNNER_TEMP/inspect.err")"
+            exit 1
           fi
 
       - name: Scan ghcr.io/neokapi/${{ matrix.image }}:latest
@@ -274,7 +283,7 @@ jobs:
           TRIVY_PLATFORM: ${{ matrix.platform }}
         with:
           version: ${{ env.TRIVY_VERSION }}
-          image-ref: ghcr.io/neokapi/${{ matrix.image }}:latest
+          image-ref: ${{ steps.exists.outputs.ref }}
           severity: CRITICAL,HIGH
           format: json
           list-all-pkgs: true
@@ -302,6 +311,12 @@ jobs:
     needs: [setup, build, scan-current]
     if: needs.setup.outputs.build_only != 'true'
     runs-on: ubuntu-latest
+    # The release jobs that move `latest` share this group, so a release and a
+    # rebuild never move it at once; the digest check catches a release that
+    # landed between the scan and this job.
+    concurrency:
+      group: bowrain-latest
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write # push the rebuilt images to ghcr.io
@@ -340,7 +355,7 @@ jobs:
               if [ -f "$cur/absent" ]; then
                 baseline=(--no-current)
               else
-                baseline=(--current "$cur/current.json")
+                baseline=(--current "$cur/current.json" --current-ref "ghcr.io/neokapi/$image@$(cat "$cur/digest.txt")")
               fi
               status=0
               python3 scripts/image-scan-compare.py compare "$rec/candidate.json" \
@@ -394,6 +409,18 @@ jobs:
             fi
           done
           for image in "${images[@]}"; do
+            cur="$A/current-$image-amd64"
+            now="$(docker buildx imagetools inspect "ghcr.io/neokapi/$image:latest" --format '{{json .Manifest}}' 2>/dev/null | jq -r .digest || true)"
+            if [ -f "$cur/absent" ]; then
+              want=""
+              now="${now/null/}"
+            else
+              want="$(cat "$cur/digest.txt")"
+            fi
+            if [ "$now" != "$want" ]; then
+              echo "::error::ghcr.io/neokapi/$image:latest moved from '${want:-absent}' to '$now' during the rebuild (a release?); latest is left alone"
+              exit 1
+            fi
             docker buildx imagetools create -t "ghcr.io/neokapi/$image:latest" "ghcr.io/neokapi/$image:$TAG"
           done
 
