@@ -414,7 +414,10 @@ func TestXmlLangOverLang(t *testing.T) {
 	assert.False(t, blocks[0].HasTarget("de"))
 }
 
-// okapi: TmxFilterTest#testRelaxLanguageMatching
+// Unreleased upstream: Okapi added TmxFilterTest#testRelaxLanguageMatching in f11a122530,
+// after the pinned v1.48.0; restore it as an okapi: annotation once a
+// pinned release has it. The native reader implements relaxed matching;
+// the v1.48.0 TMX filter the bridge runs does not.
 // Native langMatches() implements relaxed BCP-47 matching: a bare primary
 // subtag ("en") matches a regioned variant ("en-US"). TMX 1.4 keys TUVs by
 // xml:lang, and Okapi's newer relax-matching lets srclang="en" select an
@@ -438,7 +441,10 @@ func TestRelaxLanguageMatching(t *testing.T) {
 	assert.Equal(t, "US English", blocks[0].SourceText())
 }
 
-// okapi: TmxFilterTest#testRelaxLanguageMatchingInTheOtherDirection
+// Unreleased upstream: Okapi added TmxFilterTest#testRelaxLanguageMatchingInTheOtherDirection in f11a122530,
+// after the pinned v1.48.0; restore it as an okapi: annotation once a
+// pinned release has it. The native reader implements relaxed matching;
+// the v1.48.0 TMX filter the bridge runs does not.
 // Relaxed matching is symmetric: srclang="en-US" also selects a bare "en"
 // <tuv> as the source, mirroring Okapi's reverse-direction relax test.
 func TestRelaxLanguageMatchingReverse(t *testing.T) {
@@ -461,7 +467,10 @@ func TestRelaxLanguageMatchingReverse(t *testing.T) {
 	assert.True(t, blocks[0].HasTarget("fr"))
 }
 
-// okapi: TmxFilterTest#testRelaxLanguageMatchingStillDisallowsRegionMismatches
+// Unreleased upstream: Okapi added TmxFilterTest#testRelaxLanguageMatchingStillDisallowsRegionMismatches in f11a122530,
+// after the pinned v1.48.0; restore it as an okapi: annotation once a
+// pinned release has it. The native reader implements relaxed matching;
+// the v1.48.0 TMX filter the bridge runs does not.
 // Relaxed matching still rejects region mismatches: srclang="en-US" must NOT
 // select an "en-GB" <tuv>. Here neither <tuv> matches the source language, so
 // the reader falls back to the first <tuv> ("en-GB") as the source.
