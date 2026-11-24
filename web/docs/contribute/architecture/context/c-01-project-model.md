@@ -164,7 +164,8 @@ records the location and the identity.
   location names the same folder now is used.
 - **Another folder at a recorded location** (a checkout deleted and something
   else cloned there) gets fresh state. The earlier state is kept under its own
-  key, and kapi says so once, with the command that relinks it.
+  key, and kapi says so once: with the command that relinks it when the state
+  is this project's, and that it belongs to another project otherwise.
 - **A copy, a restored backup or a checkout moved to another volume** has
   another identity and starts without state. kapi rebuilds `work/`; a person
   brings the rest across with `kapi state relink --from <old location>`.
@@ -203,6 +204,25 @@ size and the server any sync state was issued by, ask at a terminal or take
 `--yes`, take exactly what they listed, and refuse a link or an irregular file.
 `import` leaves the copies in the checkout unless asked to remove them. An agent
 or an MCP call cannot run either. `kapi state path` prints the directory.
+
+`checkout.json` also names the project the state belongs to: the recipe's `id`
+and its name, written when kapi first writes the checkout's state and kept
+current after (`dataroot.CheckoutProject`). The id is the project's identity
+(`KapiProject.Identity`): two checkouts of one repository share it,
+and renaming the project or moving its folder leaves it. A relink compares the
+recorded project with the checkout's (`project.PlanRelink`). Two different ids,
+an id recorded where the recipe now has none, or two recipes with no id and
+different names are different projects, and the relink is refused naming both.
+A record that cannot say (written before kapi recorded the project, or a recipe
+with no id) brings the saved filters and leaves the vault and the sync state in
+place, with the state directory, unless the person passes `--same-project`. The plan
+shows the servers the sync state was issued by. A relink removes the directory it took from only once every file is
+in place and read back, and the plan says so.
+
+`kapi state import` makes no such comparison: the state it takes sits in the
+same folder as the recipe it is taken for, so the folder names the project.
+Its plan shows the servers the sync state was issued by before the person
+confirms.
 
 The parse cache is the one part of the state a CI job carries between runs.
 `host.ParseCacheDir` names its directory for every reader and writer:

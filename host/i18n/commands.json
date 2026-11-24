@@ -3976,16 +3976,19 @@
             "short": "Print the directory that holds the checkout's state"
           },
           "relink": {
-            "example": "  kapi state relink --from ~/old/app -p ./app",
+            "example": "  kapi state relink --from ~/old/app -p ./app\n  kapi state relink --from ~/old/app -p ./app --same-project",
             "flags": {
               "from": {
                 "usage": "the location the checkout's state was recorded for"
               },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "same-project": {
+                "usage": "state that the recorded state is this project's, so the vault and the sync state come across too"
               }
             },
-            "long": "Take the state kapi recorded for a checkout at another location into this\ncheckout's state directory: for a checkout moved to another volume, restored\nfrom a backup, or cloned again. The files are shown first and confirmed at the\nterminal. With no terminal attached nothing is taken unless --yes is given.\nThe work directory is rebuilt here rather than taken, and the state directory\nthe files came from is removed once they are in place.",
+            "long": "Take the state kapi recorded for a checkout at another location into this\ncheckout's state directory: for a checkout moved to another volume, restored\nfrom a backup, or cloned again. The files are shown first and confirmed at the\nterminal. With no terminal attached nothing is taken unless --yes is given.\nThe work directory is rebuilt here rather than taken, and the state directory\nthe files came from is removed once they are in place and read back.\n\nkapi takes only this project's state. State recorded for another project is\nrefused, so one project's vault and server sign-in stay out of another\nproject's checkout. When kapi's record cannot say which project the state\nbelongs to (an earlier kapi recorded it, or a recipe has no id), the vault and\nthe sync state stay where they are unless --same-project is given.",
             "short": "Take the state kapi recorded for the checkout's earlier location"
           },
           "short": "Show where a checkout's state lives, and bring state into it"

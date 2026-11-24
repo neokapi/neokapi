@@ -313,7 +313,7 @@ func TestRelinkMovesTheStateOfAnEarlierLocation(t *testing.T) {
 
 	b := newCheckout(t, filepath.Join(t.TempDir(), "new"))
 	require.NoError(t, EnsureLayout(b))
-	plan, err := PlanRelink(b, old)
+	plan, err := PlanRelink(b, old, RelinkOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, earlier, plan.From)
 	require.NoError(t, ApplyTransfer(b, plan, false))
@@ -322,6 +322,6 @@ func TestRelinkMovesTheStateOfAnEarlierLocation(t *testing.T) {
 	assert.JSONEq(t, `{"mine":true}`, string(data))
 	assert.NoDirExists(t, earlier)
 
-	_, err = PlanRelink(b, filepath.Join(t.TempDir(), "nowhere"))
+	_, err = PlanRelink(b, filepath.Join(t.TempDir(), "nowhere"), RelinkOptions{})
 	require.ErrorContains(t, err, "recorded no state")
 }
