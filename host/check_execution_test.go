@@ -21,6 +21,11 @@ func isolateCheckExecution(tb testing.TB) {
 	dir := tb.TempDir()
 	tb.Setenv("KAPI_NO_PROJECT", "1")
 	tb.Setenv("KAPI_CONFIG_DIR", filepath.Join(dir, "config"))
+	// The test's own data root, and so its own workspace: a test binary
+	// resolves the data root per process unless KAPI_DATA_DIR names one, so
+	// without it a project id derived from the test's name would meet its
+	// own earlier run's store under -count.
+	tb.Setenv("KAPI_DATA_DIR", filepath.Join(dir, "data", "kapi"))
 	tb.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
 	tb.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	tb.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")

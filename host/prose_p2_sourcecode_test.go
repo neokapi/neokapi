@@ -466,9 +466,12 @@ func TestProseP2_typescript(t *testing.T) {
 		readProjectContext(t, root)
 		return root
 	}
-	checkProject := func(t *testing.T, root string) check.Report {
+	// The app isolates the test's workspace, so it comes first and the
+	// project's context is imported into that workspace.
+	checkProject := func(t *testing.T, item string) check.Report {
 		t.Helper()
 		a := sourcecodeApp(t, nil)
+		root := declaredProject(t, item)
 		cmd := executionCommand(t)
 		cmd.Flags().String(projectFlagName, filepath.Join(root, "kapi.yaml"), "")
 		report, err := a.ComputeCheck(cmd, nil)
@@ -477,7 +480,7 @@ func TestProseP2_typescript(t *testing.T) {
 	}
 
 	t.Run("a directive the recipe declares is set aside through the plugin", func(t *testing.T) {
-		report := checkProject(t, declaredProject(t, "      - path: \"src/*.ts\"\n        comments:\n          directives: [\"okapi-skip:\"]\n"))
+		report := checkProject(t, "      - path: \"src/*.ts\"\n        comments:\n          directives: [\"okapi-skip:\"]\n")
 		assert.NotEqual(t, check.VerdictDidNotRun, report.Verdict, report.DidNotRun)
 		assert.Empty(t, findingsOf(report, "voice"), "the declared marker line is not prose")
 		assert.Equal(t, 2, report.Target.Blocks, "the comment splits around the marker")
@@ -485,7 +488,7 @@ func TestProseP2_typescript(t *testing.T) {
 	})
 
 	t.Run("must fail: undeclared, the marker line is prose", func(t *testing.T) {
-		report := checkProject(t, declaredProject(t, "      - path: \"src/*.ts\"\n        comments: true\n"))
+		report := checkProject(t, "      - path: \"src/*.ts\"\n        comments: true\n")
 		require.Len(t, findingsOf(report, "voice"), 1)
 		assert.Equal(t, 1, report.Target.Blocks)
 	})

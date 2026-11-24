@@ -79,6 +79,11 @@ func writeTierRecipe(t *testing.T, target bool) string {
 func isolateHelp(t *testing.T) {
 	t.Helper()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	// The data root holds the workspace, every project's store in it. A test
+	// binary resolves it per process unless KAPI_DATA_DIR names one, and
+	// XDG_DATA_HOME does not move it, so each test names its own: a test run
+	// twice in one process (-count) then starts from an empty workspace.
+	t.Setenv("KAPI_DATA_DIR", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
