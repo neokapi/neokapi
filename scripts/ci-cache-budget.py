@@ -21,8 +21,10 @@ prune deletes two kinds of cache nobody will read:
 
 It needs a token with `actions: write` and runs from main.
 
-check fails when the ordinary caches pass ORDINARY_BYTES (7.5 GiB) or the
-total passes BUDGET_BYTES (9 GiB). The warm release caches (go-release-*,
+check fails when, after what prune removes, the ordinary caches pass
+ORDINARY_BYTES (7.5 GiB) or the total passes BUDGET_BYTES (9 GiB). A family's
+older copy between a save and the next prune is a transient every save makes,
+so it does not count. The warm release caches (go-release-*,
 icu-static-*, about 1.8 GiB) are read only at release time, so GitHub's
 least-recently-used eviction past 10 GiB takes them first; the ordinary
 budget leaves them room. The scheduled cache-budget workflow runs check, and
@@ -149,12 +151,23 @@ def over_budget(caches: list[dict]) -> list[str]:
     return out
 
 
+def after_prune(caches: list[dict]) -> list[dict]:
+    """The caches prune leaves: each family's newest copy on main, nothing
+    elsewhere. A new copy saved a moment before the next prune is a transient
+    every save makes; check judges the state prune converges on."""
+    doomed = {c["id"] for c in superseded(caches) + off_main(caches)}
+    return [c for c in caches if c["id"] not in doomed]
+
+
 def main_check(repo: str) -> int:
     caches = list_caches(repo)
     print(report(caches))
-    ordinary = sum(c["size_in_bytes"] for c in caches if not is_release(c["key"]))
-    print(f"{ordinary / 1024**3:9.2f} GiB ordinary, {(sum(c['size_in_bytes'] for c in caches) - ordinary) / 1024**3:.2f} GiB warm release caches")
-    problems = over_budget(caches)
+    steady = after_prune(caches)
+    ordinary = sum(c["size_in_bytes"] for c in steady if not is_release(c["key"]))
+    print(f"after prune: {ordinary / 1024**3:.2f} GiB ordinary, "
+          f"{(sum(c['size_in_bytes'] for c in steady) - ordinary) / 1024**3:.2f} GiB warm release caches "
+          f"({len(caches) - len(steady)} copies prune removes)")
+    problems = over_budget(steady)
     for problem in problems:
         print(f"::error::{problem}. Find the family that grew above.")
     return 1 if problems else 0
@@ -201,6 +214,15 @@ def self_test() -> int:
     if gone != [5, 8, 9]:
         failures.append(f"every cache off main should go, read recently or not: [5, 8, 9], got {gone}")
     gib = 1024**3
+    # Two copies of one family a moment after a save: only the newest counts.
+    transient = [c(30, "go-build-race-" + sha(30), size=int(4 * gib), created="2026-11-22T09:00:00Z"),
+                 c(31, "go-build-race-" + sha(31), size=int(4 * gib), created="2026-11-22T10:00:00Z"),
+                 c(32, "go-build-race-" + sha(32), size=1, ref="refs/pull/1/merge")]
+    steady = after_prune(transient)
+    if [x["id"] for x in steady] != [31] or over_budget(steady):
+        failures.append(f"after prune only the newest copy counts: {[x['id'] for x in steady]}, {over_budget(steady)}")
+    if not over_budget(transient):
+        failures.append("the raw listing of two 4 GiB copies is over budget; only after_prune excuses it")
     ordinary_full = [c(20, "go-build-x-" + sha(20), size=int(7.6 * gib))]
     if not any("ordinary" in x for x in over_budget(ordinary_full)):
         failures.append("ordinary caches past 7.5 GiB must fail")
