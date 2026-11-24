@@ -86,6 +86,38 @@ func TestRedacting_RedactsEveryFieldOfATranslateRequest(t *testing.T) {
 	assert.Equal(t, map[string]string{`<x id="rdx1/"/>`: `<x id="rdx1/"/>`}, sent.PreferredTerms)
 }
 
+// A rejected draft and the reviewer's note go out under the policy that
+// redacted the block: a withheld value in either never reaches the model.
+func TestRedacting_RedactsTheReviewFeedbackOfATranslateRequest(t *testing.T) {
+	mock := NewMockProvider()
+	p := Redacting(mock)
+	ctx, _ := egressCtx(t)
+	req := TranslateRequest{
+		Source:         `Write to <x id="rdx1/"/> today.`,
+		SourceLanguage: "en",
+		TargetLocale:   "fr",
+		BlockContext: prompt.Context{
+			Rejections: []prompt.Rejection{
+				{Text: "Écrivez à Ada Lovelace aujourd'hui.", Reasons: []string{"the tone does not fit"}, Note: "Ada Lovelace prefers tu."},
+				{Reasons: []string{"the meaning is wrong"}, Note: "Say who Ada Lovelace is."},
+			},
+		},
+	}
+	_, err := p.Translate(ctx, req)
+	require.NoError(t, err)
+	require.Len(t, mock.TranslateCalls, 1)
+	sent := mock.TranslateCalls[0]
+	raw, err := json.Marshal(sent)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "Lovelace")
+	require.Len(t, sent.BlockContext.Rejections, 2)
+	assert.Equal(t, `Écrivez à <x id="rdx1/"/> aujourd'hui.`, sent.BlockContext.Rejections[0].Text)
+	assert.Equal(t, `<x id="rdx1/"/> prefers tu.`, sent.BlockContext.Rejections[0].Note)
+	assert.Equal(t, []string{"the tone does not fit"}, sent.BlockContext.Rejections[0].Reasons)
+	assert.Empty(t, sent.BlockContext.Rejections[1].Text, "a rejection whose wording is gone stays without it")
+	assert.Equal(t, "Ada Lovelace prefers tu.", req.BlockContext.Rejections[0].Note, "the caller's request is left as it was")
+}
+
 // With no Egress on the context, a request goes out as it was given.
 func TestRedacting_LeavesARequestWithNoPolicyAsItIs(t *testing.T) {
 	mock := NewMockProvider()
