@@ -17,13 +17,27 @@ jobs:
       fail-fast: false
       matrix:
         image:
+          # The production line: `main`, what a build of the main branch
+          # published last. Production deploys that build by its commit tag on
+          # every merge, so this is what it runs.
+          - ghcr.io/neokapi/bowrain-server:main
+          - ghcr.io/neokapi/bowrain-worker:main
+          - ghcr.io/neokapi/bowrain-keycloak:main
+          - ghcr.io/neokapi/bowrain-pulse:main
+          - ghcr.io/neokapi/bravo-agent:main
+          - ghcr.io/neokapi/bravo-sandbox-node:main
+          - ghcr.io/neokapi/bravo-sandbox-python:main
+          # The self-host line: `latest`, the last release, rebuilt weekly.
           - ghcr.io/neokapi/bowrain-server:latest
           - ghcr.io/neokapi/bowrain-worker:latest
           - ghcr.io/neokapi/bowrain-web:latest
           - ghcr.io/neokapi/bowrain-keycloak:latest
         # An image's approved exemptions, each with an expiry
-        # (.github/trivy/). Only the image named here reads its file.
+        # (.github/trivy/). Only the images named here read the file: the
+        # Keycloak image, on both lines; each entry names its package.
         include:
+          - image: ghcr.io/neokapi/bowrain-keycloak:main
+            ignorefile: .github/trivy/bowrain-keycloak.trivyignore.yaml
           - image: ghcr.io/neokapi/bowrain-keycloak:latest
             ignorefile: .github/trivy/bowrain-keycloak.trivyignore.yaml
     steps:
