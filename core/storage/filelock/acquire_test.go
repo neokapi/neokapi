@@ -70,7 +70,14 @@ func lockerLoop(ctx context.Context, path string, rounds int) error {
 // this process and two in processes of their own, each taking the lock
 // stressRounds times, while the sweep runs with an age of zero, so every
 // lock file no one holds is a candidate. No two holders may ever be inside
-// at once, and the sweep must have removed the file while the lockers ran.
+// at once, on every platform.
+//
+// Where lockers run in processes of their own, the sweep must also have
+// removed the file while they ran, which proves the race was exercised. The
+// browser build (js/wasm) starts no process and runs one goroutine at a time,
+// so there the run proves only that no interleaving it produced let two
+// holders in. The removal itself is pinned on every platform by
+// TestSweep_RemovesAStaleFileAndAcquireMakesANewOne.
 func TestAcquire_AndSweepNeverLetTwoHoldersIn(t *testing.T) {
 	if path := os.Getenv(stressPathEnv); path != "" {
 		rounds, err := strconv.Atoi(os.Getenv(stressRoundsEnv))
@@ -127,8 +134,42 @@ func TestAcquire_AndSweepNeverLetTwoHoldersIn(t *testing.T) {
 	for err := range errs {
 		require.NoError(t, err)
 	}
-	assert.Positive(t, removed.Load(), "the sweep removed the lock file while the lockers ran")
+	if runtime.GOOS != "js" {
+		assert.Positive(t, removed.Load(), "the sweep removed the lock file while the lockers ran")
+	}
 	t.Logf("the sweep removed the lock file %d times", removed.Load())
+}
+
+// TestSweep_RemovesAStaleFileAndAcquireMakesANewOne pins, without relying on
+// a scheduler, the steps the stress test races: a sweep removes a stale lock
+// file no one holds; Acquire then makes a new one and holds it; a sweep with
+// no age leaves the held file; once released, the sweep removes it.
+func TestSweep_RemovesAStaleFileAndAcquireMakesANewOne(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "doc.lock")
+	require.NoError(t, os.WriteFile(path, nil, 0o600))
+	old := time.Now().Add(-48 * time.Hour)
+	require.NoError(t, os.Chtimes(path, old, old))
+
+	n, _, err := filelock.Sweep(dir, 24*time.Hour, 0, 100)
+	require.NoError(t, err)
+	require.Equal(t, 1, n, "the stale file no one holds is removed")
+	require.NoFileExists(t, path)
+
+	l, err := filelock.Acquire(context.Background(), path)
+	require.NoError(t, err)
+	require.FileExists(t, path, "Acquire makes the lock file again")
+	n, _, err = filelock.Sweep(dir, 0, 0, 100)
+	require.NoError(t, err)
+	assert.Zero(t, n, "a held file stays, whatever its age")
+	assert.FileExists(t, path)
+
+	l.Unlock()
+	require.NoError(t, l.Close())
+	n, _, err = filelock.Sweep(dir, 0, 0, 100)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n, "once released, it is removed")
+	assert.NoFileExists(t, path)
 }
 
 // TestSweep_LeavesAFileInUse pins what a sweep removes: a lock file older
@@ -273,4 +314,49 @@ func TestSweep_ReachesEveryFileInTurn(t *testing.T) {
 	left, err := filepath.Glob(filepath.Join(dir, "*.lock"))
 	require.NoError(t, err)
 	assert.Len(t, left, 27, "and leave every file in use")
+}
+
+// TestParseGoroutineID pins the parser of a stack's first line, and that a
+// line of any other shape reads as 0, the number of a goroutine that cannot
+// be told.
+func TestParseGoroutineID(t *testing.T) {
+	assert.Equal(t, uint64(18), filelock.ParseGoroutineID([]byte("goroutine 18 [running]:\nmain.main()")))
+	for _, line := range []string{"", "goroutine", "goroutine x [running]:", "thread 18 [running]:", "goroutine -1 [running]:"} {
+		assert.Zero(t, filelock.ParseGoroutineID([]byte(line)), "%q", line)
+	}
+}
+
+// TestAcquire_WaitsWhenTheGoroutineCannotBeTold pins what Acquire does when
+// the goroutine number cannot be read, so every goroutine reads as 0: it
+// records nothing, and a second goroutine waits for a held lock as it would
+// otherwise, instead of being refused as though it were the holder.
+func TestAcquire_WaitsWhenTheGoroutineCannotBeTold(t *testing.T) {
+	restore := filelock.BreakGoroutineIDs()
+	defer restore()
+	path := filepath.Join(t.TempDir(), "doc.lock")
+	first, err := filelock.Acquire(context.Background(), path)
+	require.NoError(t, err)
+
+	got := make(chan error, 1)
+	var second *filelock.Lock
+	go func() {
+		l, err := filelock.Acquire(context.Background(), path)
+		second = l
+		got <- err
+	}()
+	select {
+	case err := <-got:
+		t.Fatalf("the second goroutine returned while the first held the lock: %v", err)
+	case <-time.After(200 * time.Millisecond):
+	}
+	first.Unlock()
+	require.NoError(t, first.Close())
+	select {
+	case err := <-got:
+		require.NoError(t, err, "the second goroutine takes the lock once it is released")
+	case <-time.After(10 * time.Second):
+		t.Fatal("the second goroutine never took the released lock")
+	}
+	second.Unlock()
+	require.NoError(t, second.Close())
 }

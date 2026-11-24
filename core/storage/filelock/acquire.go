@@ -42,24 +42,22 @@ var holders = struct {
 }{by: map[string]uint64{}}
 
 // Acquire opens the lock file at path, takes the lock on it, and returns the
-// held Lock, on a file the path still names. A sweep may remove the file
-// while Acquire waits for the lock on it, and a lock on a removed file
-// excludes nobody, so Acquire then opens the path again. Each acquisition
-// marks the file as used now, which keeps Sweep away from it for its age.
-// So Acquire opens the path again at most once in practice: the file it
-// opens again is new, and a sweep removes only a file untouched for its age.
-// It keeps trying until ctx is done, because a sweep with a short age can
-// remove a new file more than once, and the lock is still taken in the end.
+// held Lock, on a file the path still names. A lock on a file a sweep removed
+// while Acquire waited excludes nobody, so Acquire then opens the path again,
+// until ctx is done. Each acquisition marks the file as used now, which keeps
+// Sweep away from it for its age, so in practice it reopens at most once.
 //
 // A path the calling goroutine already holds through Acquire is refused at
-// once with ErrHeldHere, rather than waited for.
+// once with ErrHeldHere, rather than waited for. When the goroutine cannot be
+// told (currentGoroutine answers 0), Acquire records nothing and waits like
+// any other locker: a guess would refuse a real wait.
 func Acquire(ctx context.Context, path string) (*Lock, error) {
 	key := holderKey(path)
-	me := goroutineID()
+	me := currentGoroutine()
 	holders.Lock()
 	owner, held := holders.by[key]
 	holders.Unlock()
-	if held && owner == me {
+	if me != 0 && held && owner == me {
 		return nil, fmt.Errorf("take the lock on %s: %w: a write of it started while this goroutine was writing it, and would wait for itself", path, ErrHeldHere)
 	}
 	for {
@@ -83,10 +81,12 @@ func Acquire(ctx context.Context, path string) (*Lock, error) {
 		if current {
 			now := time.Now()
 			_ = os.Chtimes(path, now, now)
-			holders.Lock()
-			holders.by[key] = me
-			holders.Unlock()
-			l.holder = key
+			if me != 0 {
+				holders.Lock()
+				holders.by[key] = me
+				holders.Unlock()
+				l.holder = key
+			}
 			return l, nil
 		}
 		l.Unlock()
@@ -114,16 +114,31 @@ func holderKey(path string) string {
 	return filepath.Clean(path)
 }
 
+// currentGoroutine names the calling goroutine for the record of holders: its
+// number, or 0 when it cannot be read. A test replaces it to force the 0.
+var currentGoroutine = goroutineID
+
 // goroutineID is the number the runtime gives the calling goroutine, read
-// from the first line of its stack ("goroutine 18 [running]:").
+// from the first line of its stack.
 func goroutineID() uint64 {
 	var buf [64]byte
-	b := buf[:runtime.Stack(buf[:], false)]
-	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	return parseGoroutineID(buf[:runtime.Stack(buf[:], false)])
+}
+
+// parseGoroutineID reads the number from a stack's first line ("goroutine 18
+// [running]:"), or answers 0 when the line does not have that shape.
+func parseGoroutineID(stack []byte) uint64 {
+	b, ok := bytes.CutPrefix(stack, []byte("goroutine "))
+	if !ok {
+		return 0
+	}
 	if i := bytes.IndexByte(b, ' '); i > 0 {
 		b = b[:i]
 	}
-	id, _ := strconv.ParseUint(string(b), 10, 64)
+	id, err := strconv.ParseUint(string(b), 10, 64)
+	if err != nil {
+		return 0
+	}
 	return id
 }
 
