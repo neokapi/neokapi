@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/dataroot"
+	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
 // TestFileHome_TwoHomesOnOneFileWaitForEachOther pins that two homes built
@@ -187,4 +188,47 @@ func TestFileHome_SweepsLockFilesUnusedForAMonth(t *testing.T) {
 	second := stale("second.lock")
 	write(`{"a": "2"}` + "\n")
 	assert.FileExists(t, second, "a second commit the same day does not sweep again")
+}
+
+// TestFileHome_ACommitInsideACommitOfTheSameFileFailsAtOnce pins that a
+// commit started while the same goroutine is committing the same file, here
+// from inside the first commit's lock, is refused at once with a message
+// naming the file, instead of waiting for itself. The first commit lands.
+func TestFileHome_ACommitInsideACommitOfTheSameFileFailsAtOnce(t *testing.T) {
+	t.Setenv(dataroot.EnvDir, t.TempDir())
+	path := filepath.Join(t.TempDir(), "a.json")
+	commit := func(body string) error {
+		home := filehome.New(nil, filehome.Options{})
+		before, err := filehome.Digest(path)
+		if err != nil {
+			return err
+		}
+		p, err := home.Produce(context.Background(), path, before, produceBytes(body))
+		if err != nil {
+			return err
+		}
+		defer func() { _ = p.Release() }()
+		return p.Commit(context.Background())
+	}
+	var nested error
+	var once sync.Once
+	filehome.SetBeforeCommit(func(string) {
+		once.Do(func() { nested = commit(`{"a": "inner"}` + "\n") })
+	})
+	t.Cleanup(func() { filehome.SetBeforeCommit(nil) })
+
+	done := make(chan error, 1)
+	go func() { done <- commit(`{"a": "outer"}` + "\n") }()
+	select {
+	case err := <-done:
+		require.NoError(t, err, "the outer commit lands")
+	case <-time.After(10 * time.Second):
+		t.Fatal("a commit inside a commit of the same file waited for itself")
+	}
+	require.Error(t, nested)
+	require.ErrorIs(t, nested, filelock.ErrHeldHere)
+	assert.Contains(t, nested.Error(), "already being written by this process")
+	body, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, `{"a": "outer"}`+"\n", string(body))
 }

@@ -116,7 +116,7 @@ func TestAcquire_AndSweepNeverLetTwoHoldersIn(t *testing.T) {
 				return
 			default:
 			}
-			n, _ := filelock.Sweep(dir, 0, 100)
+			n, _, _ := filelock.Sweep(dir, 0, 0, 100)
 			removed.Add(int64(n))
 		}
 	})
@@ -153,7 +153,7 @@ func TestSweep_LeavesAFileInUse(t *testing.T) {
 	require.NoError(t, l.Lock(t.Context()))
 	defer l.Unlock()
 
-	n, err := filelock.Sweep(dir, 24*time.Hour, 100)
+	n, _, err := filelock.Sweep(dir, 24*time.Hour, 0, 100)
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
 	assert.NoFileExists(t, stale, "a stale lock file no one holds is removed")
@@ -176,4 +176,101 @@ func TestAcquire_MarksTheFileAsUsed(t *testing.T) {
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.WithinDuration(t, time.Now(), info.ModTime(), time.Hour)
+}
+
+// TestAcquire_RefusesALockItsOwnGoroutineHolds pins that a goroutine asking
+// again for a lock it holds is refused at once, naming the file, instead of
+// waiting for itself forever.
+func TestAcquire_RefusesALockItsOwnGoroutineHolds(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "doc.lock")
+	done := make(chan error, 1)
+	go func() {
+		l, err := filelock.Acquire(context.Background(), path)
+		if err != nil {
+			done <- err
+			return
+		}
+		defer l.Close()
+		defer l.Unlock()
+		again, err := filelock.Acquire(context.Background(), path)
+		if err == nil {
+			again.Unlock()
+			_ = again.Close()
+		}
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		require.ErrorIs(t, err, filelock.ErrHeldHere)
+		assert.Contains(t, err.Error(), path, "the refusal names the file")
+		assert.Contains(t, err.Error(), "already being written by this process")
+	case <-time.After(10 * time.Second):
+		t.Fatal("a nested acquire of a held lock waited instead of being refused")
+	}
+
+	l, err := filelock.Acquire(context.Background(), path)
+	require.NoError(t, err, "once released, the lock is free to take again")
+	l.Unlock()
+	require.NoError(t, l.Close())
+}
+
+// TestAcquire_TwoGoroutinesWaitForEachOther pins the other half of the rule:
+// a second goroutine of the process asking for a held lock waits for it, as
+// another process does, and takes it once it is released. The record of
+// holders refuses only the holder's own goroutine.
+func TestAcquire_TwoGoroutinesWaitForEachOther(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "doc.lock")
+	first, err := filelock.Acquire(context.Background(), path)
+	require.NoError(t, err)
+
+	got := make(chan error, 1)
+	var second *filelock.Lock
+	go func() {
+		l, err := filelock.Acquire(context.Background(), path)
+		second = l
+		got <- err
+	}()
+	select {
+	case err := <-got:
+		t.Fatalf("the second goroutine returned while the first held the lock: %v", err)
+	case <-time.After(200 * time.Millisecond):
+	}
+	first.Unlock()
+	require.NoError(t, first.Close())
+	select {
+	case err := <-got:
+		require.NoError(t, err, "the second goroutine takes the lock once it is released")
+	case <-time.After(10 * time.Second):
+		t.Fatal("the second goroutine never took the released lock")
+	}
+	second.Unlock()
+	require.NoError(t, second.Close())
+}
+
+// TestSweep_ReachesEveryFileInTurn pins that sweeps bounded by a limit start
+// where the last one stopped, so a stale file past the first limit entries
+// is reached by a later sweep. Thirty files, three of them stale, are swept
+// ten at a time.
+func TestSweep_ReachesEveryFileInTurn(t *testing.T) {
+	dir := t.TempDir()
+	old := time.Now().Add(-48 * time.Hour)
+	for i := range 30 {
+		p := filepath.Join(dir, fmt.Sprintf("f%02d.lock", i))
+		require.NoError(t, os.WriteFile(p, nil, 0o600))
+		if i%10 == 9 {
+			require.NoError(t, os.Chtimes(p, old, old))
+		}
+	}
+	start, total := 0, 0
+	for range 3 {
+		n, next, err := filelock.Sweep(dir, 24*time.Hour, start, 10)
+		require.NoError(t, err)
+		total += n
+		start = next
+	}
+	assert.Equal(t, 3, total, "three sweeps of ten reach all three stale files")
+	left, err := filepath.Glob(filepath.Join(dir, "*.lock"))
+	require.NoError(t, err)
+	assert.Len(t, left, 27, "and leave every file in use")
 }
