@@ -46,6 +46,11 @@ func declareProject(cmd *cobra.Command, value string) *cobra.Command {
 //  4. the AnnotationProject of cmd's nearest parent that has one. The root's
 //     declaration covers bare `kapi` only.
 //
+// cobra's shell completion request command (`__complete`, also called as
+// `__completeNoDesc`) resolves no project. cobra builds it inside Execute and
+// adds it to the root only when it is the command being run, after every hook
+// that could annotate it, so it is answered here by name.
+//
 // A command that declares nothing concerns no project, so the prerun resolves
 // none for it. The command tree test fails on such a command.
 func ProjectDeclaration(cmd *cobra.Command) (uses, declared bool) {
@@ -54,6 +59,9 @@ func ProjectDeclaration(cmd *cobra.Command) (uses, declared bool) {
 	}
 	if v, ok := cmd.Annotations[AnnotationProject]; ok {
 		return v == projectUses, true
+	}
+	if cmd.Name() == cobra.ShellCompRequestCmd && cmd.HasParent() && !cmd.Parent().HasParent() {
+		return false, true
 	}
 	if cmd.Flags().Lookup(projectFlagName) != nil || cmd.InheritedFlags().Lookup(projectFlagName) != nil {
 		return true, true
