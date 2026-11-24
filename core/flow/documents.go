@@ -13,16 +13,15 @@ import (
 
 // A file-writing run commits each document through the file home, the place a
 // change set commits too (core/change/filehome). The runner digests the
-// destination before it reads anything, streams the writer's output into a
-// file staged beside the destination, and hands that staged document to its
-// commit, which renames it into place under the destination's advisory lock
-// only while the destination still holds what it held when the run began. A
-// flow and a change set writing one file take turns, and a file a person
-// saved while the run worked keeps the person's bytes: the run reports the
-// document as moved (filehome.ErrMoved) and writes nothing to it.
-//
+// destination before it reads anything and streams the writer's output into a
+// file staged beside the destination. The commit renames the staged file into
+// place under the destination's advisory lock, and only while the destination
+// still holds what it held when the run began. A flow and a change set writing
+// one file take turns. A file a person saved while the run worked keeps the
+// person's bytes: the run reports it as moved (filehome.ErrMoved).
+
 // A caller that keeps a record of what a run changed, or prints it as a change
-// set, follows each document through FileRunnerConfig.Documents: it sees every
+// set, follows each document through FileRunnerConfig.Documents. It sees every
 // block as it leaves the reader and as it reaches the writer, and it commits
 // the staged document itself.
 
@@ -80,13 +79,10 @@ type DocumentRun interface {
 // home is the file home the run commits through: the configured one, else a
 // home over the default lock directory.
 //
-// The default home is built on each call. Its lock directory lies under the
-// temporary directory (filehome.DefaultLockDir), so it is resolved from
-// TMPDIR as it is when the run commits. A home kept for the life of the
-// process would keep the directory TMPDIR named at the first commit and
-// create it again on every later commit, wherever TMPDIR points by then. The
-// locks themselves are files, so two homes over one directory exclude each
-// other.
+// The default home is built on each call, so its lock directory
+// (filehome.DefaultLockDir, under the user's data root) is the one the data
+// root names when the run commits. The locks themselves are files, so two
+// homes over one directory exclude each other.
 func (r *FileRunner) home() *filehome.Home {
 	if r.cfg.Home != nil {
 		return r.cfg.Home

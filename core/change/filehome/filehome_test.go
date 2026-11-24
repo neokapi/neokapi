@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/changetest"
 	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -231,9 +232,9 @@ func mustEdition(t *testing.T, s string) model.EditionKey {
 }
 
 // TestFileHome_KeepsItsLockDirectoryToItsUser pins that the home creates the
-// lock directory with mode 0700 and refuses one another user could have made
-// in advance under a shared temporary directory: a directory others may write
-// to, or a link, either of which could redirect the lock files it opens.
+// lock directory with mode 0700 and refuses a lock directory it does not hold
+// alone: one group or other users may write, a link, or one another user
+// owns. A refusal names the directory and the reason, and writes nothing.
 func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("mode bits do not describe who may write a directory on Windows")
@@ -241,16 +242,23 @@ func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 	tests := []struct {
 		name    string
 		lockDir func(t *testing.T, base string) string
-		refused bool
+		// reason is what a refusal says, empty when the directory is used.
+		reason string
 	}{
 		{name: "one it creates", lockDir: func(t *testing.T, base string) string { return filepath.Join(base, "kapi-locks") }},
-		{name: "one others may write", refused: true, lockDir: func(t *testing.T, base string) string {
+		{name: "one others may write", reason: "can be written by other users", lockDir: func(t *testing.T, base string) string {
 			dir := filepath.Join(base, "kapi-locks")
 			require.NoError(t, os.Mkdir(dir, 0o700))
 			require.NoError(t, os.Chmod(dir, 0o777))
 			return dir
 		}},
-		{name: "a link to a directory", refused: true, lockDir: func(t *testing.T, base string) string {
+		{name: "one its group may write", reason: "can be written by other users", lockDir: func(t *testing.T, base string) string {
+			dir := filepath.Join(base, "kapi-locks")
+			require.NoError(t, os.Mkdir(dir, 0o700))
+			require.NoError(t, os.Chmod(dir, 0o770))
+			return dir
+		}},
+		{name: "a link to a directory", reason: "is a symbolic link", lockDir: func(t *testing.T, base string) string {
 			real := filepath.Join(base, "elsewhere")
 			require.NoError(t, os.Mkdir(real, 0o700))
 			link := filepath.Join(base, "kapi-locks")
@@ -259,6 +267,13 @@ func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 			}
 			return link
 		}},
+	}
+	if ownersAreUsers {
+		tests = append(tests, struct {
+			name    string
+			lockDir func(t *testing.T, base string) string
+			reason  string
+		}{name: "one another user owns", reason: "is owned by another user", lockDir: otherUsersDir})
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -270,8 +285,10 @@ func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 			require.NoError(t, err)
 			b := page.Blocks[0]
 			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(b.Ref, b.Rev, "Hello")}}, person)
-			if tc.refused {
+			if tc.reason != "" {
 				require.Error(t, err)
+				assert.Contains(t, err.Error(), dir, "the refusal names the directory")
+				assert.Contains(t, err.Error(), tc.reason)
 				assert.Equal(t, body, f.read(t, "a.json"), "nothing is written")
 				return
 			}
@@ -282,6 +299,41 @@ func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 			assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
 		})
 	}
+}
+
+// otherUsersDir returns a directory another user owns that this process
+// cannot change: the file system root for a user other than root, and for
+// root a directory it creates and hands to the conventional nobody user.
+func otherUsersDir(t *testing.T, base string) string {
+	t.Helper()
+	if os.Getuid() != 0 {
+		return string(filepath.Separator)
+	}
+	dir := filepath.Join(base, "kapi-locks")
+	require.NoError(t, os.Mkdir(dir, 0o700))
+	require.NoError(t, os.Chown(dir, 65534, 65534))
+	return dir
+}
+
+// TestFileHome_UnwritableDataRootSaysWhatToDo pins the refusal of a commit
+// whose default lock directory cannot be created: it names the directory and
+// the variable that moves the data root, and writes nothing.
+func TestFileHome_UnwritableDataRootSaysWhatToDo(t *testing.T) {
+	notADir := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(notADir, nil, 0o600))
+	t.Setenv(dataroot.EnvDir, filepath.Join(notADir, "data"))
+
+	body := `{"greeting": "Hello there"}` + "\n"
+	f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{LockDir: filehome.DefaultLockDir()})
+	ctx := context.Background()
+	page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
+	require.NoError(t, err)
+	b := page.Blocks[0]
+	_, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(b.Ref, b.Rev, "Hello")}}, person)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), filehome.DefaultLockDir(), "the refusal names the directory")
+	assert.Contains(t, err.Error(), dataroot.EnvDir, "and the variable that moves it")
+	assert.Equal(t, body, f.read(t, "a.json"), "nothing is written")
 }
 
 // TestFileHome_PreparesTheLockDirectoryAtTheFirstCommit pins that the home

@@ -19,6 +19,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/dataroot"
 )
 
 // The race the architecture judge ran against a lock-free check-then-rename:
@@ -50,12 +51,16 @@ const (
 	raceWaitForEnv = "FILEHOME_RACE_WAIT_FOR"
 )
 
-// TestMain runs a writer when the test binary is started as one.
+// TestMain runs a writer when the test binary is started as one. Otherwise
+// it runs the tests and removes the data root the binary was given, where a
+// home that names no lock directory locks.
 func TestMain(m *testing.M) {
 	if os.Getenv(raceChildEnv) != "" {
 		os.Exit(raceChild())
 	}
-	os.Exit(m.Run())
+	code := m.Run()
+	dataroot.RemoveTestDir()
+	os.Exit(code)
 }
 
 // raceChild applies one replace_text as its own process and prints the
