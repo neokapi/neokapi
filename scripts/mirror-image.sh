@@ -21,6 +21,12 @@ set -euo pipefail
 
 source_image="${1:?source image, e.g. versity/versitygw}"
 tag="${2:?tag, e.g. v1.8.0}"
+# A mirror is pinned to a version; `latest` is never pushed outside a release
+# (scripts/check-release-build-only.py lists this script as safe for that).
+if [ "$tag" = latest ]; then
+  echo "mirror-image: mirror a version, not latest" >&2
+  exit 2
+fi
 target_name="${3:-${source_image##*/}}"
 org="${GHCR_ORG:-neokapi}"
 target="ghcr.io/${org}/${target_name}:${tag}"
