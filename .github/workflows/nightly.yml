@@ -47,10 +47,15 @@ jobs:
       - name: Scan every application module
         run: python3 scripts/govulncheck.py . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain
 
+  # The one writer of the Go-stable race build cache: no other job compiles
+  # with Go stable. The last step saves the entries this run used.
   full-suite:
     name: Full suite (Go stable, race)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: write
     env:
       # A runner is thrown away after the job, so testcontainers' reaper has
       # nothing to reap. Leaving it on costs a pull of testcontainers/ryuk from
@@ -88,6 +93,10 @@ jobs:
       - name: Fetch the container images the suites start
         run: make -C bowrain pull-test-images
 
+      - name: Note when compiling starts
+        id: start
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Framework + CLI + kapi (race, stable)
         run: make test-framework test-cli test-kapi
 
@@ -109,6 +118,15 @@ jobs:
             echo "── $f ──"
             bash scripts/print-go-test-failures.sh "$f"
           done
+
+      # Saved after a test failure too: what compiled is still in the cache.
+      - name: Save the Go-stable race build cache
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/save-go-build-cache
+        with:
+          flavor: race
+          go-version: stable
+          since: ${{ steps.start.outputs.epoch }}
 
   # ── Vision ONNX (real models) ───────────────────────────────────────────────
   # Exercises the kapi-vision plugin against the REAL PP-OCRv5 (OCR) and
