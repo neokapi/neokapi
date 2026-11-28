@@ -1510,7 +1510,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     timeout-minutes: 30
-    # The job deletes the copy of the cache it replaces (see the last step).
+    # actions: write is for the last step, which deletes the copy of the cache
+    # this job replaces. The job compiles and runs no test, so it may hold the
+    # permission while it compiles.
     permissions:
       contents: read
       actions: write
@@ -1528,16 +1530,18 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
-      - name: Note when compiling starts
-        id: start
-        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: Mark the restored cache entries
+        id: mark
+        uses: ./.github/actions/mark-go-build-cache
       - name: Compile what pull request jobs compile
         run: make warm-build-cache
       - name: Save the pull request build cache
         uses: ./.github/actions/save-go-build-cache
         with:
           flavor: pr
-          since: ${{ steps.start.outputs.epoch }}
+          since: ${{ steps.mark.outputs.since }}
+      - name: Delete the copy it replaces
+        uses: ./.github/actions/prune-caches
 
   # ── The build cache the test jobs on main read ───────────────────────────
   # The test jobs on main and the nightly compile race-instrumented, with
@@ -1550,7 +1554,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     timeout-minutes: 45
-    # The job deletes the copy of the cache it replaces (see the last step).
+    # actions: write is for the last step, which deletes the copy of the cache
+    # this job replaces. The job compiles and runs no test, so it may hold the
+    # permission while it compiles.
     permissions:
       contents: read
       actions: write
@@ -1565,16 +1571,18 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
-      - name: Note when compiling starts
-        id: start
-        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: Mark the restored cache entries
+        id: mark
+        uses: ./.github/actions/mark-go-build-cache
       - name: Compile what the test jobs on main compile
         run: make warm-race-cache
       - name: Save the race build cache
         uses: ./.github/actions/save-go-build-cache
         with:
           flavor: race
-          since: ${{ steps.start.outputs.epoch }}
+          since: ${{ steps.mark.outputs.since }}
+      - name: Delete the copy it replaces
+        uses: ./.github/actions/prune-caches
 
   # The build cache each lint-tags leg reads: the export data of the packages
   # that leg lints and of their dependencies, compiled for its configuration.

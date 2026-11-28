@@ -1,0 +1,15 @@
+name: Delete superseded Actions caches
+description: >
+  Run `scripts/ci-cache-budget.py prune` on main: delete every cache that a
+  newer copy of its family replaces, and every cache off main. The job that
+  uses this action needs `actions: write`.
+runs:
+  using: composite
+  steps:
+    - name: Delete the copies newer ones replace
+      if: github.ref == 'refs/heads/main'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: python3 scripts/ci-cache-budget.py prune

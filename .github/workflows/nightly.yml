@@ -48,14 +48,12 @@ jobs:
         run: python3 scripts/govulncheck.py . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain
 
   # The one writer of the Go-stable race build cache: no other job compiles
-  # with Go stable. The last step saves the entries this run used.
+  # with Go stable. The last step saves the entries this run used, and
+  # prune-full-suite-cache deletes the copy it replaces.
   full-suite:
     name: Full suite (Go stable, race)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: write
     env:
       # A runner is thrown away after the job, so testcontainers' reaper has
       # nothing to reap. Leaving it on costs a pull of testcontainers/ryuk from
@@ -93,9 +91,9 @@ jobs:
       - name: Fetch the container images the suites start
         run: make -C bowrain pull-test-images
 
-      - name: Note when compiling starts
-        id: start
-        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: Mark the restored cache entries
+        id: mark
+        uses: ./.github/actions/mark-go-build-cache
 
       - name: Framework + CLI + kapi (race, stable)
         run: make test-framework test-cli test-kapi
@@ -126,7 +124,28 @@ jobs:
         with:
           flavor: race
           go-version: stable
-          since: ${{ steps.start.outputs.epoch }}
+          since: ${{ steps.mark.outputs.since }}
+
+  # Deletes the copy of the Go-stable race cache that full-suite replaced. It
+  # alone holds actions: write, so the test suite and the code it runs never
+  # hold it. It checks out only the delete script and its action.
+  prune-full-suite-cache:
+    name: Delete the replaced full suite cache
+    needs: full-suite
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/actions/prune-caches
+            scripts/ci-cache-budget.py
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/prune-caches
 
   # ── Vision ONNX (real models) ───────────────────────────────────────────────
   # Exercises the kapi-vision plugin against the REAL PP-OCRv5 (OCR) and

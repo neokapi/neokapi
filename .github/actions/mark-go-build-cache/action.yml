@@ -1,0 +1,27 @@
+name: Mark the Go build cache before compiling
+description: >
+  Backdate every entry of the restored Go build cache by two hours and give
+  the time as `since`. Go restamps an entry it uses when the entry's stamp is
+  over an hour old, so after this step every entry the run uses carries a
+  stamp from the run, and save-go-build-cache can drop the rest. Without it,
+  a copy saved less than an hour before keeps fresh stamps, and every entry
+  in it looks used. Run it after setup-go-modules and before the first
+  compile.
+outputs:
+  since:
+    description: Unix time of the mark
+    value: ${{ steps.mark.outputs.since }}
+runs:
+  using: composite
+  steps:
+    - name: Backdate the restored cache entries
+      id: mark
+      shell: bash
+      run: |
+        set -euo pipefail
+        since=$(date +%s)
+        dir="$(go env GOCACHE)"
+        if [ -d "$dir" ]; then
+          find "$dir" -type f -exec touch -m -d "@$((since - 7200))" {} +
+        fi
+        echo "since=$since" >> "$GITHUB_OUTPUT"
