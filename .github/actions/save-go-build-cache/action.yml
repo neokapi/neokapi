@@ -1,0 +1,45 @@
+name: Save the Go build cache a run used
+description: >
+  Keep the Go build cache entries this run used and save them under one
+  build-cache flavor. For the one job that writes a flavor (the warm jobs,
+  the nightly full suite): setup-go-modules restored the last copy, and
+  saving it whole would carry forward every object an earlier run compiled.
+  mark-go-build-cache must run before the first compile and give `since`.
+  Saves on main only. Deleting the copy this one replaces is prune-caches,
+  which needs `actions: write`; this action needs no extra permission.
+inputs:
+  flavor:
+    description: The build-cache flavor, as setup-go-modules restores it
+    required: true
+  go-version:
+    description: The go-version given to setup-go-modules
+    required: false
+    default: "1.27.4"
+  since:
+    description: The `since` output of mark-go-build-cache
+    required: true
+runs:
+  using: composite
+  steps:
+    # mark-go-build-cache backdated every restored entry by two hours, and Go
+    # restamps an entry it uses when the stamp is over an hour old. An entry
+    # still stamped before the mark was not used by this run.
+    - name: Drop the cache entries this run did not use
+      id: trim
+      shell: bash
+      env:
+        SINCE: ${{ inputs.since }}
+      run: |
+        set -euo pipefail
+        dir="$(go env GOCACHE)"
+        echo "build=$dir" >> "$GITHUB_OUTPUT"
+        before=$(du -sm "$dir" | cut -f1)
+        find "$dir" -type f ! -newermt "@$((SINCE - 60))" -delete
+        echo "Go build cache: ${before} MiB before, $(du -sm "$dir" | cut -f1) MiB after dropping unused entries"
+    # The key setup-go-modules restores by prefix.
+    - name: Save the build cache
+      if: github.ref == 'refs/heads/main'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ steps.trim.outputs.build }}
+        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ inputs.flavor }}-trimpath-${{ github.sha }}

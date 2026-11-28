@@ -74,6 +74,15 @@ runs:
         echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
         echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
+    # The Makefiles write each go test's action graph here, and
+    # scripts/go-cache-hits.py reports the share of package builds taken from
+    # the cache.
+    - name: Collect go test action graphs
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/go-actiongraph"
+        echo "GO_ACTIONGRAPH_DIR=$RUNNER_TEMP/go-actiongraph" >> "$GITHUB_ENV"
+
     # Effective build-cache flavor. On pull_request the test jobs build WITHOUT
     # -race (see the Makefile's event-aware profile), so their object files
     # differ from the race-instrumented push/nightly build. They read a separate

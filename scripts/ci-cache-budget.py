@@ -34,7 +34,11 @@ check applies two rules and fails when either breaks.
     copy before prune deletes the old one, and GitHub evicts on the real
     total in that window. The warm release caches were lost that way on
     2026-11-23. A steady state that passes the first rule can still leave no
-    room for one save, and this rule catches that.
+    room for one save, and this rule catches that. It allows for one save
+    in flight only. A push on main saves several families (the race, pr and
+    lint warm jobs run side by side), and their new copies can overlap
+    before each job prunes. Two large families in flight together can pass
+    10 GiB while this rule holds.
 
 The scheduled cache-budget workflow runs check, and a failure there opens an
 issue through scheduled-failure-issue.yml.

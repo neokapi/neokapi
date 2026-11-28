@@ -74,7 +74,14 @@ endif
 # `go test ./...` links every package's binary in the build work directory at
 # once (1.34 GB at peak for the bowrain module). A target that passes its own
 # -ldflags replaces this one.
-GOTEST  := $(GO) test $(GOTAGS) -ldflags=-w
+# In CI, setup-go-modules names a directory in GO_ACTIONGRAPH_DIR, and every
+# go test writes its action graph to a new file there.
+# scripts/go-cache-hits.py reports from them how many package builds came
+# from the build cache. The flag changes no cache key.
+ifdef GO_ACTIONGRAPH_DIR
+  _ACTIONGRAPH := -debug-actiongraph=$$(mktemp $(GO_ACTIONGRAPH_DIR)/actiongraph.XXXXXX)
+endif
+GOTEST  := $(GO) test $(GOTAGS) -ldflags=-w $(_ACTIONGRAPH)
 GOBUILD := $(GO) build $(GOTAGS)
 GOVET   := $(GO) vet $(GOTAGS)
 GOFMT   := gofmt

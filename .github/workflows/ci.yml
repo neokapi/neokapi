@@ -497,6 +497,9 @@ jobs:
         id: run-tests
         run: scripts/check-temp-leaks.sh make test-framework
         continue-on-error: true
+      - name: Report Go build cache hits
+        if: ${{ !cancelled() }}
+        run: python3 scripts/go-cache-hits.py
 
       - name: Convert to JUnit XML
         if: always()
@@ -580,6 +583,9 @@ jobs:
         id: run-tests
         run: make test-platform
         continue-on-error: true
+      - name: Report Go build cache hits
+        if: ${{ !cancelled() }}
+        run: python3 scripts/go-cache-hits.py
 
       - name: Convert to JUnit XML
         if: always()
@@ -642,6 +648,9 @@ jobs:
         id: run-tests
         run: scripts/check-temp-leaks.sh make test-cli SHARD=${{ matrix.shard }}
         continue-on-error: true
+      - name: Report Go build cache hits
+        if: ${{ !cancelled() }}
+        run: python3 scripts/go-cache-hits.py
 
       - name: Show cli test failures
         if: steps.run-tests.outcome == 'failure'
@@ -712,6 +721,9 @@ jobs:
         id: run-tests
         run: scripts/check-temp-leaks.sh make test-kapi
         continue-on-error: true
+      - name: Report Go build cache hits
+        if: ${{ !cancelled() }}
+        run: python3 scripts/go-cache-hits.py
 
       - name: Convert to JUnit XML
         if: always()
@@ -774,6 +786,9 @@ jobs:
         id: run-tests
         run: scripts/check-temp-leaks.sh make test-bowrain-plugin
         continue-on-error: true
+      - name: Report Go build cache hits
+        if: ${{ !cancelled() }}
+        run: python3 scripts/go-cache-hits.py
 
       - name: Convert plugin tests to JUnit XML
         if: always()
@@ -866,6 +881,9 @@ jobs:
         id: run-tests
         run: scripts/check-temp-leaks.sh make test-bowrain SHARD=${{ matrix.shard }}
         continue-on-error: true
+      - name: Report Go build cache hits
+        if: ${{ !cancelled() }}
+        run: python3 scripts/go-cache-hits.py
 
       # The suite pipes `go test -json` to a file, so failing test names never
       # reach the step log. Surface them (and the relevant output) on failure so
@@ -1023,6 +1041,9 @@ jobs:
 
       - name: Run the integration lane
         run: make test-integration
+      - name: Report Go build cache hits
+        if: ${{ !cancelled() }}
+        run: python3 scripts/go-cache-hits.py
 
   # ── The schema a baseline builds, on PRs that edit one ───────────────────
   # TestBaselineSchemaMatchesGolden states what schema the migrations build, so
@@ -1482,22 +1503,23 @@ jobs:
   # "pr" build-cache flavor. Nothing else on main compiles that way, and a pull
   # request cannot read a cache another pull request saved, so this job is the
   # one writer of that flavor. It compiles every workspace module's packages
-  # and test binaries the way those jobs do, and setup-go-modules saves the
-  # result when the job ends. No other job waits for it.
+  # and test binaries the way those jobs do, then saves the entries it used.
+  # No other job waits for it.
   warm-pr-cache:
     name: Warm the pull request build cache
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     timeout-minutes: 30
-    # The job deletes the copy of the cache it replaces (see the last step).
+    # actions: write is for the last step, which deletes the copy of the cache
+    # this job replaces. The job compiles and runs no test, so it may hold the
+    # permission while it compiles.
     permissions:
       contents: read
       actions: write
     steps:
       - uses: actions/checkout@v7
-      # Restore only: the job saves the build cache itself below, so the old
-      # and new copies of this 2 GiB family overlap for seconds, not for the
-      # rest of the run before the Cache Budget prune.
+      # Restore only: the job saves the build cache itself below and deletes
+      # the old copy at once.
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: pr
@@ -1508,40 +1530,18 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
-      - name: Note when compiling starts
-        id: start
-        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: Mark the restored cache entries
+        id: mark
+        uses: ./.github/actions/mark-go-build-cache
       - name: Compile what pull request jobs compile
         run: make warm-build-cache
-      - name: Resolve the Go build cache path
-        id: gocache
-        run: echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-      # The restored cache holds every object an earlier main commit compiled,
-      # and each save would carry them all forward: the cache grew from 2.1 to
-      # 3.2 GiB in a day. Go stamps an entry it uses when the entry's stamp is
-      # over an hour old, so a file whose stamp is still more than an hour
-      # before this run started was not used by it. Deleting those leaves what
-      # pull requests compile today.
-      - name: Drop the cache entries this run did not use
-        env:
-          GOCACHE_DIR: ${{ steps.gocache.outputs.build }}
-          START: ${{ steps.start.outputs.epoch }}
-        run: |
-          set -euo pipefail
-          before=$(du -sm "$GOCACHE_DIR" | cut -f1)
-          find "$GOCACHE_DIR" -type f ! -newermt "@$((START - 3700))" -delete
-          echo "Go build cache: ${before} MiB before, $(du -sm "$GOCACHE_DIR" | cut -f1) MiB after dropping unused entries"
-      # The key setup-go-modules restores by prefix (flavor "pr").
       - name: Save the pull request build cache
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/save-go-build-cache
         with:
-          path: ${{ steps.gocache.outputs.build }}
-          key: go-build-${{ runner.os }}-go1.27.4-pr-trimpath-${{ github.sha }}
+          flavor: pr
+          since: ${{ steps.mark.outputs.since }}
       - name: Delete the copy it replaces
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: python3 scripts/ci-cache-budget.py prune
+        uses: ./.github/actions/prune-caches
 
   # ── The build cache the test jobs on main read ───────────────────────────
   # The test jobs on main and the nightly compile race-instrumented, with
@@ -1554,7 +1554,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     timeout-minutes: 45
-    # The job deletes the copy of the cache it replaces (see the last step).
+    # actions: write is for the last step, which deletes the copy of the cache
+    # this job replaces. The job compiles and runs no test, so it may hold the
+    # permission while it compiles.
     permissions:
       contents: read
       actions: write
@@ -1563,38 +1565,24 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
         with:
           save-cache: "false"
-      - name: Note when compiling starts
-        id: start
-        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+      # The desktop backend jobs restore this flavor, and their packages link
+      # GTK and WebKit through Wails.
+      - name: Install Linux dependencies for Wails
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+      - name: Mark the restored cache entries
+        id: mark
+        uses: ./.github/actions/mark-go-build-cache
       - name: Compile what the test jobs on main compile
         run: make warm-race-cache
-      - name: Resolve the Go build cache path
-        id: gocache
-        run: echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-      # Go stamps an entry it uses when the entry's stamp is over an hour old,
-      # so a file whose stamp is still more than an hour before this run
-      # started was not used by it. Deleting those keeps what the test jobs
-      # compile today.
-      - name: Drop the cache entries this run did not use
-        env:
-          GOCACHE_DIR: ${{ steps.gocache.outputs.build }}
-          START: ${{ steps.start.outputs.epoch }}
-        run: |
-          set -euo pipefail
-          before=$(du -sm "$GOCACHE_DIR" | cut -f1)
-          find "$GOCACHE_DIR" -type f ! -newermt "@$((START - 3700))" -delete
-          echo "Go build cache: ${before} MiB before, $(du -sm "$GOCACHE_DIR" | cut -f1) MiB after dropping unused entries"
-      # The key setup-go-modules restores by prefix (flavor "race").
       - name: Save the race build cache
-        uses: actions/cache/save@v6
+        uses: ./.github/actions/save-go-build-cache
         with:
-          path: ${{ steps.gocache.outputs.build }}
-          key: go-build-${{ runner.os }}-go1.27.4-race-trimpath-${{ github.sha }}
+          flavor: race
+          since: ${{ steps.mark.outputs.since }}
       - name: Delete the copy it replaces
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: python3 scripts/ci-cache-budget.py prune
+        uses: ./.github/actions/prune-caches
 
   # The build cache each lint-tags leg reads: the export data of the packages
   # that leg lints and of their dependencies, compiled for its configuration.
