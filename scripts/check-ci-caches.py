@@ -702,7 +702,7 @@ jobs:
 """
 
 FIXTURE_SECOND_BRANCH = """\
-name: Release caches
+name: Warm caches
 on:
   push:
     branches: [main, probe]
