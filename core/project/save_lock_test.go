@@ -170,7 +170,7 @@ func TestEdit_WritesNothingItCannotRead(t *testing.T) {
 // project with no basis for the path (one built in memory, or read from
 // another file) is written only where no file is: a kapi.yaml that appeared
 // after the caller looked is refused with ErrRecipeExists and left as it is.
-// SaveOver writes over it on purpose.
+// SaveNew writes only where no file is, too.
 func TestSave_AProjectNotReadFromThePathWritesOnlyWhereNoRecipeIs(t *testing.T) {
 	path := saveLockRecipe(t)
 	before, err := os.ReadFile(path)
@@ -192,8 +192,15 @@ func TestSave_AProjectNotReadFromThePathWritesOnlyWhereNoRecipeIs(t *testing.T) 
 	fresh := filepath.Join(t.TempDir(), RecipeFileName)
 	require.NoError(t, Save(fresh, &KapiProject{Name: "new"}), "where no file is, it is written")
 
-	require.NoError(t, SaveOver(t.Context(), path, built), "SaveOver writes over it on purpose")
-	now, err := Load(path)
+	require.ErrorIs(t, SaveNew(t.Context(), path, []byte("# kept\n"), built), ErrRecipeExists)
+	got, err = os.ReadFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, "built in memory", now.Name)
+	assert.Equal(t, before, got, "SaveNew leaves it as it is")
+
+	newer := filepath.Join(t.TempDir(), RecipeFileName)
+	require.NoError(t, SaveNew(t.Context(), newer, []byte("# The tutorial.\nname: draft\n"), built))
+	text, err := os.ReadFile(newer)
+	require.NoError(t, err)
+	assert.Contains(t, string(text), "# The tutorial.", "the template's comments are kept")
+	assert.Contains(t, string(text), "built in memory")
 }

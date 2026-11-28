@@ -279,26 +279,14 @@ func (a *App) writeDraft(op *openProject) (bool, error) {
 	if broadFolder(dir) {
 		return false, errBroadFolder(dir)
 	}
-	f, err := os.OpenFile(op.Path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	// The tab's recipe is written as a new file, from the draft's text so its
+	// comments stay, only where no file is.
+	err := project.SaveNew(context.Background(), op.Path, op.draft, op.Project)
 	switch {
-	case errors.Is(err, fs.ErrExist):
+	case errors.Is(err, project.ErrRecipeExists):
 		// Someone else wrote one. It is theirs, so it is not overwritten.
 	case err != nil:
 		return false, fmt.Errorf("write %s: %w", project.RecipeFileName, err)
-	default:
-		_, werr := f.Write(op.draft)
-		cerr := f.Close()
-		if werr = errors.Join(werr, cerr); werr != nil {
-			_ = os.Remove(op.Path)
-			return false, fmt.Errorf("write %s: %w", project.RecipeFileName, werr)
-		}
-		// The file was created a moment ago, exclusively, from the draft;
-		// the tab's recipe is written over it whole.
-		if op.Project != nil {
-			if err := project.SaveOver(context.Background(), op.Path, op.Project); err != nil {
-				return false, err
-			}
-		}
 	}
 	if err := project.EnsureLayout(project.LayoutAt(dir)); err != nil {
 		a.logger.Printf("create %s for %s: %v", project.StateDirName, op.Path, err)

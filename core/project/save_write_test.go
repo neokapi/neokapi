@@ -66,7 +66,10 @@ func TestSave_ARecipeThatIsALink(t *testing.T) {
 		path := filepath.Join(t.TempDir(), RecipeFileName)
 		require.NoError(t, os.Symlink(outside, path))
 
-		err = SaveOver(t.Context(), path, &KapiProject{Name: "renamed"})
+		proj, err := Load(path)
+		require.NoError(t, err)
+		proj.Name = "renamed"
+		err = Save(path, proj)
 		require.Error(t, err)
 		got, err := os.ReadFile(outside)
 		require.NoError(t, err)

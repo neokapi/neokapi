@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/change/internal/heldlock"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -154,6 +155,9 @@ type applyRun struct {
 	// read holds, for a document whose stage was refused, the files the
 	// stage read, which a refused result lists as not written.
 	read map[*docPlan][]StagedFile
+	// holds are the locks the settled stages hold, which the asset
+	// operations write under (heldlock).
+	holds []*heldlock.Hold
 }
 
 func (r *applyRun) refuse(i int, err *Error) {
@@ -247,7 +251,7 @@ func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, err
 	// From here to the release, the change set holds the locks it settled
 	// under; a write its asset operations make to one of those files runs
 	// under the held lock.
-	ctx = WithHeldLocks(ctx, r.heldLocks())
+	ctx = heldlock.With(ctx, r.hold()...)
 	all, err := r.commit(ctx)
 	if err != nil {
 		return nil, err
@@ -833,15 +837,17 @@ func (r *applyRun) lockAssetFiles() error {
 	return nil
 }
 
-// heldLocks lists the lock keys the change set's stages hold once settled.
-func (r *applyRun) heldLocks() []string {
-	var keys []string
+// hold records the locks the change set's stages hold once settled, as
+// holds that release marks released before the stages give the locks back.
+func (r *applyRun) hold() []*heldlock.Hold {
 	for _, p := range r.plans {
 		if st := r.staged[p]; st != nil {
-			keys = append(keys, st.LockKeys()...)
+			for _, k := range st.LockKeys() {
+				r.holds = append(r.holds, heldlock.New(k))
+			}
 		}
 	}
-	return keys
+	return r.holds
 }
 
 // refuseAll refuses every operation of p with err.
@@ -1159,8 +1165,13 @@ func (r *applyRun) finish() *Result {
 	return r.res
 }
 
-// release drops every staged change and closes every session.
+// release drops every staged change and closes every session. The holds go
+// first, so a context that outlives this call claims no lock.
 func (r *applyRun) release() {
+	for _, h := range r.holds {
+		h.Release()
+	}
+	r.holds = nil
 	for p, st := range r.staged {
 		_ = st.Release()
 		delete(r.staged, p)

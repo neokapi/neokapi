@@ -1237,8 +1237,7 @@ var ErrRecipeChanged = errors.New("changed since it was read")
 // holds what it was loaded from. Otherwise the save is refused with
 // ErrRecipeChanged and writes nothing, so of two saves from one read the
 // later is refused rather than lost. A project built in memory, a save to
-// another path are written only where no file is (ErrRecipeExists);
-// SaveOver writes them over the file.
+// another path are written only where no file is (ErrRecipeExists).
 //
 // A save with nothing new to write leaves the file alone: a convergence run
 // that rewrote the recipe with identical content would be refused by the
@@ -1249,17 +1248,51 @@ func Save(path string, proj *KapiProject) error {
 
 // SaveContext is Save, waiting for the file's lock only until ctx is done.
 func SaveContext(ctx context.Context, path string, proj *KapiProject) error {
-	return save(ctx, path, proj, false)
+	return save(ctx, path, proj)
 }
 
-// SaveOver writes proj as the recipe at path whatever the file holds, under
-// the file's lock. It is for a caller that means to replace the recipe whole:
-// a person chose the path in a save dialog that asked before overwriting, or
-// the caller wrote the file itself a moment ago under a name nobody else
-// writes. A project read from path is still refused once the file changed
-// after the read (ErrRecipeChanged).
-func SaveOver(ctx context.Context, path string, proj *KapiProject) error {
-	return save(ctx, path, proj, true)
+// SaveNew writes a new recipe at path where no file is, starting from the
+// text template: its comments and key order are kept, and proj, when set,
+// says what the recipe holds (yamledit.Marshal). It checks for a file and
+// writes under the file's lock, so a recipe that appeared in between is
+// refused with ErrRecipeExists and left as it is. proj, when set, is the
+// project read from the written file.
+func SaveNew(ctx context.Context, path string, template []byte, proj *KapiProject) error {
+	return filehome.WithLock(ctx, path, func(ctx context.Context) error {
+		if err := refuseExisting(path); err != nil {
+			return err
+		}
+		next := template
+		if proj != nil {
+			if proj.Version == "" {
+				proj.Version = CurrentVersion
+			}
+			var err error
+			if next, err = yamledit.Marshal(template, proj); err != nil {
+				return fmt.Errorf("write project file: %w", err)
+			}
+		}
+		if err := commitRecipeLocked(ctx, path, "", next); err != nil {
+			return err
+		}
+		if proj != nil {
+			proj.basis = newBasis(path, next)
+		}
+		return nil
+	})
+}
+
+// refuseExisting is ErrRecipeExists when path holds a file.
+func refuseExisting(path string) error {
+	_, err := readRecipeFile(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("read project file: %w", err)
+	default:
+		return fmt.Errorf("write project file %s: %w; read it and save that, or choose another path", path, ErrRecipeExists)
+	}
 }
 
 // ErrRecipeExists is what Save returns for a project that was not read from
@@ -1268,25 +1301,17 @@ var ErrRecipeExists = errors.New("already holds a recipe this project was not re
 
 // save writes proj to path under the file's lock. A project read from path
 // is written only while the file still holds what was read. Any other
-// project is written only where no file is, unless over is set.
-func save(ctx context.Context, path string, proj *KapiProject, over bool) error {
+// project is written only where no file is.
+func save(ctx context.Context, path string, proj *KapiProject) error {
 	if proj.Version == "" {
 		proj.Version = CurrentVersion
 	}
 	return filehome.WithLock(ctx, path, func(ctx context.Context) error {
 		if !proj.basis.guards(path) {
-			if over {
-				return writeRecipeLocked(ctx, path, proj)
+			if err := refuseExisting(path); err != nil {
+				return err
 			}
-			_, err := readRecipeFile(path)
-			switch {
-			case errors.Is(err, fs.ErrNotExist):
-				return writeRecipeLocked(ctx, path, proj)
-			case err != nil:
-				return fmt.Errorf("read project file: %w", err)
-			default:
-				return fmt.Errorf("write project file %s: %w; read it and save that, or choose another path", path, ErrRecipeExists)
-			}
+			return writeRecipeLocked(ctx, path, proj)
 		}
 		current, err := readRecipeFile(path)
 		switch {
@@ -1331,13 +1356,24 @@ func writeRecipeLocked(ctx context.Context, path string, proj *KapiProject) erro
 		proj.basis = newBasis(path, original)
 		return nil
 	}
-	home := filehome.New(nil, filehome.Options{Root: filepath.Dir(path)})
 	before := ""
 	if exists {
-		if before, err = home.Digest(path); err != nil {
+		if before, err = filehome.Digest(path); err != nil {
 			return fmt.Errorf("read project file: %w", err)
 		}
 	}
+	if err := commitRecipeLocked(ctx, path, before, next); err != nil {
+		return err
+	}
+	proj.basis = newBasis(path, next)
+	return nil
+}
+
+// commitRecipeLocked commits next as the file at path through a file home
+// rooted at its directory, ctx carrying the file's held lock. before is the
+// file's digest as read, empty for a file that is not there.
+func commitRecipeLocked(ctx context.Context, path, before string, next []byte) error {
+	home := filehome.New(nil, filehome.Options{Root: filepath.Dir(path)})
 	produced, err := home.Produce(ctx, path, before, func(w io.Writer) error {
 		_, err := w.Write(next)
 		return err
@@ -1349,7 +1385,6 @@ func writeRecipeLocked(ctx context.Context, path string, proj *KapiProject) erro
 	if err := produced.Commit(ctx); err != nil {
 		return fmt.Errorf("write project file: %w", err)
 	}
-	proj.basis = newBasis(path, next)
 	return nil
 }
 

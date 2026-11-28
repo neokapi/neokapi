@@ -35,6 +35,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/internal/heldlock"
 	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -581,7 +582,7 @@ func (s *session) Close() error { return nil }
 // takeLock prepares the home's locks once, then takes the lock on the lock
 // file at path (acquireLockFile).
 func (h *Home) takeLock(ctx context.Context, path string) (*filelock.Lock, error) {
-	if change.HoldsLock(ctx, path) {
+	if heldlock.Holds(ctx, path) {
 		// The caller holds this lock already (WithLock, or a change set
 		// applying its asset operations); a nil Lock does nothing.
 		return nil, nil
@@ -617,7 +618,7 @@ func WithLock(ctx context.Context, target string, fn func(ctx context.Context) e
 	if err != nil {
 		return err
 	}
-	if change.HoldsLock(ctx, key) {
+	if heldlock.Holds(ctx, key) {
 		// The lock is held already: by a change set applying its asset
 		// operations, or by an outer WithLock.
 		return fn(ctx)
@@ -628,7 +629,9 @@ func WithLock(ctx context.Context, target string, fn func(ctx context.Context) e
 	}
 	defer l.Close()
 	defer l.Unlock()
-	return fn(change.WithHeldLocks(ctx, []string{key}))
+	hold := heldlock.New(key)
+	defer hold.Release()
+	return fn(heldlock.With(ctx, hold))
 }
 
 // The lock directory holds one lock file for every file a commit ever took a
