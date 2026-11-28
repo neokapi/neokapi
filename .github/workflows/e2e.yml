@@ -166,14 +166,19 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
+          # The commit time, so a rebuild of the same commit reuses every
+          # layer in the gha cache. A wall-clock date rebuilt the layers
+          # after ARG BUILD_DATE each night and left their blobs unread.
+          build_date=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD)
+          if [ -z "$build_date" ]; then
+            echo "::error::no commit time for HEAD; the images would carry an empty build date"
+            exit 1
+          fi
           {
             echo "tag=${GH_SHA}"
             echo "version=$(git describe --tags --match 'v[0-9]*' --always 2>/dev/null || echo dev)"
             echo "commit=${GH_SHA::7}"
-            # The commit time, so a rebuild of the same commit reuses every
-            # layer in the gha cache. A wall-clock date rebuilt the layers
-            # after ARG BUILD_DATE each night and left their blobs unread.
-            echo "build_date=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD)"
+            echo "build_date=$build_date"
           } >> "$GITHUB_OUTPUT"
 
       # The tag the e2e images push is the commit, never latest.

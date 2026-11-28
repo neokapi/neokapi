@@ -79,11 +79,16 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
+          # The commit time: a re-run of the same commit reuses its layers.
+          build_date=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD)
+          if [ -z "$build_date" ]; then
+            echo "::error::no commit time for HEAD; the images would carry an empty build date"
+            exit 1
+          fi
           {
             echo "version=$(git describe --tags --match 'v[0-9]*' --always 2>/dev/null || echo dev)"
             echo "commit=${GH_SHA::7}"
-            # The commit time: a re-run of the same commit reuses its layers.
-            echo "build_date=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD)"
+            echo "build_date=$build_date"
           } >> "$GITHUB_OUTPUT"
 
   build:

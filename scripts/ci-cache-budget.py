@@ -27,8 +27,9 @@ prune deletes the caches nobody will read:
     2026-11-28, with the keycloak image). The REST listing cannot show which
     blobs an index lists, so an index is judged by its own reads.
 
-A listing prune cannot read (a cache without an id, a key, a ref or a time
-it can parse) deletes nothing. It needs a token with `actions: write` and
+A listing prune cannot read deletes nothing: one whose pages hold a
+different number of caches than its total_count, or a cache without an id,
+a key, a ref or a time prune can parse. It needs a token with `actions: write` and
 runs from main.
 
 check applies two rules and fails when either breaks.
@@ -132,10 +133,23 @@ def gh(*args: str) -> str:
     return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
 
 
+def caches_from_pages(pages: list[dict]) -> list[dict]:
+    """The caches on every page of a listing. Raises Unreadable when the
+    pages disagree on total_count or hold a different number of caches: a
+    page lost while paging would look like caches that are gone."""
+    totals = {page.get("total_count") for page in pages}
+    caches = [c for page in pages for c in page.get("actions_caches") or []]
+    if len(totals) != 1 or not isinstance(next(iter(totals)), int):
+        raise Unreadable(f"the listing's pages give total_count {sorted(map(str, totals))}")
+    total = next(iter(totals))
+    if len(caches) != total:
+        raise Unreadable(f"the listing holds {len(caches)} caches, and total_count says {total}")
+    return caches
+
+
 def list_caches(repo: str) -> list[dict]:
-    out = gh("api", "--paginate", f"repos/{repo}/actions/caches?per_page=100",
-             "--jq", ".actions_caches[]")
-    return [json.loads(line) for line in out.splitlines() if line.strip()]
+    out = gh("api", "--paginate", "--slurp", f"repos/{repo}/actions/caches?per_page=100")
+    return caches_from_pages(json.loads(out))
 
 
 def superseded(caches: list[dict]) -> list[dict]:
@@ -198,12 +212,16 @@ def doomed_by_prune(caches: list[dict], now: datetime.datetime) -> list[dict]:
 
 
 def main_prune(repo: str) -> int:
-    caches = list_caches(repo)
     try:
+        caches = list_caches(repo)
         doomed = doomed_by_prune(caches, datetime.datetime.now(datetime.timezone.utc))
     except Unreadable as err:
-        print(f"::error::ci-cache-budget: cannot read the cache listing, so nothing is deleted: {err}", file=sys.stderr)
-        return 1
+        # A save that lands while the listing is paged changes total_count, so
+        # an unreadable listing is common enough on main that failing the job
+        # would be noise. Nothing is deleted; the scheduled check, which fails
+        # on an unreadable listing, reports one that stays unreadable.
+        print(f"::warning::ci-cache-budget: cannot read the cache listing, so nothing is deleted: {err}")
+        return 0
     failed = 0
     for c in doomed:
         try:
@@ -269,7 +287,11 @@ def check_problems(caches: list[dict]) -> list[str]:
 
 
 def main_check(repo: str) -> int:
-    caches = list_caches(repo)
+    try:
+        caches = list_caches(repo)
+    except Unreadable as err:
+        print(f"::error::ci-cache-budget: cannot read the cache listing: {err}")
+        return 1
     print(report(caches))
     steady = after_prune(caches)
     ordinary = sum(c["size_in_bytes"] for c in steady if not is_release(c["key"]))
@@ -372,6 +394,17 @@ def self_test() -> int:
         try:
             doomed_by_prune(blobs + caches + [broken], now)
             failures.append(f"a listing with {broken} must delete nothing")
+        except Unreadable:
+            pass
+    page = lambda total, *ids: {"total_count": total, "actions_caches": [c(i, f"k{i}") for i in ids]}
+    if [x["id"] for x in caches_from_pages([page(3, 1, 2), page(3, 3)])] != [1, 2, 3]:
+        failures.append("two pages that agree with total_count list every cache")
+    for name, pages in (("a page short of total_count", [page(3, 1, 2)]),
+                        ("pages that disagree on total_count", [page(3, 1, 2), page(4, 3)]),
+                        ("a page without total_count", [{"actions_caches": []}])):
+        try:
+            caches_from_pages(pages)
+            failures.append(f"{name} must be unreadable, so prune deletes nothing")
         except Unreadable:
             pass
     if [x["id"] for x in after_prune(blobs[:2], now)] != [50]:
