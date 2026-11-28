@@ -28,11 +28,13 @@ condition this script cannot read is reported, never assumed to hold.
 Some triggers are refused in every workflow, because any GitHub account can
 cause the event and the run then has this repository's permissions and
 secrets: `pull_request_target`, `issues`, `issue_comment`, `discussion`,
-`discussion_comment`, `fork` and `watch`. The two review events,
-`pull_request_review` and `pull_request_review_comment`, are refused with
-them: a review of a fork's pull request runs read-only, and a review of one
-of ours does not, so a job cannot tell from the trigger which it has. No
-workflow here uses any of them. One that needs to must first be able to
+`discussion_comment`, `fork`, `watch` and `gollum` (a wiki edit). The two
+review events, `pull_request_review` and `pull_request_review_comment`, are
+refused with them: a review of a fork's pull request runs read-only, and a
+review of one of ours does not, so a job cannot tell from the trigger which
+it has. So are `status`, `check_run` and `check_suite`: an installed app
+posts them on a fork's commit too, and the run they start is not read-only.
+No workflow here uses any of them. One that needs to must first be able to
 prove who caused the event, and that rule belongs in this script.
 
     scripts/check-workflow-run-origin.py              check the repository
@@ -71,6 +73,10 @@ REFUSED_EVENTS = (
     "watch",
     "pull_request_review",
     "pull_request_review_comment",
+    "gollum",
+    "status",
+    "check_run",
+    "check_suite",
 )
 
 OTHER_EVENT = re.compile(r"^github\.event_name == '([a-z_]+)'$")
