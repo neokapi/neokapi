@@ -473,7 +473,7 @@ func (a *App) bindImportedVoice(ctx context.Context, db *projectdb.DB, layout, f
 		}
 		return &ImportedVoiceBinding{Recipe: recipeName, Candidates: candidates}, nil
 	}
-	if err := project.BindVoice(layout.RecipePath, "", chosen.ID); err != nil {
+	if err := project.BindVoice(ctx, layout.RecipePath, "", chosen.ID); err != nil {
 		return nil, fmt.Errorf("bind voice %s in %s: %w", chosen.ID, recipeName, err)
 	}
 	return &ImportedVoiceBinding{Recipe: recipeName, Bound: chosen}, nil
@@ -518,7 +518,7 @@ func (a *App) bindImportedProfileVoices(ctx context.Context, db *projectdb.DB, l
 		if p, gerr := lookupProfileIn(ctx, store, src.profile); gerr == nil && p.ID == id {
 			continue
 		}
-		if err := project.BindVoice(layout.RecipePath, src.profile, id); err != nil {
+		if err := project.BindVoice(ctx, layout.RecipePath, src.profile, id); err != nil {
 			return out, fmt.Errorf("bind voice %s for profile %s in %s: %w", id, src.profile, recipeName, err)
 		}
 		ref := VoiceProfileRef{ID: id}

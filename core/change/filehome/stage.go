@@ -902,6 +902,29 @@ func (st *staged) Diff() string {
 // LockKeys are the lock files of the files the stage reads or changes.
 func (st *staged) LockKeys() []string { return slices.Clone(st.keys) }
 
+// LockKeysFor names the lock files of the files at paths (LockFile).
+func (st *staged) LockKeysFor(paths []string) ([]string, error) {
+	keys := make([]string, 0, len(paths))
+	for _, p := range paths {
+		k, err := LockFile(p)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, k)
+	}
+	return keys, nil
+}
+
+// AddLockKeys adds keys to the locks the stage takes, in order.
+func (st *staged) AddLockKeys(keys []string) {
+	for _, k := range keys {
+		if !slices.Contains(st.keys, k) {
+			st.keys = append(st.keys, k)
+		}
+	}
+	slices.Sort(st.keys)
+}
+
 // Lock takes the lock on the lock file key. The first lock a stage takes is
 // preceded by Options.BeforeSettle.
 func (st *staged) Lock(ctx context.Context, key string) error {

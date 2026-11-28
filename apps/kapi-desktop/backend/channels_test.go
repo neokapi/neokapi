@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,6 +70,40 @@ func TestDeclareChannel_PersistsToRecipe(t *testing.T) {
 	// A duplicate is refused.
 	_, err = app.DeclareChannel(tab.ID, "support", "guides")
 	require.Error(t, err)
+}
+
+// TestDeclareChannel_RefusesARecipeChangedOnDisk pins that a tab whose recipe
+// changed on disk after it read it (an edit in the CLI or by an agent) does not
+// write over that edit. The tab's change is refused with a message that says
+// so, the tab reads the recipe again, and the change made again lands beside
+// the edit from outside.
+func TestDeclareChannel_RefusesARecipeChangedOnDisk(t *testing.T) {
+	app := NewApp()
+	tab, root := newContextProject(t, app)
+	recipe := filepath.Join(root, "kapi.yaml")
+
+	outside, err := project.Load(recipe)
+	require.NoError(t, err)
+	outside.Name = "edited outside the tab"
+	require.NoError(t, project.Save(recipe, outside))
+
+	_, err = app.DeclareChannel(tab.ID, "support", "guides")
+	require.ErrorIs(t, err, project.ErrRecipeChanged)
+	assert.Contains(t, err.Error(), "changed on disk since this tab read it")
+	onDisk, err := project.Load(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, "edited outside the tab", onDisk.Name, "the edit from outside is kept")
+
+	_, err = app.DeclareChannel(tab.ID, "support", "guides")
+	require.NoError(t, err, "made again, the change lands")
+	onDisk, err = project.Load(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, "edited outside the tab", onDisk.Name, "beside the edit from outside")
+	declared := false
+	for _, ch := range onDisk.Profiles["support"].Channels {
+		declared = declared || ch.ID == "guides"
+	}
+	assert.True(t, declared)
 }
 
 func TestRenameChannel_MovesCollections(t *testing.T) {

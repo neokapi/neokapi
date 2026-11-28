@@ -35,6 +35,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/internal/heldlock"
 	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -578,22 +579,59 @@ func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) 
 
 func (s *session) Close() error { return nil }
 
-// takeLock takes the lock on the lock file at path, creating the lock
-// directory, which belongs to this user alone, when it is not there, and
-// sweeping it at most once a day.
+// takeLock prepares the home's locks once, then takes the lock on the lock
+// file at path (acquireLockFile).
 func (h *Home) takeLock(ctx context.Context, path string) (*filelock.Lock, error) {
+	if heldlock.Holds(ctx, path) {
+		// The caller holds this lock already (WithLock, or a change set
+		// applying its asset operations); a nil Lock does nothing.
+		return nil, nil
+	}
 	if h.prepareLocks != nil {
 		h.prepared.Do(func() { h.prepareErr = h.prepareLocks() })
 		if h.prepareErr != nil {
 			return nil, fmt.Errorf("prepare the lock directory: %w", h.prepareErr)
 		}
 	}
+	return acquireLockFile(ctx, path)
+}
+
+// acquireLockFile takes the lock on the lock file at path, creating the lock
+// directory, which belongs to this user alone, when it is not there, and
+// sweeping it at most once a day.
+func acquireLockFile(ctx context.Context, path string) (*filelock.Lock, error) {
 	dir := filepath.Dir(path)
 	if err := ensureLockDir(dir); err != nil {
 		return nil, err
 	}
 	filelock.SweepDue(dir, sweepEvery, lockFileMaxAge, sweepLimit)
 	return filelock.Acquire(ctx, path)
+}
+
+// WithLock runs fn while holding the lock of the file at target, the one
+// every commit of that file takes (LockFile). A writer that reads the file
+// before it writes, such as the recipe's own save, then takes turns with the
+// commits of the same file. fn gets a context that carries the held lock, so
+// a commit of the file through a home with that context writes under it.
+func WithLock(ctx context.Context, target string, fn func(ctx context.Context) error) error {
+	key, err := LockFile(target)
+	if err != nil {
+		return err
+	}
+	if heldlock.Holds(ctx, key) {
+		// The lock is held already: by a change set applying its asset
+		// operations, or by an outer WithLock.
+		return fn(ctx)
+	}
+	l, err := acquireLockFile(ctx, key)
+	if err != nil {
+		return err
+	}
+	defer l.Close()
+	defer l.Unlock()
+	hold := heldlock.New(key)
+	defer hold.Release()
+	return fn(heldlock.With(ctx, hold))
 }
 
 // The lock directory holds one lock file for every file a commit ever took a

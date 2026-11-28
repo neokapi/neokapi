@@ -189,13 +189,27 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 		a.mu.Unlock()
 		return nil, err
 	}
-	if spec.Shared() {
-		block := spec
-		op.Project.Context = &block
-	} else {
-		op.Project.Context = nil
+	// The place is written into the recipe as it stands on disk, read and
+	// written under the file's lock (project.Edit), so an edit made outside the
+	// tab since it opened is kept. A recipe whose context: block no longer
+	// reads is repaired by the new block; a recipe that cannot be read or
+	// parsed is reported and left as it is.
+	err := a.ensureRecipeLocked(op)
+	if err == nil {
+		var fresh *project.KapiProject
+		fresh, err = project.Edit(context.Background(), op.Path, project.LoadOptions{SkipRequiresCheck: true}, func(p *project.KapiProject) error {
+			if spec.Shared() {
+				block := spec
+				p.Context = &block
+			} else {
+				p.Context = nil
+			}
+			return nil
+		})
+		if err == nil {
+			op.Project = fresh
+		}
 	}
-	err := a.saveRecipe(op)
 	path, proj := op.Path, op.Project
 	a.mu.Unlock()
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/change/internal/heldlock"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -154,6 +155,9 @@ type applyRun struct {
 	// read holds, for a document whose stage was refused, the files the
 	// stage read, which a refused result lists as not written.
 	read map[*docPlan][]StagedFile
+	// holds are the locks the settled stages hold, which the asset
+	// operations write under (heldlock).
+	holds []*heldlock.Hold
 }
 
 func (r *applyRun) refuse(i int, err *Error) {
@@ -244,6 +248,10 @@ func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, err
 	if r.refused >= 0 {
 		return r.finish(), nil
 	}
+	// From here to the release, the change set holds the locks it settled
+	// under; a write its asset operations make to one of those files runs
+	// under the held lock.
+	ctx = heldlock.With(ctx, r.hold()...)
 	all, err := r.commit(ctx)
 	if err != nil {
 		return nil, err
@@ -723,6 +731,9 @@ func (r *applyRun) withFindings(p *docPlan, docs []DocResult) []DocResult {
 // order of their keys, and then makes sure each document's change still
 // applies. A document whose home applied the change again is checked again.
 func (r *applyRun) settle(ctx context.Context) error {
+	if err := r.lockAssetFiles(); err != nil {
+		return err
+	}
 	type lock struct {
 		key string
 		p   *docPlan
@@ -775,6 +786,68 @@ func (r *applyRun) settle(ctx context.Context) error {
 		return nil
 	}
 	return nil
+}
+
+// lockAssetFiles adds the locks of the files the change set's asset
+// operations write (AssetFiles) to the locks its documents take, so all of
+// them are taken in one sorted order before anything lands. A lock a
+// document's stage already takes is left with it; any other goes to the
+// first stage that takes further locks. A change set with no staged document
+// takes none: its asset operations ask for their locks as they write.
+func (r *applyRun) lockAssetFiles() error {
+	af, ok := r.s.assets.(AssetFiles)
+	if !ok {
+		return nil
+	}
+	var files []string
+	for _, i := range r.assets {
+		if r.res.Ops[i].Status != OpRefused {
+			files = append(files, af.AssetFiles(r.set.Ops[i])...)
+		}
+	}
+	if len(files) == 0 {
+		return nil
+	}
+	var first LockAdder
+	for _, p := range r.plans {
+		if a, ok := r.staged[p].(LockAdder); ok {
+			first = a
+			break
+		}
+	}
+	if first == nil {
+		return nil
+	}
+	keys, err := first.LockKeysFor(files)
+	if err != nil {
+		return err
+	}
+	for _, k := range keys {
+		taken := false
+		for _, p := range r.plans {
+			if st := r.staged[p]; st != nil && slices.Contains(st.LockKeys(), k) {
+				taken = true
+				break
+			}
+		}
+		if !taken {
+			first.AddLockKeys([]string{k})
+		}
+	}
+	return nil
+}
+
+// hold records the locks the change set's stages hold once settled, as
+// holds that release marks released before the stages give the locks back.
+func (r *applyRun) hold() []*heldlock.Hold {
+	for _, p := range r.plans {
+		if st := r.staged[p]; st != nil {
+			for _, k := range st.LockKeys() {
+				r.holds = append(r.holds, heldlock.New(k))
+			}
+		}
+	}
+	return r.holds
 }
 
 // refuseAll refuses every operation of p with err.
@@ -1092,8 +1165,13 @@ func (r *applyRun) finish() *Result {
 	return r.res
 }
 
-// release drops every staged change and closes every session.
+// release drops every staged change and closes every session. The holds go
+// first, so a context that outlives this call claims no lock.
 func (r *applyRun) release() {
+	for _, h := range r.holds {
+		h.Release()
+	}
+	r.holds = nil
 	for p, st := range r.staged {
 		_ = st.Release()
 		delete(r.staged, p)

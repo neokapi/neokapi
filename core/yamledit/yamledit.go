@@ -1,7 +1,7 @@
 // Package yamledit writes a Go value back into an existing YAML document
 // without disturbing what the document says about itself.
 //
-// Governance files — a recipe, a voice profile — are committed, human-authored
+// Governance files (a recipe, a voice profile) are committed, human-authored
 // source. Their comments carry the reasoning a reviewer needs, and their key
 // order is the order someone chose to explain themselves in. A write-back that
 // marshals the struct over the file keeps every field and loses all of that: the
@@ -11,10 +11,10 @@
 //
 //   - COMMENT-PRESERVING. The value supplies the data; the document on disk
 //     supplies the comments, the blank lines between its sections, the key
-//     order, and how each value is spelled — a scalar's quoting or block style,
+//     order, and how each value is spelled: a scalar's quoting or block style,
 //     and the mapping-or-scalar form a key whose type accepts both was authored
 //     in. A key the value no longer carries is removed, and one it adds is
-//     appended — an edit, not a re-issue.
+//     appended, so the write is an edit, not a re-issue.
 //
 //   - BYTE-STABLE. A write whose result is identical to what is already there
 //     does not happen at all. This is not tidiness: `scripts/check-loop-output.sh`
@@ -32,8 +32,6 @@ package yamledit
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -80,8 +78,8 @@ func Marshal(original []byte, value any) ([]byte, error) {
 
 	// A document that already says what the value says is returned untouched,
 	// whatever the emitter would have made of it. Re-emitting is not lossless in
-	// the small — a folded scalar is re-wrapped at the emitter's width, not the
-	// author's — and byte-stability has to survive presentation the writer cannot
+	// the small: a folded scalar is re-wrapped at the emitter's width, not the
+	// author's. Byte-stability has to survive presentation the writer cannot
 	// reproduce, or the first write after any such file churns for no decision.
 	if len(original) > 0 && sameContent(original, rendered) {
 		return original, nil
@@ -106,10 +104,10 @@ func encode(node *yaml.Node, indent int) ([]byte, error) {
 // baselineFor renders what the marshaller would write for the document exactly
 // as it stands: the document loaded into the value's own type and marshalled
 // straight back. It is the reference a merge needs to tell a value that changed
-// from one the type merely spells differently — a `voice:` mapping the type
-// collapses to its scalar short form is not an edit anybody made, and the merge
+// from one the type merely spells differently. A `voice:` mapping the type
+// collapses to its scalar short form is not an edit anybody made. The merge
 // can only know that by seeing the same collapse happen to the untouched
-// document. nil when the document does not load into the type, which leaves the
+// document. It is nil when the document does not load into the type, which leaves the
 // merge with the fresh marshal alone.
 func baselineFor(original []byte, value any) *yaml.Node {
 	t := reflect.TypeOf(value)
@@ -159,37 +157,6 @@ func canonicalValue(v any) ([]byte, bool) {
 	return out, true
 }
 
-// WriteFile renders value into path, preserving whatever document is already
-// there, and reports whether the bytes moved. An unchanged serialization is not
-// written — the file keeps its mtime as well as its content.
-//
-// The write is atomic (temp file + rename), so a crash mid-write cannot leave a
-// governance file half-rewritten.
-func WriteFile(path string, value any, perm os.FileMode) (changed bool, err error) {
-	original, readErr := os.ReadFile(path)
-	if readErr != nil && !os.IsNotExist(readErr) {
-		return false, fmt.Errorf("read %s: %w", path, readErr)
-	}
-	next, err := Marshal(original, value)
-	if err != nil {
-		return false, err
-	}
-	if readErr == nil && bytes.Equal(original, next) {
-		return false, nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return false, fmt.Errorf("create %s: %w", filepath.Dir(path), err)
-	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, next, perm); err != nil {
-		return false, fmt.Errorf("write %s: %w", tmp, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return false, fmt.Errorf("rename %s: %w", tmp, err)
-	}
-	return true, nil
-}
-
 // encodeNode marshals a value into the node tree the merge works over.
 func encodeNode(value any) (*yaml.Node, error) {
 	data, err := yaml.Marshal(value)
@@ -208,12 +175,12 @@ func encodeNode(value any) (*yaml.Node, error) {
 // baseline is the same position in the untouched document's own marshal, and may
 // be nil where the document does not reach that far.
 //
-// Nodes of different kinds do not merge — the value's shape wins outright, since
-// a mapping that became a list is a different answer, not an edited one. Unless
-// the value at that position did not change: a type that accepts both a scalar
-// and a mapping for one key marshals to whichever form its data implies, so the
-// shape the fresh marshal arrives in is the type's habit rather than a decision,
-// and the document keeps the form it was authored in.
+// Nodes of different kinds do not merge: the value's shape wins outright, since
+// a mapping that became a list is a different answer, not an edited one. The
+// exception is a value that did not change at that position. A type that
+// accepts both a scalar and a mapping for one key marshals to whichever form
+// its data implies, so the shape of the fresh marshal is the type's habit
+// rather than a decision, and the document keeps the form it was authored in.
 func merge(base, fresh, baseline *yaml.Node) {
 	if base == nil || fresh == nil || base.Kind != fresh.Kind {
 		if base != nil && fresh != nil {
@@ -238,7 +205,7 @@ func merge(base, fresh, baseline *yaml.Node) {
 		mergeSequence(base, fresh, baseline)
 	default:
 		// Scalar (and alias): the value is the fresh one, the presentation is the
-		// document's — a quoted string stays quoted, a block scalar stays a block.
+		// document's: a quoted string stays quoted, a block scalar stays a block.
 		style := base.Style
 		tag := base.Tag
 		carryComments(fresh, base)
@@ -253,7 +220,7 @@ func merge(base, fresh, baseline *yaml.Node) {
 
 // mergeMapping rebuilds base's pairs in base's order, keeping only the keys
 // fresh still carries and appending the ones it adds. A key present in both
-// keeps its key node — and therefore the comment written above it.
+// keeps its key node, and therefore the comment written above it.
 func mergeMapping(base, fresh, baseline *yaml.Node) {
 	freshAt := make(map[string]int, len(fresh.Content)/2)
 	for i := 0; i+1 < len(fresh.Content); i += 2 {
@@ -274,7 +241,7 @@ func mergeMapping(base, fresh, baseline *yaml.Node) {
 		if !ok {
 			// The value no longer carries this key. An `omitempty` field the
 			// author wrote out at its zero (`replacement: ""`) is not a removal
-			// though — the marshal simply does not emit it — so the line stays,
+			// though, since the marshal does not emit it. So the line stays,
 			// and only a key whose value actually said something is dropped.
 			if isZeroNode(base.Content[i+1]) {
 				content = append(content, base.Content[i], base.Content[i+1])
@@ -307,7 +274,7 @@ func mergeMapping(base, fresh, baseline *yaml.Node) {
 }
 
 // isZeroNode reports a node carrying its type's zero: an empty or null scalar,
-// false, 0, an empty collection — or a mapping whose every value is itself zero,
+// false, 0, an empty collection, or a mapping whose every value is itself zero,
 // which is how a struct without omitempty marshals a field nobody has set. A
 // non-empty sequence is never zero: a list with items in it is a list someone
 // wrote.
@@ -340,8 +307,8 @@ func isZeroNode(n *yaml.Node) bool {
 
 // mergeSequence merges item by item as far as both go, then takes the fresh
 // node's remainder. Sequence items have no key to match on, so position is the
-// only correspondence available: an appended rule leaves the items above it —
-// and their comments — exactly as they were, which is the shape nearly every
+// only correspondence available: an appended rule leaves the items above it,
+// and their comments, exactly as they were, which is the shape nearly every
 // applied change takes.
 func mergeSequence(base, fresh, baseline *yaml.Node) {
 	n := min(len(base.Content), len(fresh.Content))
@@ -355,7 +322,7 @@ func mergeSequence(base, fresh, baseline *yaml.Node) {
 }
 
 // childAt is the i-th child of a node that may be nil or shorter than the
-// position asked for — the shape a baseline takes wherever the document and the
+// position asked for: the shape a baseline takes wherever the document and the
 // value have drifted apart.
 func childAt(n *yaml.Node, i int) *yaml.Node {
 	if n == nil || i >= len(n.Content) {
@@ -404,15 +371,15 @@ func carryComments(dst, src *yaml.Node) {
 }
 
 // restoreSpacing puts the document's blank lines back into the re-emitted text.
-// yaml.v3 keeps a blank line only inside a comment block; every other one — the
-// gap that separates one collection from the next, the space above a section —
+// yaml.v3 keeps a blank line only inside a comment block. Every other one (the
+// gap that separates one collection from the next, the space above a section)
 // is dropped by the parser and never reaches the emitter. That spacing is
 // authored punctuation, so it is measured on both sides and restored.
 //
 // merged is the tree that was emitted and authored maps its nodes to the lines
 // they stood on in the original, which is the correspondence between the two
-// texts: for each node that survived, the run of blank and comment lines above
-// it is compared with the run above the line it now occupies, and the run is
+// texts. For each node that survived, the run of blank and comment lines above
+// it is compared with the run above the line it now occupies. The run is
 // rewritten to the authored one whenever the two agree on which comments stand
 // there. A comment the emitter moved or the merge dropped leaves its region
 // alone rather than guessing.

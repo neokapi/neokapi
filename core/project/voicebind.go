@@ -2,11 +2,13 @@ package project
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,37 +31,41 @@ var ErrVoiceAlreadyBound = errors.New("recipe: a voice is already bound here")
 //
 // It returns ErrVoiceAlreadyBound when the parent already declares a `voice:`,
 // whatever it binds, so a binding a person wrote is never replaced.
-func BindVoice(path, profile, id string) error {
+func BindVoice(ctx context.Context, path, profile, id string) error {
 	if id == "" {
 		return errors.New("recipe: a voice binding needs a profile id")
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read project file: %w", err)
-	}
-	out, ok, err := insertVoiceBinding(data, profile, id)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return bindVoiceBySave(path, profile, id)
-	}
-	// The result must still be a recipe, and must bind what was asked.
-	var check KapiProject
-	if err := yaml.Unmarshal(out, &check); err != nil {
-		return fmt.Errorf("recipe: binding the voice would leave an unreadable recipe: %w", RecipeYAMLError(err))
-	}
-	if got := voiceAt(&check, profile); got == nil || got.Profile != id {
-		return bindVoiceBySave(path, profile, id)
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("stat project file: %w", err)
-	}
-	if err := os.WriteFile(path, out, info.Mode().Perm()); err != nil {
-		return fmt.Errorf("write project file: %w", err)
-	}
-	return nil
+	// The read, the insertion and the write hold the lock every commit of the
+	// recipe takes, so no other writer lands between them.
+	return filehome.WithLock(ctx, path, func(ctx context.Context) error {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read project file: %w", err)
+		}
+		out, ok, err := insertVoiceBinding(data, profile, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return bindVoiceBySave(ctx, path, profile, id)
+		}
+		// The result must still be a recipe, and must bind what was asked.
+		var check KapiProject
+		if err := yaml.Unmarshal(out, &check); err != nil {
+			return fmt.Errorf("recipe: binding the voice would leave an unreadable recipe: %w", RecipeYAMLError(err))
+		}
+		if got := voiceAt(&check, profile); got == nil || got.Profile != id {
+			return bindVoiceBySave(ctx, path, profile, id)
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return fmt.Errorf("stat project file: %w", err)
+		}
+		if err := os.WriteFile(path, out, info.Mode().Perm()); err != nil {
+			return fmt.Errorf("write project file: %w", err)
+		}
+		return nil
+	})
 }
 
 // NamedFile is the path a binding names when it is written in a form that names
@@ -101,8 +107,9 @@ func voiceAt(p *KapiProject, profile string) *VoiceBinding {
 	return p.Profiles[profile].Voice
 }
 
-// bindVoiceBySave is the fallback for a parent the text insertion cannot reach.
-func bindVoiceBySave(path, profile, id string) error {
+// bindVoiceBySave is the fallback for a parent the text insertion cannot
+// reach. The caller holds the recipe's lock.
+func bindVoiceBySave(ctx context.Context, path, profile, id string) error {
 	proj, err := LoadWithOptions(path, LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -118,7 +125,7 @@ func bindVoiceBySave(path, profile, id string) error {
 		pr.Voice = binding
 		proj.Profiles[profile] = pr
 	}
-	return Save(path, proj)
+	return writeRecipeLocked(ctx, path, proj)
 }
 
 // insertVoiceBinding returns the recipe text with the binding inserted, and

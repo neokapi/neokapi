@@ -93,7 +93,7 @@ func (c *BowrainSourceConnector) applyPendingRecipeChanges(ctx context.Context) 
 	}
 
 	if dirty {
-		if err := project.Save(recipePath, proj); err != nil {
+		if err := project.SaveContext(ctx, recipePath, proj); err != nil {
 			slog.WarnContext(ctx, "could not write the recipe", "error", err)
 			for i := range out {
 				if out[i].Applied {

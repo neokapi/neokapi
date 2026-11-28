@@ -279,24 +279,14 @@ func (a *App) writeDraft(op *openProject) (bool, error) {
 	if broadFolder(dir) {
 		return false, errBroadFolder(dir)
 	}
-	f, err := os.OpenFile(op.Path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	// The tab's recipe is written as a new file, from the draft's text so its
+	// comments stay, only where no file is.
+	err := project.SaveNew(context.Background(), op.Path, op.draft, op.Project)
 	switch {
-	case errors.Is(err, fs.ErrExist):
+	case errors.Is(err, project.ErrRecipeExists):
 		// Someone else wrote one. It is theirs, so it is not overwritten.
 	case err != nil:
 		return false, fmt.Errorf("write %s: %w", project.RecipeFileName, err)
-	default:
-		_, werr := f.Write(op.draft)
-		cerr := f.Close()
-		if werr = errors.Join(werr, cerr); werr != nil {
-			_ = os.Remove(op.Path)
-			return false, fmt.Errorf("write %s: %w", project.RecipeFileName, werr)
-		}
-		if op.Project != nil {
-			if err := project.Save(op.Path, op.Project); err != nil {
-				return false, err
-			}
-		}
 	}
 	if err := project.EnsureLayout(project.LayoutAt(dir)); err != nil {
 		a.logger.Printf("create %s for %s: %v", project.StateDirName, op.Path, err)
@@ -338,11 +328,22 @@ func (a *App) adoptRecipe(op *openProject, draftRoot string) {
 // saveRecipe writes a tab's recipe, first giving an unsaved folder its
 // kapi.yaml. The recipe-editing methods call it in place of project.Save, with
 // a.mu held.
+//
+// A recipe that changed on disk after the tab read it (an edit in another
+// tab, the CLI or an agent) is not written over. The save is refused and the
+// tab reads the recipe again, so the next edit applies to it as it stands.
 func (a *App) saveRecipe(op *openProject) error {
 	if err := a.ensureRecipeLocked(op); err != nil {
 		return err
 	}
-	return project.Save(op.Path, op.Project)
+	err := project.Save(op.Path, op.Project)
+	if !errors.Is(err, project.ErrRecipeChanged) {
+		return err
+	}
+	if fresh, lerr := project.LoadWithOptions(op.Path, project.LoadOptions{SkipRequiresCheck: true}); lerr == nil {
+		op.Project = fresh
+	}
+	return fmt.Errorf("%s changed on disk since this tab read it; the tab now shows it as it stands, so make the change again: %w", project.RecipeFileName, err)
 }
 
 // ensureRecipeForKey writes the recipe of every open tab of one workspace

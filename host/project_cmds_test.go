@@ -137,7 +137,7 @@ collections:
 	recipePath := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, os.WriteFile(recipePath, []byte(recipe), 0o644))
 
-	id, minted, err := MintProjectID(recipePath)
+	id, minted, err := MintProjectID(t.Context(), recipePath)
 	require.NoError(t, err)
 	require.True(t, minted)
 	require.NoError(t, project.ValidateID(id))
@@ -164,7 +164,7 @@ collections:
 	assert.Equal(t, "docs/**/*.md", proj.Collections[0].Path)
 
 	// Asking again reports the id the recipe carries and writes nothing.
-	again, mintedAgain, err := MintProjectID(recipePath)
+	again, mintedAgain, err := MintProjectID(t.Context(), recipePath)
 	require.NoError(t, err)
 	assert.Equal(t, id, again)
 	assert.False(t, mintedAgain)

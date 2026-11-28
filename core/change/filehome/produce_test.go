@@ -174,6 +174,35 @@ func TestProduce_AWriterThatFailsStagesNothing(t *testing.T) {
 	assert.Empty(t, entries)
 }
 
+// A rename that fails, here because a directory was put where the file was
+// after the document was staged, leaves no temporary file beside the target,
+// and the error is returned.
+func TestProduce_AFailedRenameLeavesNoStagedFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "kapi.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("name: app\n"), 0o644))
+	home := filehome.New(nil, filehome.Options{Root: dir})
+	before, err := home.Digest(path)
+	require.NoError(t, err)
+	p, err := home.Produce(t.Context(), path, before, produceBytes("name: renamed\n"))
+	require.NoError(t, err)
+	defer func() { _ = p.Release() }()
+	filehome.SetBeforeCommit(func(target string) {
+		require.NoError(t, os.Remove(target))
+		require.NoError(t, os.MkdirAll(filepath.Join(target, "inside"), 0o755))
+	})
+	t.Cleanup(func() { filehome.SetBeforeCommit(nil) })
+
+	require.Error(t, p.Commit(t.Context()))
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	assert.Equal(t, []string{"kapi.yaml"}, names, "only the directory put in place is there; no temporary file is left")
+}
+
 // A produced document and a change set on one file take the same lock, so a
 // commit of one waits for the other's, and the produced document then finds
 // the file the change set left.

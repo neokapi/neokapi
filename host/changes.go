@@ -1062,6 +1062,15 @@ func whoOf(actor change.Actor, set *change.Set) changeActor {
 	return changeActor{Actor: contextActorOf(actor), Note: note}
 }
 
+// AssetFiles names the file a recipe operation writes: the project's recipe.
+// The change service takes its lock with the documents' locks.
+func (c *changeAssets) AssetFiles(op change.Op) []string {
+	if op.Kind == change.KindRecipe && c.recipe != "" {
+		return []string{c.recipe}
+	}
+	return nil
+}
+
 func (c *changeAssets) Prepare(ctx context.Context, actor change.Actor, op change.Op, target *change.DecisionTarget) *change.Error {
 	if op.Kind == change.KindDecide {
 		return c.prepareDecision(actor, op, target)

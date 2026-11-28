@@ -1,8 +1,6 @@
 package yamledit_test
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/yamledit"
@@ -398,55 +396,4 @@ func TestMarshal_KeepsTheAuthoredFormOfAnUnchangedKey(t *testing.T) {
 			assert.Equal(t, tt.want, string(out))
 		})
 	}
-}
-
-func TestWriteFile_NoOpLeavesTheFileAlone(t *testing.T) {
-	t.Parallel()
-	path := filepath.Join(t.TempDir(), "voice.yaml")
-	require.NoError(t, os.WriteFile(path, []byte(commented), 0o644))
-	before, err := os.Stat(path)
-	require.NoError(t, err)
-
-	changed, err := yamledit.WriteFile(path, loaded(t, commented), 0o644)
-	require.NoError(t, err)
-	assert.False(t, changed, "an unchanged serialization must not be written")
-
-	after, err := os.Stat(path)
-	require.NoError(t, err)
-	assert.Equal(t, before.ModTime(), after.ModTime(), "the file was not touched at all")
-
-	got, err := os.ReadFile(path)
-	require.NoError(t, err)
-	assert.Equal(t, commented, string(got))
-}
-
-func TestWriteFile_WritesARealChange(t *testing.T) {
-	t.Parallel()
-	path := filepath.Join(t.TempDir(), "nested", "voice.yaml")
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-	require.NoError(t, os.WriteFile(path, []byte(commented), 0o644))
-
-	p := loaded(t, commented)
-	p.Vocabulary.Forbidden[0].Replacement = "continuous"
-	changed, err := yamledit.WriteFile(path, p, 0o644)
-	require.NoError(t, err)
-	assert.True(t, changed)
-
-	got, err := os.ReadFile(path)
-	require.NoError(t, err)
-	assert.Contains(t, string(got), "replacement: continuous")
-	assert.Contains(t, string(got), "# Marketing register: never in operational prose.")
-}
-
-func TestWriteFile_CreatesAMissingFile(t *testing.T) {
-	t.Parallel()
-	path := filepath.Join(t.TempDir(), "new", "voice.yaml")
-	changed, err := yamledit.WriteFile(path, &profile{Name: "North Sea"}, 0o644)
-	require.NoError(t, err)
-	assert.True(t, changed)
-
-	got, err := os.ReadFile(path)
-	require.NoError(t, err)
-	assert.Equal(t, "name: North Sea\n", string(got))
-	assert.NoFileExists(t, path+".tmp", "the atomic write leaves no temp file behind")
 }
