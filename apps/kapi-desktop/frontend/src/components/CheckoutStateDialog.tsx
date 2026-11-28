@@ -269,13 +269,7 @@ function SameProjectCommand({ command, leavesSignIn }: { command: string; leaves
   const [copied, setCopied] = useState(false);
   return (
     <div data-slot="checkout-state-same-project" className="space-y-1">
-      <p className="text-muted-foreground">
-        {leavesSignIn
-          ? t(
-              "If it is yours, run this in a terminal. It brings the original text of hidden values. The saved sign-in stays, because it belongs to another server project.",
-            )
-          : t("If it is yours, run this in a terminal:")}
-      </p>
+      <p className="text-muted-foreground">{t("If it is yours, run this in a terminal:")}</p>
       <div className="flex items-center gap-2">
         <code
           className="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1 font-mono text-xs"
@@ -293,6 +287,11 @@ function SameProjectCommand({ command, leavesSignIn }: { command: string; leaves
           {copied ? t("Copied") : t("Copy")}
         </Button>
       </div>
+      {leavesSignIn && (
+        <p data-slot="checkout-state-sign-in-stays" className="text-muted-foreground">
+          {t("The saved sign-in stays here. It belongs to another server project.")}
+        </p>
+      )}
     </div>
   );
 }
