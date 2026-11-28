@@ -393,9 +393,14 @@ func (s *session) own(k model.EditionKey) bool {
 		model.NormalizeLocale(k.Locale) == model.NormalizeLocale(s.doc.SourceLocale)
 }
 
+// Place says where edition k lives. An edition a file holds answers with what
+// that file's format keeps of a block's content (Place.Keeps): the document's
+// format for the document's own file, and for an edition's own file when it
+// is in the document's format, whose blocks the declaration is about. An
+// edition a keeper holds until its file is written has no file to ask.
 func (s *session) Place(k model.EditionKey) change.Place {
 	if s.own(k) {
-		return change.Place{Kind: change.PlaceInDocument}
+		return change.Place{Kind: change.PlaceInDocument, Keeps: s.caps.Keeps}
 	}
 	if s.doc.Editions == change.EditionsInFile {
 		// A bilingual file keys its translations by language alone.
@@ -403,13 +408,17 @@ func (s *session) Place(k model.EditionKey) change.Place {
 			return change.Place{Kind: change.PlaceNone,
 				Why: fmt.Sprintf("the %s format keeps one translation per language, and an edition with a tone or a channel has no place in %s", s.doc.Format.Name, s.doc.Ref)}
 		}
-		return change.Place{Kind: change.PlaceInDocument}
+		return change.Place{Kind: change.PlaceInDocument, Keeps: s.caps.Keeps}
 	}
 	if f, ok := s.editionFile(k); ok {
 		if f.Kept != nil {
 			return change.Place{Kind: change.PlaceOwnFile, File: f.Ref, Home: f.Kept.Name()}
 		}
-		return change.Place{Kind: change.PlaceOwnFile, File: f.Ref}
+		place := change.Place{Kind: change.PlaceOwnFile, File: f.Ref}
+		if f.Format.Name == s.doc.Format.Name {
+			place.Keeps = s.caps.Keeps
+		}
+		return place
 	}
 	return change.Place{Kind: change.PlaceNone, Why: s.doc.NoEditionFile}
 }

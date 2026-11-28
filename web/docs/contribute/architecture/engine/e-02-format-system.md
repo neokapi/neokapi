@@ -516,6 +516,21 @@ cell that refuses one.
 the operations its round trip carries and these declarations; an operation
 nothing declares is `null`, and refused as `unsupported`.
 
+A writer also declares what its format does not keep of a block's content. A
+Markdown paragraph holds no white space at its ends, so a paragraph written
+with a space after its last word reads back without one. Such a writer
+implements `format.ContentKeeper` (`core/format/kept.go`): `KeptRuns` returns
+the part of a block's runs the format keeps, and returns content the reader
+gave as it is. The file home answers with it for each edition a file of the
+format holds (`change.Place.Keeps`). A `set_content` or `replace_text` whose
+content, as the format keeps it, is the content the file holds is `unchanged`,
+and nothing is written. A writer that does not implement it declares that its
+format keeps content whole, and a write that leaves its file's bytes as they
+were is refused as a dropped change. The kept-content cells of the operations
+matrix (`core/formats/opsmatrix_kept_test.go`) write each built-in format's
+fixture with a space or a line break at an end of every block and hold the
+format to reading it back whole or as `KeptRuns` gives it.
+
 **Skeletons are typed per format.** A `SkeletonStore` carries an `OriginFormat`
 stamp, and `format.WireSkeleton(store, reader, writer)` connects a reader's
 skeleton emission to a writer **only when they are the same format**, so the

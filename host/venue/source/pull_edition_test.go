@@ -219,3 +219,104 @@ func TestPull_ABlockScalarTranslationKeepsItsEnding(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(got), string(again))
 }
+
+// pulling is a project whose server answers every pull with the blocks in
+// served, at cursor 42.
+type pulling struct {
+	root   string
+	conn   *BowrainSourceConnector
+	served []apiclient.SyncBlock
+}
+
+// newPulling writes files under a new project root and connects the project,
+// with one collection item translated into target, to a server that serves
+// what the test puts in served.
+func newPulling(t *testing.T, target model.LocaleID, item coreproj.Collection, files map[string]string) *pulling {
+	t.Helper()
+	p := &pulling{root: t.TempDir()}
+	for name, body := range files {
+		path := filepath.Join(p.root, filepath.FromSlash(name))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+	}
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	mux := http.NewServeMux()
+	metaPath := "/api/v1/projects/proj123"
+	mux.HandleFunc(metaPath, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.ProjectMetadata{ID: "proj123", DefaultSourceLanguage: "en", TargetLanguages: []string{string(target)}})
+	})
+	mux.HandleFunc(metaPath+"/sync/main/pull", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.RichPullResponse{Cursor: 42, Blocks: p.served})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	proj, err := bproject.InitProject(p.root, &bproject.Recipe{
+		Defaults:    coreproj.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{target}},
+		Collections: []coreproj.Collection{item},
+		Server:      &bproject.ServerSpec{URL: srv.URL + "/projects/proj123", Stream: "main"},
+	})
+	require.NoError(t, err)
+	client := apiclient.NewProjectBearerClient(srv.URL, "proj123", "test-token")
+	client.SetStream("main")
+	p.conn = &BowrainSourceConnector{
+		app: testApp(t), project: proj, client: client, formatReg: reg,
+		cache: bproject.LoadSyncCache(proj.Layout), refs: refcache.Load(proj.Layout, config.NormalizeServerURL(srv.URL), "proj123"),
+		stream: "main", maxBatch: 1000,
+	}
+	t.Cleanup(func() { _ = p.conn.Close() })
+	return p
+}
+
+// read returns a file of the project.
+func (p *pulling) read(t *testing.T, name string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(p.root, filepath.FromSlash(name)))
+	require.NoError(t, err)
+	return string(b)
+}
+
+// TestPull_ATranslationTheFormatDoesNotKeepWholeIsHeld pins a pull of a
+// translation that differs from the translation's file only in what the
+// file's format does not keep. A Markdown or MDX paragraph holds no white
+// space at its ends, and the server holds the paragraph with a space or a line
+// break there. The file already says all of the translation it can say: the
+// pull succeeds, leaves the file as it is and moves the project's position,
+// on the first pull and on every later one.
+func TestPull_ATranslationTheFormatDoesNotKeepWholeIsHeld(t *testing.T) {
+	ctx := context.Background()
+	for _, ext := range []string{"md", "mdx"} {
+		for _, tc := range []struct{ name, served string }{
+			{"a space at the end", "Bonjour le monde. "},
+			{"a line break at the end", "Bonjour le monde.\n"},
+			{"a space at the start", " Bonjour le monde."},
+		} {
+			t.Run(ext+"/"+tc.name, func(t *testing.T) {
+				const french = "# Titre\n\nBonjour le monde.\n"
+				source, translated := "docs/en/guide."+ext, "docs/fr/guide."+ext
+				format := map[string]string{"md": "markdown", "mdx": "mdx"}[ext]
+				p := newPulling(t, "fr",
+					coreproj.Collection{Path: source, Target: "docs/{lang}/guide." + ext, Format: &coreproj.FormatSpec{Name: format}},
+					map[string]string{source: "# Title\n\nHello world today.\n", translated: french})
+
+				local, err := p.conn.readBlocks(ctx, filepath.Join(p.root, filepath.FromSlash(source)), format)
+				require.NoError(t, err)
+				require.Len(t, local, 2)
+				local[0].SetTargetRuns("fr", []model.Run{model.TextR("Titre")})
+				local[1].SetTargetRuns("fr", []model.Run{model.TextR(tc.served)})
+				for _, b := range local {
+					p.served = append(p.served, apiclient.BlockToSyncBlock(b, source))
+				}
+
+				for _, pull := range []string{"the first pull", "the next pull"} {
+					_, err := p.conn.Pull(ctx, bowrainconn.PullOptions{})
+					require.NoError(t, err, pull)
+					assert.Equal(t, french, p.read(t, translated), pull)
+					assert.EqualValues(t, 42, p.conn.refs.Ref("main").Content, "%s moves the project's position", pull)
+				}
+			})
+		}
+	}
+}

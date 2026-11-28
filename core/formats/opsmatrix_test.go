@@ -27,27 +27,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The operations matrix proves, for every built-in format whose reader and
-// writer share a skeleton, which operations of the edit contract reach the
-// format's bytes (docs/internals/edit-model.md, section 2.7). Each cell is one
-// (fixture, operation) pair: the fixture is read, the operation is applied to
-// each block through change.ApplyBlock, as the change service applies it, the
-// document is written through the format's writer, and then
+// The operations matrix proves which operations of the edit contract reach
+// the bytes of every built-in format whose reader and writer share a skeleton
+// (docs/internals/edit-model.md, section 2.7). A cell is one fixture and one
+// operation. The fixture is read, the operation is applied to each block
+// through change.ApplyBlock, as the change service applies it, and the
+// document is written through the format's writer.
+
+// A cell holds when:
 //
 //   - the edited blocks read back with exactly the edited content, codes
 //     included, and every other block reads back as it was read;
 //   - every byte the operation did not touch is in the output unchanged;
 //   - the blocks the operation must refuse are refused, and their bytes stay.
-//
+
 // Fixtures carry inline codes, attributes, plurals and selects where the format
 // has them, and a target edition in every format that holds one. A fixture is a
-// template under testdata/opsmatrix: a word written «like this» is content of
-// an edition that the operation must change, and the same word written plainly
+// template under testdata/opsmatrix. A word written «like this» is content of
+// an edition that the operation must change. The same word written plainly
 // (in a key, an attribute, a comment, code data, or a block every operation
 // is refused on) must come through byte for byte. A word written
 // «like this!op@edition» is changed by every operation but the one named,
 // which the fixture declares refused on its block.
-//
+
 // An operation is added as one more matrixOp with a driver in opsFixture.run
 // and a rule for the document it produces in matrixOp.want. A cell a format
 // cannot carry is declared in the fixture's refused map with the reason, and
@@ -106,6 +108,9 @@ type opsFixture struct {
 	// structures says the fixture holds plurals or selects, so it also gets
 	// the cell that sets each branch by its path.
 	structures bool
+	// unkept names the kept-content cells the fixture does not hold
+	// (opsmatrix_kept_test.go), with what the format does instead.
+	unkept map[string]string
 }
 
 // refusal is a cell a fixture refuses whole, with the reason. err is the error
@@ -149,12 +154,13 @@ func (op matrixOp) want(tmpl string) string {
 	return renderTemplate(tmpl, &op.sub, op.key())
 }
 
-// matrixOps is every operation the matrix drives, each a word substitution:
-// set_content with the block's edit text and the word replaced, as `kapi
-// apply` sends a block `kapi inspect` showed; set_content by path, which in a
-// fixture with plurals or selects sets each branch holding the word with the
-// branch's text and the word replaced; and replace_text with the offsets of
-// each match, as ksed sends a substitution (replaceEdits).
+// matrixOps is every operation the matrix drives, each a word substitution.
+// The first is set_content with the block's edit text and the word replaced,
+// as `kapi apply` sends a block `kapi inspect` showed. The second is
+// set_content by path: in a fixture with plurals or selects it sets each
+// branch holding the word with the branch's text and the word replaced. The
+// others are replace_text with the offsets of each match, as ksed sends a
+// substitution (replaceEdits).
 var matrixOps = []matrixOp{
 	{name: "set_content", edition: sourceEdition, sub: sourceWord},
 	{name: "set_content", edition: sourceEdition, sub: sourceWord, byPath: true},
@@ -179,12 +185,21 @@ func opsMatrix() []opsFixture {
 				"tu5": arbFlattens, "tu6": arbFlattens, "tu7": arbFlattens,
 			}},
 		},
-		{format: "asciidoc", template: "asciidoc.adoc.tmpl"},
+		{format: "asciidoc", template: "asciidoc.adoc.tmpl", unkept: map[string]string{
+			"line_break_after@source": "the writer refuses a line break in the alternative text of an image",
+			"space_before@source":     "the reader gives a block without the space before it",
+		}},
 		{format: "csv", template: "csv.csv.tmpl"},
 		{format: "designtokens", template: "designtokens.tokens.json.tmpl"},
-		{format: "eml", template: "eml.eml.tmpl"},
-		{format: "epub", template: "epub.tmpl"},
-		{format: "html", template: "html.html.tmpl"},
+		{format: "eml", template: "eml.eml.tmpl", unkept: map[string]string{
+			"line_break_after@source": "the writer refuses a line break in the subject",
+		}},
+		{format: "epub", template: "epub.tmpl", unkept: map[string]string{
+			"line_break_after@source": "the reader gives a block without the line break at its end",
+		}},
+		{format: "html", template: "html.html.tmpl", unkept: map[string]string{
+			"line_break_after@source": "the reader gives a block without the line break at its end",
+		}},
 		{format: "i18next", template: "i18next.json.tmpl"},
 		// Strings in an array are not extracted by default. An edited value
 		// keeps the spelling of every character the edit kept, so the escaped
@@ -194,10 +209,17 @@ func opsMatrix() []opsFixture {
 		{format: "mdx", template: "mdx.mdx.tmpl"},
 		// Each plural and select branch is a block of its own; the prose
 		// framing a select is read as non-translatable, so its word stays.
-		{format: "messageformat", template: "messageformat.mf.tmpl"},
+		{format: "messageformat", template: "messageformat.mf.tmpl", unkept: map[string]string{
+			"space_after@source":      "the reader gives a message without the space at its end",
+			"space_before@source":     "the reader gives a message without the space before it",
+			"line_break_after@source": "the writer writes the line break into the message, and the reader fails on the document",
+		}},
 		{format: "odf", template: "odf.tmpl"},
 		{
 			format: "openxml", template: "openxml.tmpl",
+			unkept: map[string]string{
+				"line_break_after@source": "the writer writes the line break as a break, which reads back as an inline code",
+			},
 			normalized: map[string]string{
 				"word/document.xml": "the writer re-serializes the document part from the skeleton on every write " +
 					"(see containerMemberNormalised in sourceedit_test.go)",
@@ -205,6 +227,9 @@ func opsMatrix() []opsFixture {
 		},
 		{
 			format: "plaintext", template: "plaintext.txt.tmpl",
+			unkept: map[string]string{
+				"line_break_after@source": "the reader gives a paragraph without the line break at its end",
+			},
 			refuse: map[string]map[string]string{
 				"set_content@source": {
 					// The line holds the characters <x id="1"/> as text. Edit text
@@ -217,9 +242,13 @@ func opsMatrix() []opsFixture {
 			},
 		},
 		{format: "po", template: "po.po.tmpl", target: "fr"},
-		{format: "properties", template: "properties.properties.tmpl"},
+		{format: "properties", template: "properties.properties.tmpl", unkept: map[string]string{
+			"space_before@source": "the writer writes the space after the separator, where the reader skips it",
+		}},
 		{format: "resx", template: "resx.resx.tmpl"},
-		{format: "srt", template: "srt.srt.tmpl"},
+		{format: "srt", template: "srt.srt.tmpl", unkept: map[string]string{
+			"line_break_after@source": "the reader gives a cue without the line break at its end",
+		}},
 		{
 			format: "tmx", template: "tmx.tmx.tmpl", target: "fr",
 			respelled: []respelling{{
@@ -231,10 +260,16 @@ func opsMatrix() []opsFixture {
 		// The word is in both forms; replace_text edits each form by its path.
 		{format: "ts", name: "numerus", template: "ts-numerus.ts.tmpl", target: "fr", respelled: tsPrologue},
 		{format: "tsv", template: "tsv.tsv.tmpl"},
-		{format: "vtt", template: "vtt.vtt.tmpl"},
+		{format: "vtt", template: "vtt.vtt.tmpl", unkept: map[string]string{
+			"line_break_after@source": "the reader gives a cue without the line break at its end",
+		}},
 		{format: "xcstrings", template: "xcstrings.xcstrings.tmpl", target: "fr"},
 		{
 			format: "xliff", template: "xliff.xlf.tmpl", target: "fr",
+			unkept: map[string]string{
+				"space_before@source": "a block given a text run before its first one reads back with its inline codes one run later",
+				"space_before@target": "a block given a text run before its first one reads back with its inline codes one run later",
+			},
 			respelled: []respelling{
 				{
 					from: "&lt;b&gt;</bpt>", to: "&lt;b></bpt>",
@@ -430,9 +465,9 @@ func (fx opsFixture) readEditable(t *testing.T, data []byte, locale model.Locale
 }
 
 // editDocument reads input with the reader wired to the writer's skeleton
-// store, hands every block to edit with the environment the change service
+// store. It hands every block to edit with the environment the change service
 // applies operations in (the writer's declared capabilities, a person's
-// edit), and writes the parts with the original bytes bound and writeLocale
+// edit). It writes the parts with the original bytes bound and writeLocale
 // active, as the file home writes a document (core/change/filehome). It
 // returns what the writer wrote and the error it refused the write with, if
 // it did.
@@ -644,7 +679,7 @@ func (fx opsFixture) substitute(t *testing.T, op matrixOp, input []byte) opOutco
 // replaceEdits are the replace_text edits that substitute sub in seq, the run
 // sequence path reaches, and in the branches of every plural and select it
 // holds, as ksed computes them for s/from/to/g (host/toolbox_sed.go,
-// sedCmd.edits): a match is found in the sequence's own text, in which inline
+// sedCmd.edits). A match is found in the sequence's own text, in which inline
 // codes, plurals and selects have no width, and a match that would swallow a
 // plural or a select is left alone. A match is found at a byte offset and a
 // text edit counts code points, so each match is converted before it becomes

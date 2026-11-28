@@ -41,6 +41,12 @@ type memHome struct {
 	kv          bool
 	restructure func(blocks []*model.Block, e change.StructuralEdit) ([]*model.Block, *change.Error)
 	writes      []change.Kind
+	// keeps, when set, is what the home's format keeps of a block's content,
+	// which every place answers with (kept_test.go).
+	keeps format.ContentKeeper
+	// drops makes the home a writer that takes no change: a stage leaves the
+	// document's bytes as they were.
+	drops bool
 }
 
 type memDoc struct {
@@ -169,7 +175,7 @@ func (s *memSession) Place(k model.EditionKey) change.Place {
 		// A key-value catalog holds its own language only.
 		return change.Place{Kind: change.PlaceNone}
 	}
-	return change.Place{Kind: change.PlaceInDocument}
+	return change.Place{Kind: change.PlaceInDocument, Keeps: s.h.keeps}
 }
 
 // Structural is what the home writes: insert_block and delete_block in a
@@ -315,7 +321,7 @@ func memRestructure(blocks []*model.Block, e change.StructuralEdit) ([]*model.Bl
 func (st *memStaged) Files() []change.StagedFile {
 	before := fmt.Sprintf("head:%d", st.head)
 	after := before
-	if st.changed {
+	if st.changed && !st.s.h.drops {
 		after = fmt.Sprintf("head:%d", st.head+1)
 	}
 	return []change.StagedFile{{File: st.s.doc, Before: before, After: after, Written: st.written}}
@@ -1011,8 +1017,8 @@ func (f editionStates) EditionState(b *model.Block, k model.EditionKey) (change.
 // TestService_ReadAsksForEditionStatesOncePerDocument pins that a read asks
 // the host where a document's editions stand once for the document, a page
 // read and a streamed read alike, so a host answers from one read of its
-// records rather than one per block, and says how many blocks it shows at
-// most, so the host can tell a read of a few blocks from a read of them all.
+// records rather than one per block. The read says how many blocks it shows
+// at most, so the host can tell a read of a few blocks from a read of them all.
 func TestService_ReadAsksForEditionStatesOncePerDocument(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{"a": {
 		textBlock("one", "First", "nb", "Første"),
@@ -1062,8 +1068,8 @@ func (c *countingStates) Document(_ context.Context, _ change.DocInfo, shows int
 
 // TestService_EachOperationReportsItsOwnOutcome pins that a refusal on one
 // block leaves the operations on another block of the document to report
-// what they would have done (not_applied, blocked by the refusal), and that
-// an operation held back by a refusal on its own block is not_applied, never
+// what they would have done (not_applied, blocked by the refusal). It also
+// pins that an operation held back by a refusal on its own block is not_applied, never
 // a block that is not there.
 func TestService_EachOperationReportsItsOwnOutcome(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First"), textBlock("two", "Second")}})
@@ -1185,7 +1191,7 @@ func TestService_OneBlockAddressedByTwoKeys(t *testing.T) {
 
 // TestService_TheCommitCheckSeesThePassThatCommits pins that when the home
 // applies a change set again at commit, because the document moved, the
-// commit check runs over that second pass: an operation that writes
+// commit check runs over that second pass. An operation that writes
 // whatever is there (if_match *) can introduce a finding the first pass did
 // not have, and that pass is the one that lands.
 func TestService_TheCommitCheckSeesThePassThatCommits(t *testing.T) {

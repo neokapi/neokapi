@@ -31,6 +31,12 @@ type Capabilities struct {
 	// new block's content is compared as it spells it. Nil compares the runs'
 	// data (model.RenderRunsWithData).
 	Values format.ValueSpeller
+	// Keeps says what the format keeps of a block's content, for a format
+	// that does not keep every character (format.ContentKeeper). A home that
+	// holds a document as a file of the format answers with it for the
+	// editions that file holds (Place.Keeps). Nil declares that the format
+	// keeps content whole.
+	Keeps format.ContentKeeper
 }
 
 // WriterCapabilities returns what an in-process writer declares, with the
@@ -46,6 +52,9 @@ func WriterCapabilities(name string, w format.DataFormatWriter) Capabilities {
 	}
 	if vs, ok := w.(format.ValueSpeller); ok {
 		c.Values = vs
+	}
+	if ck, ok := w.(format.ContentKeeper); ok {
+		c.Keeps = ck
 	}
 	return c
 }

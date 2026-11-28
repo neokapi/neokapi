@@ -16,11 +16,11 @@ import (
 // blocks; the MDX writer re-applies it the same way so those blocks keep
 // their line shape on round-trip. Kept as a local constant (string value
 // identical to markdown.BlockPropLinePrefix) so the MDX package needs no
-// extra import surface — the markdown reader sets the property by this key.
+// extra import surface. The markdown reader sets the property by this key.
 const BlockPropLinePrefix = "md:line-prefix"
 
 // BlockPropVerbatim marks a block the MDX reader surfaced as a verbatim slice
-// of the source — a JSX text child or a GFM table cell (see content.go). Its
+// of the source: a JSX text child or a GFM table cell (see content.go). Its
 // runs already carry the source spelling, escapes included, so the writer
 // emits them unchanged.
 //
@@ -122,7 +122,7 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 
 // writeFromParts reconstructs MDX without a skeleton store. It interleaves
 // opaque MDX-region Data and code-block Data with rendered blocks in the
-// order they were emitted is not tracked here, so this fallback simply
+// order they were emitted is not tracked here, so this fallback
 // concatenates the verbatim Data content and rendered block text. It is a
 // best-effort path; the skeleton path is the faithful one and is always
 // used by the pipeline (the reader registers as a SkeletonStoreEmitter).
@@ -159,7 +159,7 @@ func (w *Writer) writeFromParts(blocks []*model.Block, data []*model.Data, out i
 // blocks whose source carried a per-line continuation prefix (set by the
 // markdown reader via BlockPropLinePrefix) have that prefix re-inserted
 // after every "\n" so blockquotes and indented continuations retain their
-// original line shape — identical to the markdown writer's behaviour.
+// original line shape, as the markdown writer does.
 //
 // A source an edit rewrote has the markup the edit added escaped (see
 // editSyntax), so an edit's wording reaches the page as text and never as JSX,
@@ -197,4 +197,12 @@ func (w *Writer) blockRuns(block *model.Block) []model.Run {
 		return source
 	}
 	return nil
+}
+
+var _ format.ContentKeeper = (*Writer)(nil)
+
+// KeptRuns implements format.ContentKeeper. MDX reads its prose through the
+// Markdown reader, so a block of prose holds what Markdown keeps of it.
+func (w *Writer) KeptRuns(b *model.Block, runs []model.Run) []model.Run {
+	return markdown.KeptRuns(b, runs)
 }
