@@ -12,14 +12,25 @@ went to copies nothing reads: a cache keyed `<family>-<commit sha>` is saved
 anew by every merge to main, and a restore by prefix only ever picks the
 newest one.
 
-prune deletes two kinds of cache nobody will read:
+prune deletes the caches nobody will read:
 
   * on refs/heads/main, every cache of a family keyed by a commit sha or a
     content hash (40 or 64 hex digits) except the newest;
   * every cache on any other ref. Only main saves caches
-    (scripts/check-ci-caches.py), so one elsewhere is a leftover.
+    (scripts/check-ci-caches.py), so one elsewhere is a leftover;
+  * every buildkit layer blob (`buildkit-blob-*`, written by the image
+    builds' gha cache) that no build has read for STALE_DAYS (3) days, and
+    every buildkit index (`index-<scope>#<n>`) unread as long that is not the
+    newest of its scope. Buildkit reads only the newest index of a scope. A
+    blob an index still lists is a plain cache miss once deleted: the build
+    rebuilds the layer and writes the blob again (checked on main,
+    2026-11-28, with the keycloak image). The REST listing cannot show which
+    blobs an index lists, so an index is judged by its own reads.
 
-It needs a token with `actions: write` and runs from main.
+A listing prune cannot read deletes nothing: one whose pages hold a
+different number of caches than its total_count, or a cache without an id,
+a key, a ref or a time prune can parse. It needs a token with `actions: write` and
+runs from main.
 
 check applies two rules and fails when either breaks.
 
@@ -50,6 +61,7 @@ repository.
 from __future__ import annotations
 
 import collections
+import datetime
 import json
 import os
 import re
@@ -62,6 +74,48 @@ LIMIT_BYTES = 10 * 1024**3
 MAIN = "refs/heads/main"
 SHA_SUFFIX = re.compile(r"^(?P<family>.+)-(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 RELEASE_FAMILIES = ("go-release-", "icu-static-")
+STALE_DAYS = 3
+BUILDKIT_BLOB = "buildkit-blob-"
+BUILDKIT_INDEX = re.compile(r"^index-(?P<scope>.+)#(?P<n>[0-9]+)$")
+
+
+class Unreadable(Exception):
+    """A cache listing prune cannot judge."""
+
+
+def when(stamp: str) -> datetime.datetime:
+    return datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+
+
+def readable(caches: list[dict]) -> None:
+    """Raise Unreadable unless every cache has what prune judges it by."""
+    for c in caches:
+        try:
+            if not (c["id"] and c["key"] and c["ref"]) or int(c["size_in_bytes"]) < 0:
+                raise ValueError("empty field")
+            when(c["created_at"])
+            when(c["last_accessed_at"])
+        except (KeyError, TypeError, ValueError) as err:
+            raise Unreadable(f"cache {c.get('key') or c.get('id') or c!r}: {err}") from err
+
+
+def stale_buildkit(caches: list[dict], now: datetime.datetime) -> list[dict]:
+    """The buildkit blobs no build has read for STALE_DAYS days, and the
+    indexes unread as long that a newer index of their scope replaces."""
+    cutoff = now - datetime.timedelta(days=STALE_DAYS)
+    newest: dict[str, int] = {}
+    for c in caches:
+        m = BUILDKIT_INDEX.match(c["key"]) if c["ref"] == MAIN else None
+        if m:
+            newest[m.group("scope")] = max(newest.get(m.group("scope"), -1), int(m.group("n")))
+    out = []
+    for c in caches:
+        if c["ref"] != MAIN or when(c["last_accessed_at"]) >= cutoff:
+            continue
+        m = BUILDKIT_INDEX.match(c["key"])
+        if c["key"].startswith(BUILDKIT_BLOB) or (m and int(m.group("n")) < newest[m.group("scope")]):
+            out.append(c)
+    return out
 
 
 def fold(family: str) -> str:
@@ -79,10 +133,23 @@ def gh(*args: str) -> str:
     return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
 
 
+def caches_from_pages(pages: list[dict]) -> list[dict]:
+    """The caches on every page of a listing. Raises Unreadable when the
+    pages disagree on total_count or hold a different number of caches: a
+    page lost while paging would look like caches that are gone."""
+    totals = {page.get("total_count") for page in pages}
+    caches = [c for page in pages for c in page.get("actions_caches") or []]
+    if len(totals) != 1 or not isinstance(next(iter(totals)), int):
+        raise Unreadable(f"the listing's pages give total_count {sorted(map(str, totals))}")
+    total = next(iter(totals))
+    if len(caches) != total:
+        raise Unreadable(f"the listing holds {len(caches)} caches, and total_count says {total}")
+    return caches
+
+
 def list_caches(repo: str) -> list[dict]:
-    out = gh("api", "--paginate", f"repos/{repo}/actions/caches?per_page=100",
-             "--jq", ".actions_caches[]")
-    return [json.loads(line) for line in out.splitlines() if line.strip()]
+    out = gh("api", "--paginate", "--slurp", f"repos/{repo}/actions/caches?per_page=100")
+    return caches_from_pages(json.loads(out))
 
 
 def superseded(caches: list[dict]) -> list[dict]:
@@ -132,9 +199,29 @@ def report(caches: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def doomed_by_prune(caches: list[dict], now: datetime.datetime) -> list[dict]:
+    """What prune deletes from a listing; raises Unreadable, and then
+    nothing is deleted."""
+    readable(caches)
+    seen, out = set(), []
+    for c in superseded(caches) + off_main(caches) + stale_buildkit(caches, now):
+        if c["id"] not in seen:
+            seen.add(c["id"])
+            out.append(c)
+    return out
+
+
 def main_prune(repo: str) -> int:
-    caches = list_caches(repo)
-    doomed = superseded(caches) + off_main(caches)
+    try:
+        caches = list_caches(repo)
+        doomed = doomed_by_prune(caches, datetime.datetime.now(datetime.timezone.utc))
+    except Unreadable as err:
+        # A save that lands while the listing is paged changes total_count, so
+        # an unreadable listing is common enough on main that failing the job
+        # would be noise. Nothing is deleted; the scheduled check, which fails
+        # on an unreadable listing, reports one that stays unreadable.
+        print(f"::warning::ci-cache-budget: cannot read the cache listing, so nothing is deleted: {err}")
+        return 0
     failed = 0
     for c in doomed:
         try:
@@ -146,7 +233,7 @@ def main_prune(repo: str) -> int:
                 continue
             print(f"::error::could not delete {c['key']}: {err.stderr.strip()}", file=sys.stderr)
             failed += 1
-    print(f"ci-cache-budget: {len(doomed)} superseded or off-main caches")
+    print(f"ci-cache-budget: {len(doomed)} superseded, off-main or unread buildkit caches")
     return 1 if failed else 0
 
 
@@ -164,11 +251,13 @@ def over_budget(caches: list[dict]) -> list[str]:
     return out
 
 
-def after_prune(caches: list[dict]) -> list[dict]:
-    """The caches prune leaves: each family's newest copy on main, nothing
-    elsewhere. A new copy saved a moment before the next prune is a transient
-    every save makes; check judges the state prune converges on."""
-    doomed = {c["id"] for c in superseded(caches) + off_main(caches)}
+def after_prune(caches: list[dict], now: datetime.datetime | None = None) -> list[dict]:
+    """The caches prune leaves: each family's newest copy on main, the
+    buildkit caches a build read lately, nothing elsewhere. A new copy saved a
+    moment before the next prune is a transient every save makes; check
+    judges the state prune converges on."""
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    doomed = {c["id"] for c in superseded(caches) + off_main(caches) + stale_buildkit(caches, now)}
     return [c for c in caches if c["id"] not in doomed]
 
 
@@ -198,7 +287,11 @@ def check_problems(caches: list[dict]) -> list[str]:
 
 
 def main_check(repo: str) -> int:
-    caches = list_caches(repo)
+    try:
+        caches = list_caches(repo)
+    except Unreadable as err:
+        print(f"::error::ci-cache-budget: cannot read the cache listing: {err}")
+        return 1
     print(report(caches))
     steady = after_prune(caches)
     ordinary = sum(c["size_in_bytes"] for c in steady if not is_release(c["key"]))
@@ -282,6 +375,40 @@ def self_test() -> int:
     if check_problems(roomy + [c(46, "go-build-Linux-pr-trimpath-" + sha(46), size=int(2.0 * gib),
                                  created="2026-11-21T10:00:00Z")]):
         failures.append("an older copy prune removes is not counted twice")
+    # Buildkit blobs and indexes, judged on 2026-11-28 at noon.
+    now = when("2026-11-28T12:00:00Z")
+    blobs = [c(50, "buildkit-blob-1-sha256:" + "5" * 64, accessed="2026-11-27T12:00:00Z"),
+             c(51, "buildkit-blob-1-sha256:" + "6" * 64, accessed="2026-11-24T12:00:00Z"),
+             c(52, "index-bowrain-web-1-f921bd05#3", accessed="2026-11-24T12:00:00Z"),
+             c(53, "index-bowrain-web-1-f921bd05#4", accessed="2026-11-24T12:00:00Z"),
+             c(54, "index-bowrain-web-1-f921bd05#2", accessed="2026-11-27T12:00:00Z"),
+             c(55, "buildkit-blob-1-sha256:" + "7" * 64, ref="refs/pull/1/merge", accessed="2026-11-28T11:00:00Z")]
+    gone = sorted(x["id"] for x in doomed_by_prune(blobs, now))
+    if gone != [51, 52, 55]:
+        failures.append("a blob read yesterday stays, one read four days ago goes, an index goes only when a newer "
+                        f"index of its scope replaces it and nobody read it for three days: want [51, 52, 55], got {gone}")
+    for broken in ({"id": 60, "key": "buildkit-blob-1-sha256:" + "8" * 64, "ref": MAIN, "size_in_bytes": 1,
+                    "created_at": "2026-11-01T00:00:00Z"},
+                   {"id": 61, "key": "buildkit-blob-1-sha256:" + "9" * 64, "ref": MAIN, "size_in_bytes": 1,
+                    "created_at": "2026-11-01T00:00:00Z", "last_accessed_at": "yesterday"}):
+        try:
+            doomed_by_prune(blobs + caches + [broken], now)
+            failures.append(f"a listing with {broken} must delete nothing")
+        except Unreadable:
+            pass
+    page = lambda total, *ids: {"total_count": total, "actions_caches": [c(i, f"k{i}") for i in ids]}
+    if [x["id"] for x in caches_from_pages([page(3, 1, 2), page(3, 3)])] != [1, 2, 3]:
+        failures.append("two pages that agree with total_count list every cache")
+    for name, pages in (("a page short of total_count", [page(3, 1, 2)]),
+                        ("pages that disagree on total_count", [page(3, 1, 2), page(4, 3)]),
+                        ("a page without total_count", [{"actions_caches": []}])):
+        try:
+            caches_from_pages(pages)
+            failures.append(f"{name} must be unreadable, so prune deletes nothing")
+        except Unreadable:
+            pass
+    if [x["id"] for x in after_prune(blobs[:2], now)] != [50]:
+        failures.append("check judges the listing after prune drops the unread blob")
     ordinary_full = [c(20, "go-build-x-" + sha(20), size=int(7.6 * gib))]
     if not any("ordinary" in x for x in over_budget(ordinary_full)):
         failures.append("ordinary caches past 7.5 GiB must fail")

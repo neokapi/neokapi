@@ -13,7 +13,9 @@ export NODE_OPTIONS := --experimental-strip-types
 ROOT_DIR    ?= $(shell cd .. && pwd)
 VERSION     ?= $(shell git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo "dev")
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-BUILD_DATE  ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+# The commit time, so two builds of one commit carry the same date and the
+# image layers after ARG BUILD_DATE are reused. Outside a git checkout, now.
+BUILD_DATE  ?= $(shell TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
 VERSION_PKG ?= github.com/neokapi/neokapi/core/version
 LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 

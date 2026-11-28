@@ -12,9 +12,9 @@ on:
           - prod
   push:
     branches: [main]
-    # bowrain-server and bowrain-worker link the framework — `go list -deps`
+    # bowrain-server and bowrain-worker link the framework. `go list -deps`
     # on the server names core/flow, core/observe, providers/ai and host among
-    # others — so a framework change changes the deployed binary and has to
+    # others, so a framework change changes the deployed binary and has to
     # deploy it. Listing only bowrain/** meant it did not: #2120 and #2122 both
     # altered code inside the server and shipped nothing, and would have
     # reached production inside whatever unrelated bowrain/ change came next,
@@ -36,7 +36,7 @@ on:
       - "go.sum"
       # And the deploy path itself. #2119 rewrote the deploy step and merged
       # without deploying, so the change went unexercised until an unrelated
-      # push happened to carry it — a bug in it would have surfaced then,
+      # push happened to carry it. A bug in it would have surfaced then,
       # attributed to that push. The reusable build workflows are listed for
       # the same reason: they decide what image is produced.
       - ".github/workflows/deploy-server.yml"
@@ -79,10 +79,16 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
+          # The commit time: a re-run of the same commit reuses its layers.
+          build_date=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD)
+          if [ -z "$build_date" ]; then
+            echo "::error::no commit time for HEAD; the images would carry an empty build date"
+            exit 1
+          fi
           {
             echo "version=$(git describe --tags --match 'v[0-9]*' --always 2>/dev/null || echo dev)"
             echo "commit=${GH_SHA::7}"
-            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "build_date=$build_date"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -133,21 +139,16 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # The task definition's shape — env, roles, sizing — stays Terraform-owned.
-      # This step owns one field: which image runs. It derives a revision from
-      # the latest Terraform-registered one, so a Terraform change to the shape
-      # lands on the next deploy, and pins the image to this commit.
+      # Terraform owns the task definition's shape (env, roles, sizing). The
+      # deploy owns one field, the image, and pins it to this commit on a
+      # revision derived from the latest Terraform one.
       #
-      # A :latest pin cannot be rolled back and cannot say what is running:
-      # every task-definition revision resolves to whatever the tag points at
-      # now, so reverting to an older revision returns the same code, a task
-      # replaced hours later silently picks up a newer build, and two deploys
-      # close together can each start tasks from the other's image. A
-      # commit-tagged revision answers all of it — `describe-services` names the
-      # commit, and rollback is `update-service --task-definition <revision>`.
-      # A deploy that waited behind a newer one must not roll production
-      # back: when the running server image is built from a commit that
-      # already contains this one, there is nothing to deploy.
+      # A commit-tagged revision says what runs (`describe-services` names the
+      # commit) and rolls back with `update-service --task-definition <rev>`.
+      # A :latest pin resolves to whatever the tag points at now.
+      #
+      # This step skips a deploy that waited behind a newer one: when the
+      # running image's commit already contains this one, nothing deploys.
       - name: Skip when production already runs a newer commit
         id: newer
         env:
