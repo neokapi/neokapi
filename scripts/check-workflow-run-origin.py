@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard: a run that follows another workflow acts only for this repository.
+"""Guard: no workflow acts for an account outside this repository.
 
 A workflow triggered by `workflow_run` runs from the default branch with the
 permissions and secrets it declares, whoever started the run it follows. A
@@ -25,8 +25,15 @@ that the event is some other one (`github.event_name == 'workflow_dispatch'`,
 held when a job it `needs` is held, because it is skipped with that job. A
 condition this script cannot read is reported, never assumed to hold.
 
-`pull_request_target` is refused in every workflow. It runs a fork's pull
-request with this repository's permissions, and no workflow here needs it.
+Some triggers are refused in every workflow, because any GitHub account can
+cause the event and the run then has this repository's permissions and
+secrets: `pull_request_target`, `issues`, `issue_comment`, `discussion`,
+`discussion_comment`, `fork` and `watch`. The two review events,
+`pull_request_review` and `pull_request_review_comment`, are refused with
+them: a review of a fork's pull request runs read-only, and a review of one
+of ours does not, so a job cannot tell from the trigger which it has. No
+workflow here uses any of them. One that needs to must first be able to
+prove who caused the event, and that rule belongs in this script.
 
     scripts/check-workflow-run-origin.py              check the repository
     scripts/check-workflow-run-origin.py --self-test  prove it on fixtures
@@ -50,6 +57,20 @@ ORIGIN_TESTS = frozenset(
         "github.event.workflow_run.event == 'push'",
         "github.event.workflow_run.event == 'schedule'",
     }
+)
+
+# Events an account with no access to the repository can cause, each starting
+# a run from the default branch.
+REFUSED_EVENTS = (
+    "pull_request_target",
+    "issues",
+    "issue_comment",
+    "discussion",
+    "discussion_comment",
+    "fork",
+    "watch",
+    "pull_request_review",
+    "pull_request_review_comment",
 )
 
 OTHER_EVENT = re.compile(r"^github\.event_name == '([a-z_]+)'$")
@@ -153,11 +174,12 @@ def triggers(doc: dict) -> set[str]:
 def problems(rel: str, doc: dict) -> list[str]:
     found = []
     events = triggers(doc)
-    if "pull_request_target" in events:
-        found.append(
-            f"{rel}: `pull_request_target` runs a fork's pull request with this "
-            "repository's permissions; use `pull_request`"
-        )
+    for event in REFUSED_EVENTS:
+        if event in events:
+            found.append(
+                f"{rel}: `{event}` starts a run with this repository's permissions "
+                "for any GitHub account that causes the event; no workflow may use it"
+            )
     if "workflow_run" not in events:
         return found
     jobs = doc.get("jobs")
@@ -295,15 +317,20 @@ def self_test() -> int:
     if not problems("needs.yml", two_jobs({"needs": ["second"]})):
         failures.append("reported nothing: a job that needs itself")
 
-    for form in ("pull_request_target", ["push", "pull_request_target"], {"pull_request_target": {}}):
-        if not problems("target.yml", {"on": form, "jobs": {}}):
-            failures.append(f"reported nothing: pull_request_target as {type(form).__name__}")
-    if not problems("target.yml", {True: {"pull_request_target": None}, "jobs": {}}):
-        failures.append("reported nothing: pull_request_target under a key YAML read as true")
+    for event in REFUSED_EVENTS:
+        for form in (event, ["push", event], {event: {"types": ["created"]}}):
+            if not problems("refused.yml", {"on": form, "jobs": {}}):
+                failures.append(f"reported nothing: {event} as {type(form).__name__}")
+        if not problems("refused.yml", {True: {event: None}, "jobs": {}}):
+            failures.append(f"reported nothing: {event} under a key YAML read as true")
+    gated = {"on": {"issue_comment": None}, "jobs": {"act": {"if": "github.event.comment.author_association == 'OWNER'"}}}
+    if not problems("refused.yml", gated):
+        failures.append("reported nothing: issue_comment behind a condition on the author")
     if not problems("true.yml", {True: {"workflow_run": {}}, "jobs": {"act": {}}}):
         failures.append("reported nothing: workflow_run under a key YAML read as true")
-    if problems("plain.yml", {"on": {"pull_request": None, "push": None}, "jobs": {"act": {}}}):
-        failures.append("reported: a workflow with neither trigger")
+    plain = {"pull_request": None, "push": None, "schedule": [{"cron": "0 0 * * *"}], "workflow_dispatch": None}
+    if problems("plain.yml", {"on": plain, "jobs": {"act": {}}}):
+        failures.append("reported: a workflow with none of these triggers")
 
     for line in failures:
         print(f"  {line}")
