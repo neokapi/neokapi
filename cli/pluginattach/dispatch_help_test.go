@@ -85,4 +85,26 @@ func TestSourceConnectorRouteHelp(t *testing.T) {
 		assert.Contains(t, err.Error(), "--concepts")
 		assert.NotContains(t, err.Error(), "acquire daemon")
 	})
+
+	t.Run("must fail: printing the help leaves the route's command as it was", func(t *testing.T) {
+		root := &cobra.Command{Use: "kapi", SilenceUsage: true, SilenceErrors: true}
+		AttachCommandsWithOptions(root, host, AttachOptions{DaemonPool: pool})
+		push, _, err := root.Find([]string{"push"})
+		require.NoError(t, err)
+		use := push.Use
+		var out bytes.Buffer
+		root.SetOut(&out)
+		root.SetErr(&out)
+		root.SetArgs([]string{"push", "--help"})
+		require.NoError(t, root.Execute())
+		assert.Contains(t, out.String(), "-p, --project", "the help lists the route's flags")
+
+		assert.Nil(t, push.Flags().Lookup("project"), "the route's command takes no -p of kapi's after its help is printed")
+		assert.Equal(t, use, push.Use, "and keeps its usage")
+		names := map[string]int{}
+		for _, c := range root.Commands() {
+			names[c.Name()]++
+		}
+		assert.Equal(t, 1, names["push"], "the copy that printed the help is gone")
+	})
 }
