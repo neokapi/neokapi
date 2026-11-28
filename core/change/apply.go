@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -75,6 +76,12 @@ type BlockEnv struct {
 	// The zero value declares nothing, and those operations are refused as
 	// unsupported.
 	Format Capabilities
+	// Keeps answers, for an edition of the block, with what the format of
+	// the file that holds it keeps of a block's content (Place.Keeps), or
+	// nil. set_content and replace_text are unchanged when the content they
+	// give the edition, as that format keeps it, is the content the edition
+	// has. A nil Keeps compares content whole.
+	Keeps func(k model.EditionKey) format.ContentKeeper
 	// Now is the clock that stamps a person's or an agent's edit. Nil is
 	// time.Now.
 	Now func() time.Time
@@ -594,6 +601,18 @@ func (w *workset) invalidated() []Invalidation {
 	return out
 }
 
+// keptAsHeld reports whether next, as the format of the file that holds the
+// edition keeps it, is the content cur the edition has (BlockEnv.Keeps). The
+// file then says all of next it can say, and writing next would change
+// nothing a read gives back.
+func (w *workset) keptAsHeld(st *edState, cur, next []model.Run) bool {
+	if w.env.Keeps == nil {
+		return false
+	}
+	keeper := w.env.Keeps(st.key)
+	return keeper != nil && sameContent(cur, keeper.KeptRuns(w.b, next))
+}
+
 // setContent applies set_content.
 func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	st := w.state(op.At.Edition)
@@ -674,7 +693,7 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 			}
 		}
 	}
-	if st.present && sameRuns(cur, newRuns) {
+	if st.present && (sameRuns(cur, newRuns) || w.keptAsHeld(st, cur, newRuns)) {
 		rev := st.revision()
 		res.Before, res.After, res.Status = st.startRevision(), rev, OpUnchanged
 		return nil
@@ -821,7 +840,7 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	if err := w.checkCodes(cur, next, nil, res); err != nil {
 		return err
 	}
-	if sameRuns(cur, next) {
+	if sameRuns(cur, next) || w.keptAsHeld(st, cur, next) {
 		res.Before, res.After, res.Status = st.startRevision(), st.revision(), OpUnchanged
 		return nil
 	}

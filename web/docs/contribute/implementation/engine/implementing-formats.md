@@ -585,6 +585,34 @@ A `StructureEditor` declaration is proved the same way in the structural
 operations matrix (`core/formats/opsmatrix_structural_test.go`), which fails
 while a declared operation has no passing cell.
 
+### Content the Format Does Not Keep
+
+Some formats keep less of a block's content than its runs hold. A Markdown
+paragraph holds no white space at its ends: written with a space after its last
+word, it reads back without one. A writer for such a format implements
+`format.ContentKeeper` (`core/format/kept.go`):
+
+- `KeptRuns(block, runs)` returns the part of `runs` the format keeps when they
+  are the content of `block`. Decide by the block the reader read, as the
+  Markdown writer trims a paragraph and returns a code block whole.
+- Content the reader gave is content the format keeps, so `KeptRuns` returns it
+  as it is.
+- `format.TrimRunEdges` trims characters from the ends of the content and stops
+  at an inline code.
+
+The change service uses the declaration for an edit to content a file of the
+format holds. When the edit, as the format keeps it, is the content the file
+holds, the edit is unchanged and nothing is written. Without the declaration
+the service takes a write that leaves the file's bytes as they were for a
+dropped change and refuses it, on every attempt.
+
+The kept-content cells of the operations matrix
+(`core/formats/opsmatrix_kept_test.go`) add a space or a line break at an end of
+every block of the format's fixture, write the document and read it back. A
+cell holds when each block reads back whole or as `KeptRuns` gives it. Name a
+cell that does not hold in the fixture's `unkept` map, with what the format does
+instead.
+
 ## Registration
 
 Register the format in `core/formats/register.go`:
@@ -713,6 +741,7 @@ Before submitting a new format:
 - [ ] A bilingual reader marks each translation it files with `MarkNative`
 - [ ] Any `AttrWriter` or `CodeSynthesizer` declaration has capability-matrix cells
 - [ ] Any `StructureEditor` declaration has structural-matrix cells
+- [ ] The kept-content cells hold, with a `ContentKeeper` for content the format does not keep
 - [ ] No write-side regex/byte post-processing of serialized output (see [the no-regex convention](#write-side-post-processing-the-no-regex-convention)); any Okapi-reproduction exception documents the mirrored class/method
 - [ ] Registered in `core/formats/register.go`
 - [ ] Byte-exact roundtrip tests (with and without skeleton store)

@@ -4,24 +4,21 @@ import (
 	"context"
 	"errors"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
 // A home holds the text of documents and decides when two writers of one
-// document conflict. The service reads and writes every document through its
-// home and knows nothing else about where the text lives:
+// document conflict. The service reads and writes every document through it:
 //
-//   - the file home (package filehome) keeps a document as a file in a
-//     working tree and commits by renaming a staged file under an advisory
-//     lock;
+//   - the file home (package filehome) keeps a file and commits by renaming a
+//     staged file under a lock;
 //   - a workspace home keeps content that has no file in the workspace log;
 //   - a server keeps a stream's documents in rows and commits in a
 //     transaction.
 //
-// A home is opened once per document and change set (Session). A session reads
-// the document at one head, stages a change against that head, and commits it
-// only while the head is still the one it read, or after it has applied the
-// change again to the head it finds.
+// A session opens one document for one change set. It commits a staged change
+// only onto the head it read, or after applying it again to the head it finds.
 
 // Home holds documents.
 type Home interface {
@@ -95,6 +92,13 @@ type Place struct {
 	// Why says, for PlaceNone, why the edition has no home, as a refusal
 	// reports it.
 	Why string
+	// Keeps says what the format of the file that holds the edition keeps of
+	// a block's content (format.ContentKeeper), when the home holds the
+	// edition in a file of a format that does not keep every character. An
+	// edit that differs from the edition only in what that format does not
+	// keep is unchanged. Nil, as for an edition no file holds, compares an
+	// edit with the edition whole.
+	Keeps format.ContentKeeper
 }
 
 // PlaceKind says where an edition lives.
@@ -210,11 +214,11 @@ type DivergentSession interface {
 
 // Restructurer is the part of the service's editor that adds blocks to a
 // document and removes them. Before each pass of a stage whose Want is
-// Structural, the home reads the document as it stands: it calls
+// Structural, the home reads the document as it stands. It calls
 // StartStructure, then Locate with every block in document order, with the
-// editions Want names joined in, and then Structure, which returns the edits
-// to make in the order of the change set, or ErrRefused when an operation was
-// refused. The home writes each edit into the document's file and the files
+// editions Want names joined in. It then calls Structure, which returns the
+// edits to make in the order of the change set, or ErrRefused when an
+// operation was refused. The home writes each edit into the document's file and the files
 // of its editions; an edit it cannot write it hands to Refuse, and it returns
 // ErrRefused. The pass that follows reads what the home wrote: Edit sees each
 // added block, and no removed one.
@@ -230,7 +234,7 @@ type Restructurer interface {
 // file, such as a translation whose block the format's writer cannot take out
 // of that file. RefuseEdition refuses with err the operations of the pass
 // that changed edition k of the block the document keys key, and reports
-// whether there was one; the home's Stage or Settle then returns ErrRefused,
+// whether there was one. The home's Stage or Settle then returns ErrRefused,
 // and every other operation of the change set is not applied, blocked by the
 // refusal, as a refusal in the pass leaves it. A home whose editor is no
 // EditionRefuser, or finds no such operation, refuses the document instead.
@@ -329,7 +333,7 @@ type Staged interface {
 	// home, one per file it reads or writes. The service takes the locks of
 	// every staged document of a change set in the order of their keys, so
 	// two change sets take the locks they share in one order and cannot
-	// deadlock, and it refuses a change set two of whose documents need one
+	// deadlock. It refuses a change set two of whose documents need one
 	// lock, which is one file named twice.
 	LockKeys() []string
 	// Lock takes the commit lock key names, blocking until it holds it or

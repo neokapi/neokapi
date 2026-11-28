@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -432,6 +433,7 @@ func (p *docPlan) env(preview bool, indexes []int) BlockEnv {
 		Preview:      preview,
 		Guards:       guards,
 		Format:       p.info.Capabilities,
+		Keeps:        func(k model.EditionKey) format.ContentKeeper { return p.sess.Place(k).Keeps },
 		Now:          p.svc.now,
 		Indexes:      indexes,
 	}
@@ -540,7 +542,7 @@ func nearness(want, got string) int {
 }
 
 // changedBlock is the block as a change left it, for the record and the commit
-// check, which read it after the home's pass has moved on: a file home takes
+// check, which read it after the home's pass has moved on. A file home takes
 // the editions it joined from their own files out of the block again once its
 // writer has seen it, and the record still reads the stamp the change left on
 // such an edition. The editions are the block's own; only the set of them is

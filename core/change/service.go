@@ -589,13 +589,22 @@ func (r *applyRun) reachesFile(p *docPlan, st Staged) {
 		if f != nil && f.File != "" {
 			file = f.File
 		}
+		// What the file holds of the edition, as the read before the change
+		// found it: nothing, or the content the change was to replace.
+		holds := "the file holds no such edition"
+		switch {
+		case ch.Before != nil && ch.After == nil:
+			holds = "the file still holds the edition"
+		case ch.Before != nil:
+			holds = "the file still holds the edition as it was before the change"
+		}
 		for _, i := range p.changeOps[ci] {
 			if r.res.Ops[i].Status == OpRefused {
 				continue
 			}
 			r.refuseAfresh(i, &Error{Code: CodeUnsupported, Capability: "edition", Field: "at/edition",
-				Message: fmt.Sprintf("writing %s in the %s format leaves it as it was, so the change to edition %s of block %s would be dropped: the file holds no such edition",
-					file, p.info.Format, editionText(ch.Ref), ch.Ref.Block)})
+				Message: fmt.Sprintf("writing %s in the %s format leaves it as it was, so the change to edition %s of block %s would be dropped: %s",
+					file, p.info.Format, editionText(ch.Ref), ch.Ref.Block, holds)})
 		}
 	}
 }
