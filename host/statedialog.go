@@ -42,6 +42,9 @@ type CheckoutStateNotice struct {
 	// person who knows it is states so there. Empty when stating it would take
 	// nothing more.
 	SameProjectCommand string `json:"same_project_command,omitempty"`
+	// SameProjectLeavesSignIn reports that SameProjectCommand still leaves the
+	// saved sign-in, because that sign-in is bound to another server project.
+	SameProjectLeavesSignIn bool `json:"same_project_leaves_sign_in,omitempty"`
 }
 
 // PendingCheckoutState lists the one-time lines about the state of the checkout
@@ -66,6 +69,9 @@ func PendingCheckoutState(recipePath string) ([]CheckoutStateNotice, error) {
 			if action == "relink" && len(plan.Withheld) > 0 {
 				if asked, err := project.PlanRelink(layout, layout.Root, project.RelinkOptions{SameProject: true}); err == nil && len(asked.Withheld) < len(plan.Withheld) {
 					item.SameProjectCommand = "kapi state relink --from " + shellWord(layout.Root) + " --same-project -p " + shellWord(layout.Root)
+					// Stating the project releases the vault. Sync state bound
+					// to another server project stays whatever is stated.
+					item.SameProjectLeavesSignIn = len(asked.Withheld) > 0
 				}
 			}
 		}

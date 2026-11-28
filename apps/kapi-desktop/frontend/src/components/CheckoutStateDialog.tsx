@@ -196,7 +196,10 @@ function NoticeSection({
             </p>
           )}
           {notice.same_project_command && !done?.taken && (
-            <SameProjectCommand command={notice.same_project_command} />
+            <SameProjectCommand
+              command={notice.same_project_command}
+              leavesSignIn={notice.same_project_leaves_sign_in === true}
+            />
           )}
           {done?.taken ? (
             <div data-slot="checkout-state-taken" className="space-y-1">
@@ -262,11 +265,17 @@ function NoticeSection({
  * the data belongs to this project, for a person who knows it does. The
  * dialog states nothing on their behalf; the command is theirs to run.
  */
-function SameProjectCommand({ command }: { command: string }) {
+function SameProjectCommand({ command, leavesSignIn }: { command: string; leavesSignIn: boolean }) {
   const [copied, setCopied] = useState(false);
   return (
     <div data-slot="checkout-state-same-project" className="space-y-1">
-      <p className="text-muted-foreground">{t("If it is yours, run this in a terminal:")}</p>
+      <p className="text-muted-foreground">
+        {leavesSignIn
+          ? t(
+              "If it is yours, run this in a terminal. It brings the original text of hidden values. The saved sign-in stays, because it belongs to another server project.",
+            )
+          : t("If it is yours, run this in a terminal:")}
+      </p>
       <div className="flex items-center gap-2">
         <code
           className="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1 font-mono text-xs"

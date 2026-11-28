@@ -1109,6 +1109,15 @@ export class CheckoutStateNotice {
              */
             this["same_project_command"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * SameProjectLeavesSignIn reports that SameProjectCommand still leaves the
+             * saved sign-in, because that sign-in is bound to another server project.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["same_project_leaves_sign_in"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

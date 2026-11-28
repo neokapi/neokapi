@@ -227,4 +227,40 @@ func TestPendingCheckoutStateNamesTheCommandThatStatesTheSameProject(t *testing.
 	assert.Empty(t, n.Transfer.Files)
 	assert.Len(t, n.Transfer.Withheld, 1)
 	assert.Equal(t, "kapi state relink --from '"+root+"' --same-project -p '"+root+"'", n.SameProjectCommand)
+	assert.False(t, n.SameProjectLeavesSignIn, "the command takes everything this plan leaves")
+}
+
+func TestPendingCheckoutStateSaysWhenTheCommandStillLeavesTheSignIn(t *testing.T) {
+	t.Setenv("KAPI_DATA_DIR", t.TempDir())
+	parent, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	root := filepath.Join(parent, "app")
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	recipe := filepath.Join(root, "kapi.yaml")
+	// Neither recipe carries an id, so kapi cannot confirm the project, and
+	// the two connect to different server projects.
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: app\nbowrain:\n  url: https://app.example/team/p1\n"), 0o644))
+	first, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	_, err = project.EnsureLocalDir(first, project.VaultDirName)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(first.RedactionVaultPath(), []byte(`{"mine":true}`), 0o600))
+	_, err = project.EnsureLocalDir(first, project.SyncDirName)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(first.SyncDir(), "sync-cache.json"),
+		[]byte(`{"claim_token":"clm","server_url":"https://app.example","workspace":"team","project_id":"p1"}`), 0o600))
+
+	require.NoError(t, os.RemoveAll(root))
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: app\nbowrain:\n  url: https://app.example/team/p2\n"), 0o644))
+
+	pending, err := PendingCheckoutState(recipe)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	n := pending[0]
+	require.NotNil(t, n.Transfer)
+	assert.True(t, n.Transfer.Unverified)
+	assert.Len(t, n.Transfer.Withheld, 2, "the vault and the sync state both stay")
+	assert.NotEmpty(t, n.SameProjectCommand, "stating the project releases the vault")
+	assert.True(t, n.SameProjectLeavesSignIn, "the sync state of another server project stays whatever is stated")
 }
