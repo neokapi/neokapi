@@ -65,6 +65,9 @@ where the text appears.
 | Later | Up | **Later** | Nothing is recorded. The card moves to the end of the deck. |
 | Fix | None | **Fix** | The fix sheet opens on the fixes. |
 
+Your note goes to the AI model with the next draft as you wrote it, so leave
+out anything the model should not read.
+
 **Undo** takes back your last decision, and the card returns to the deck.
 
 **Approve** is turned off on a translation you wrote. Another reviewer

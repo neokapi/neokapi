@@ -74,7 +74,10 @@ The Bowrain web app exposes a flow and automation editor under
    It lists the built-in flows beside the project's stored flows, and you edit
    the stored ones as a reader → tool(s) → writer graph. Transformers such as
    redaction and normalization are ordinary ordered steps, and the server
-   validates their placement when it builds the flow.
+   validates their placement when it builds the flow. A redact step covers
+   the steps after it in the same flow run. Draft jobs and editor translations
+   don't run through a flow, so a redact step never reaches them (see
+   [what the AI provider receives](/server/configuration#worker-environment-variables)).
 
 A flow works the same on content from any [connector](/server/connectors). The
 graph names no connector, so content from a content platform, a design tool, a

@@ -105,8 +105,8 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 		document := docs.Scope(root, u.SourcePath)
 		// A unit a reviewer rejected was drafted again under its feedback, and
 		// the draft carries it in its stamp (tool.FeedbackFingerprint), so the
-		// comparison folds in the feedback the unit has now: a changed note
-		// makes that unit stale and no other.
+		// comparison folds in the feedback the unit has now: a rejection of
+		// another draft makes that unit stale and no other.
 		feedback, ferr := a.reviewFeedbackFor(ctx, proj, root, u.Locale, []string{u.SourcePath})
 		if ferr != nil {
 			return gate, false, ferr

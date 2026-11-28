@@ -70,6 +70,8 @@ project a request to a model carries:
 - the term rules: each term, its replacement, and the do-not-translate terms;
 - the voice profile: its guidance, style, patterns and examples;
 - the instruction, from `--instruction` or the recipe;
+- the review feedback on a rejected block: each rejected draft and the
+  reviewer's note;
 - the domain named for term extraction and voice inference;
 - the text an MCP tool call passes, and the translation passed beside it.
 
@@ -86,7 +88,8 @@ reads each withheld value as its visible placeholder (`[REDACTED:Person]`).
 Entity detection reads the blocks and does not reach the rest of a request.
 A person named only in the voice profile or a previous version is redacted
 there when a rule names them, or when a block of the same request withholds
-the same text.
+the same text. A reviewer's note follows the same rule: anything else a
+reviewer types into it reaches the model as written.
 
 `kapi voice check --ai` applies the policy of the file it reads, or
 `defaults.redaction` for text given inline. `kapi terms expand` applies the

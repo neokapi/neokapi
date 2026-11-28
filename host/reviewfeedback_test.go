@@ -152,9 +152,10 @@ func TestReviewFeedback_TheAbsorberSkipsARejectedPair(t *testing.T) {
 	assert.Equal(t, 1, res.Pairs, "the unit nobody rejected is learned")
 }
 
-// A changed note makes exactly that unit stale: its stamp folds in the
-// feedback, and the other unit's does not move.
-func TestReviewFeedback_AChangedNoteMakesOnlyThatUnitStale(t *testing.T) {
+// A unit's stamp folds in which of its drafts were rejected. A note edited on
+// a rejection it already holds leaves the stamp alone, a rejection of another
+// draft moves it, and the stamp of a unit nobody rejected never moves.
+func TestReviewFeedback_OnlyANewRejectionMovesTheStamp(t *testing.T) {
 	a, _, recipe, root := feedbackProject(t, "demo")
 	rejectGreeting(t, a, recipe, "Too formal.")
 	a, cmd := feedbackApp(t, root)
@@ -173,13 +174,17 @@ func TestReviewFeedback_AChangedNoteMakesOnlyThatUnitStale(t *testing.T) {
 	edited := fb[key]
 	edited.Rejections = []tool.ReviewRejection{edited.Rejections[0]}
 	edited.Rejections[0].Note = "Too formal; use tu."
-	assert.NotEqual(t, before, tool.FeedbackFingerprint("ctx", edited), "a changed note moves the unit's stamp")
+	assert.Equal(t, before, tool.FeedbackFingerprint("ctx", edited), "a note edit leaves the unit's stamp alone")
+	another := fb[key]
+	another.Rejections = append([]tool.ReviewRejection{fb[key].Rejections[0]}, tool.ReviewRejection{TargetHash: "another-draft"})
+	assert.NotEqual(t, before, tool.FeedbackFingerprint("ctx", another), "a rejection of another draft moves it")
 	assert.Equal(t, "ctx", tool.FeedbackFingerprint("ctx", fb[tool.FeedbackUnitKey("src/en.json", "farewell")]),
 		"a unit nobody rejected keeps the governing stamp")
 }
 
-// The staleness gate reads the redraft as current, and a changed note on the
-// rejection it answered makes that unit stale and no other.
+// The staleness gate reads the redraft as current. A note edited on the
+// rejection it answered asks for no draft: the gate still passes, and the
+// feedback the next draft is given carries the new note.
 func TestReviewFeedback_TheGateFoldsInTheFeedback(t *testing.T) {
 	a, _, recipe, root := feedbackProject(t, "demo")
 	rejectGreeting(t, a, recipe, "Too formal.")
@@ -212,9 +217,27 @@ func TestReviewFeedback_TheGateFoldsInTheFeedback(t *testing.T) {
 
 	gate, _, err = a.verifyStaleness(cmd, proj, root, units, nil)
 	require.NoError(t, err)
-	require.False(t, gate.Pass, "a changed note makes the unit stale")
+	assert.True(t, gate.Pass, "a note edit alone asks for no draft: %v", gate.Findings)
+
+	fb, err := a.reviewFeedbackFor(t.Context(), proj, root, "fr", []string{filepath.Join(root, "src", "en.json")})
+	require.NoError(t, err)
+	got := fb[tool.FeedbackUnitKey("src/en.json", "greeting")].Rejections
+	require.NotEmpty(t, got)
+	assert.Equal(t, "Too formal; use tu.", got[len(got)-1].Note, "the next draft is given the note as it reads now")
+
+	// A rejection of another draft of the unit makes that unit stale, and the
+	// other unit stays current.
+	another := rejection
+	another.TargetHash = state.TargetHash("Bonjour à vous")
+	another.Revision = ""
+	another.Decision.Note = "Still too formal."
+	another.Decision.At = "2099-01-02T00:00:00Z"
+	require.NoError(t, st.Put(t.Context(), another))
+	gate, _, err = a.verifyStaleness(cmd, proj, root, units, nil)
+	require.NoError(t, err)
+	require.False(t, gate.Pass, "a rejection of another draft makes the unit stale")
 	require.Len(t, gate.Findings, 1)
-	assert.Contains(t, gate.Findings[0].Message, "1 of 2 targets", "only the unit whose note changed")
+	assert.Contains(t, gate.Findings[0].Message, "1 of 2 targets", "only the unit whose draft was rejected")
 }
 
 // Machine translation is sent no feedback: the run says so once, the unit is
