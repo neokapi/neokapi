@@ -50,4 +50,13 @@ fi
 echo "[test-integration] tags=${TAGS}, packages:"
 printf '  %s\n' "${paths[@]}"
 
-exec go test -tags "$TAGS" "$@" -timeout "$TIMEOUT" -count=1 "${paths[@]}"
+# In CI, setup-go-modules names GO_ACTIONGRAPH_DIR, as for the Makefiles'
+# $(GOTEST): the run writes its action graph there, and
+# scripts/go-cache-hits.py reports the share of package builds the build
+# cache served.
+graph=()
+if [ -n "${GO_ACTIONGRAPH_DIR:-}" ]; then
+	graph=("-debug-actiongraph=$(mktemp "$GO_ACTIONGRAPH_DIR/actiongraph.XXXXXX")")
+fi
+
+exec go test -tags "$TAGS" "${graph[@]}" "$@" -timeout "$TIMEOUT" -count=1 "${paths[@]}"
