@@ -26,42 +26,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && corepack enable \
     && rm -rf /var/lib/apt/lists/*
 
-# Populate the pnpm store from the lockfile alone — this layer is cached until
-# pnpm-lock.yaml changes (the network-heavy step). The packageManager field in
-# package.json pins the exact pnpm version corepack runs.
+# The lockfile, the workspace definition and the patches it names. The
+# dependencies are fetched in the build step below, not in a layer of their
+# own: that layer held the pnpm store and node_modules (about 1 GiB), and the
+# gha layer cache the image builds export kept it for a fetch that takes
+# about 20 seconds.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# pnpm-workspace.yaml references patchedDependencies (patches/*.patch); they must
-# be present for `pnpm fetch` to resolve the patched packages.
 COPY patches/ patches/
-RUN corepack pnpm fetch
-
-# Workspace manifests for the web app's dependency closure. The glob workspace
-# members in pnpm-workspace.yaml resolve only from the dirs present here, so a
-# partial checkout is a valid (smaller) workspace.
-COPY packages/kapi-format/package.json packages/kapi-format/
-COPY packages/i18n-react/package.json packages/i18n-react/
-COPY packages/ui/package.json packages/ui/
-COPY packages/concept-ui/package.json packages/concept-ui/
-COPY packages/context-explorer/package.json packages/context-explorer/
-COPY packages/contract-types/package.json packages/contract-types/
-COPY packages/reference-data/package.json packages/reference-data/
-COPY packages/editor-grid/package.json packages/editor-grid/
-COPY packages/status-views/package.json packages/status-views/
-COPY packages/project-screens/package.json packages/project-screens/
-COPY packages/flow-editor/package.json packages/flow-editor/
-COPY packages/bowrain-client/package.json packages/bowrain-client/
-COPY bowrain/packages/ui/package.json bowrain/packages/ui/
-COPY bowrain/packages/app/package.json bowrain/packages/app/
-COPY bowrain/apps/web/package.json bowrain/apps/web/
-# Install every present workspace project's deps from the store (the web app
-# bundles its @neokapi/* workspace deps from source, so those packages need
-# their own third-party deps, e.g. @codemirror/*, materialized too).
-RUN corepack pnpm install --offline
 
 # Source for the web app + its workspace deps. Most @neokapi/* packages are
 # consumed from source (their exports point at ./src), so the Vite build follows
 # the import graph into them. The exception is @neokapi/i18n-react, whose
-# ./runtime export is dist-only — it must be built before the web build.
+# ./runtime export is dist-only, so it is built before the web app.
 COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/i18n-react/ packages/i18n-react/
 COPY packages/ui/ packages/ui/
@@ -87,12 +63,20 @@ COPY bowrain/apps/web/ bowrain/apps/web/
 # already holds one (make bowrain-app-qps, bowrain-ctrl-qps, bowrain-pulse-qps).
 COPY scripts/vite-qps-catalog.mjs scripts/
 
+# One step fetches the dependencies, installs every present workspace
+# project's deps (the web app bundles its @neokapi/* workspace deps from
+# source, so their third-party deps are needed too), builds, and removes
+# node_modules, so the layer keeps the sources and the built dist only. The
+# pnpm store sits on a cache mount, which the layer cache does not export.
 # @neokapi/i18n-react/runtime is a built ./dist subpath export consumed by
-# @neokapi/ui; build it before the web app so the import resolves.
-RUN corepack pnpm --filter @neokapi/i18n-react run build
-
-# Build the web app. Type safety is enforced by `vp check` in CI, not the build.
-RUN corepack pnpm --filter neokapi-web run build
+# @neokapi/ui, so it builds before the web app. Type safety is enforced by
+# `vp check` in CI, not the build.
+RUN --mount=type=cache,id=bowrain-web-pnpm-store,target=/pnpm-store \
+    corepack pnpm fetch --store-dir /pnpm-store \
+    && corepack pnpm install --offline --store-dir /pnpm-store \
+    && corepack pnpm --filter @neokapi/i18n-react run build \
+    && corepack pnpm --filter neokapi-web run build \
+    && find /src -name node_modules -type d -prune -exec rm -rf {} +
 
 # ── Stage 2: Serve with nginx ──────────────────────────────────────────────
 FROM nginx:1-alpine

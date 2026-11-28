@@ -45,29 +45,15 @@ jobs:
       # The framework's cgo packages (core/segment/uax29, core/storage) need
       # ICU through pkg-config on every platform, the catalogs generator
       # included. macOS and Windows provision it the way release-bowrain.yml
-      # does: a cached static ICU on macOS, the MSYS2 mingw toolchain on
-      # Windows.
-      - name: Restore static ICU
-        if: runner.os == 'macOS' && github.ref != 'refs/heads/main'
-        uses: actions/cache/restore@v6
-        with:
-          path: ~/icu-static
-          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
-
-      - name: Restore and save static ICU
-        if: runner.os == 'macOS' && github.ref == 'refs/heads/main'
-        uses: actions/cache@v6
-        with:
-          path: ~/icu-static
-          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
-
+      # does: a static ICU built from source on macOS, the MSYS2 mingw
+      # toolchain on Windows.
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         env:
           MACOSX_DEPLOYMENT_TARGET: "13.0"
         run: |
           brew install pkg-config
-          [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
+          bash scripts/build-icu-static.sh "$HOME/icu-static"
           PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           {
             echo "PKG_CONFIG_PATH=${PCDIR}"

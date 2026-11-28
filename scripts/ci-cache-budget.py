@@ -34,17 +34,12 @@ runs from main.
 
 check applies two rules and fails when either breaks.
 
-  * Steady state. After what prune removes, the ordinary caches must stay
-    within ORDINARY_BYTES (7.5 GiB) and the total within BUDGET_BYTES
-    (9 GiB). These are the caches that stay between saves. The warm release
-    caches (go-release-*, icu-static-*, about 1.8 GiB) are read only at
-    release time, so GitHub's least-recently-used eviction past 10 GiB takes
-    them first. The ordinary budget leaves them room.
+  * Steady state. After what prune removes, the total must stay within
+    BUDGET_BYTES (9 GiB). These are the caches that stay between saves.
   * One save in flight. The steady total plus the newest copy of the largest
     family must stay within LIMIT_BYTES (GitHub's 10 GiB). A save adds a new
-    copy before prune deletes the old one, and GitHub evicts on the real
-    total in that window. The warm release caches were lost that way on
-    2026-11-23. A steady state that passes the first rule can still leave no
+    copy before prune deletes the old one, and GitHub evicts the least
+    recently used caches on the real total in that window. A steady state that passes the first rule can still leave no
     room for one save, and this rule catches that. It allows for one save
     in flight only. A push on main saves several families (the race, pr and
     lint warm jobs run side by side), and their new copies can overlap
@@ -69,11 +64,9 @@ import subprocess
 import sys
 
 BUDGET_BYTES = 9 * 1024**3
-ORDINARY_BYTES = int(7.5 * 1024**3)
 LIMIT_BYTES = 10 * 1024**3
 MAIN = "refs/heads/main"
 SHA_SUFFIX = re.compile(r"^(?P<family>.+)-(?:[0-9a-f]{40}|[0-9a-f]{64})$")
-RELEASE_FAMILIES = ("go-release-", "icu-static-")
 STALE_DAYS = 3
 BUILDKIT_BLOB = "buildkit-blob-"
 BUILDKIT_INDEX = re.compile(r"^index-(?P<scope>.+)#(?P<n>[0-9]+)$")
@@ -123,10 +116,6 @@ def fold(family: str) -> str:
     golangci-lint config, say) changes with the config, and the copy under the
     old hash would otherwise never be superseded."""
     return re.sub(r"-[0-9a-f]{64}(?=-|$)", "-<hash>", family)
-
-
-def is_release(key: str) -> bool:
-    return key.startswith(RELEASE_FAMILIES)
 
 
 def gh(*args: str) -> str:
@@ -238,13 +227,9 @@ def main_prune(repo: str) -> int:
 
 
 def over_budget(caches: list[dict]) -> list[str]:
-    """The budget lines a cache listing breaks; empty when it keeps both."""
+    """The budget line a cache listing breaks; empty when it keeps it."""
     total = sum(c["size_in_bytes"] for c in caches)
-    ordinary = sum(c["size_in_bytes"] for c in caches if not is_release(c["key"]))
     out = []
-    if ordinary > ORDINARY_BYTES:
-        out.append(f"the ordinary caches hold {ordinary / 1024**3:.2f} GiB, past the {ORDINARY_BYTES / 1024**3:.1f} GiB "
-                   f"that leaves the warm release caches room below GitHub's {LIMIT_BYTES / 1024**3:.0f} GiB")
     if total > BUDGET_BYTES:
         out.append(f"Actions caches hold {total / 1024**3:.2f} GiB, past the {BUDGET_BYTES / 1024**3:.0f} GiB budget; "
                    f"GitHub evicts past {LIMIT_BYTES / 1024**3:.0f} GiB")
@@ -294,9 +279,7 @@ def main_check(repo: str) -> int:
         return 1
     print(report(caches))
     steady = after_prune(caches)
-    ordinary = sum(c["size_in_bytes"] for c in steady if not is_release(c["key"]))
-    print(f"after prune: {ordinary / 1024**3:.2f} GiB ordinary, "
-          f"{(sum(c['size_in_bytes'] for c in steady) - ordinary) / 1024**3:.2f} GiB warm release caches "
+    print(f"after prune: {sum(c['size_in_bytes'] for c in steady) / 1024**3:.2f} GiB "
           f"({len(caches) - len(steady)} copies prune removes)")
     problems = check_problems(caches)
     for problem in problems:
@@ -346,29 +329,28 @@ def self_test() -> int:
         failures.append(f"every cache off main should go, read recently or not: [5, 8, 9], got {gone}")
     gib = 1024**3
     # Two copies of one family a moment after a save: only the newest counts.
-    transient = [c(30, "go-build-race-" + sha(30), size=int(4 * gib), created="2026-11-22T09:00:00Z"),
-                 c(31, "go-build-race-" + sha(31), size=int(4 * gib), created="2026-11-22T10:00:00Z"),
+    transient = [c(30, "go-build-race-" + sha(30), size=int(4.6 * gib), created="2026-11-22T09:00:00Z"),
+                 c(31, "go-build-race-" + sha(31), size=int(4.6 * gib), created="2026-11-22T10:00:00Z"),
                  c(32, "go-build-race-" + sha(32), size=1, ref="refs/pull/1/merge")]
     steady = after_prune(transient)
     if [x["id"] for x in steady] != [31] or over_budget(steady):
         failures.append(f"after prune only the newest copy counts: {[x['id'] for x in steady]}, {over_budget(steady)}")
     if not over_budget(transient):
-        failures.append("the raw listing of two 4 GiB copies is over budget; only after_prune excuses it")
-    # 7.4 GiB ordinary at rest keeps the steady budget, but a second 2 GiB
-    # race copy in flight passes 10 GiB: the window the release caches were
-    # evicted in.
+        failures.append("the raw listing of two 4.6 GiB copies is over budget; only after_prune excuses it")
+    # 8.9 GiB at rest keeps the steady budget, but a second 2 GiB race copy
+    # in flight passes 10 GiB: the window GitHub evicts in.
     tight = [c(40, "go-build-Linux-race-trimpath-" + sha(40), size=int(2.0 * gib)),
              c(41, "go-build-Linux-pr-trimpath-" + sha(41), size=int(1.9 * gib)),
              c(47, "go-build-Linux-lint-model-trimpath-" + sha(47), size=int(1.75 * gib)),
              c(48, "go-mod-Linux-" + "7" * 64, size=int(1.75 * gib)),
-             c(42, "go-release-Linux-X64-" + sha(42), size=int(1.5 * gib))]
+             c(42, "vite-plus-Linux-x64-pnpm-" + "4" * 64, size=int(1.5 * gib))]
     if over_budget(after_prune(tight)):
-        failures.append(f"7.4 GiB ordinary and 8.9 GiB total keep the steady budget: {over_budget(after_prune(tight))}")
+        failures.append(f"8.9 GiB at rest keeps the steady budget: {over_budget(after_prune(tight))}")
     if not any("one more copy of go-build-Linux-race-trimpath-<sha>" in x for x in check_problems(tight)):
         failures.append(f"8.9 GiB plus a 2 GiB race save in flight passes 10 GiB and must fail: {check_problems(tight)}")
     roomy = [c(43, "go-build-Linux-race-trimpath-" + sha(43), size=int(2.0 * gib)),
              c(44, "go-build-Linux-pr-trimpath-" + sha(44), size=int(2.0 * gib)),
-             c(45, "go-release-Linux-X64-" + sha(45), size=int(1.8 * gib))]
+             c(45, "vite-plus-Linux-x64-pnpm-" + "3" * 64, size=int(1.8 * gib))]
     if check_problems(roomy):
         failures.append(f"5.8 GiB plus a 2 GiB save in flight is within 10 GiB: {check_problems(roomy)}")
     # The in-flight rule counts the steady state, not the older copy prune removes.
@@ -409,14 +391,11 @@ def self_test() -> int:
             pass
     if [x["id"] for x in after_prune(blobs[:2], now)] != [50]:
         failures.append("check judges the listing after prune drops the unread blob")
-    ordinary_full = [c(20, "go-build-x-" + sha(20), size=int(7.6 * gib))]
-    if not any("ordinary" in x for x in over_budget(ordinary_full)):
-        failures.append("ordinary caches past 7.5 GiB must fail")
-    with_release = [c(21, "go-build-x-" + sha(21), size=int(7.0 * gib)),
-                    c(22, "go-release-Linux-X64-" + sha(22), size=int(1.8 * gib))]
-    if over_budget(with_release):
-        failures.append(f"7.0 GiB ordinary plus 1.8 GiB warm release caches is within budget: {over_budget(with_release)}")
-    total_full = with_release + [c(23, "go-release-macOS-ARM64-" + sha(23), size=int(0.5 * gib))]
+    within = [c(21, "go-build-x-" + sha(21), size=int(7.0 * gib)),
+              c(22, "go-mod-Linux-" + "2" * 64, size=int(1.9 * gib))]
+    if over_budget(within):
+        failures.append(f"8.9 GiB at rest is within the 9 GiB budget: {over_budget(within)}")
+    total_full = within + [c(23, "vite-plus-Linux-x64-pnpm-" + "1" * 64, size=int(0.5 * gib))]
     if not any("past the 9 GiB budget" in x for x in over_budget(total_full)):
         failures.append("a total past 9 GiB must fail")
     if "-<sha>" not in report(caches):
