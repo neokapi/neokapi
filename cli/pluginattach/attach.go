@@ -59,7 +59,7 @@ func AttachCommands(parent *cobra.Command, host *pluginhost.Host, onConflict fun
 //     unambiguous spelling. The group is the manifest's plugin-level `group`
 //     field, falling back to the plugin name.
 //   - A plugin command whose name collides with a built-in attaches under
-//     the group ONLY — the built-in always keeps the top-level verb. This is
+//     the group ONLY: the built-in always keeps the top-level verb. This is
 //     a supported layout, not an error, so it does not warn per invocation.
 //     (Plugin-vs-plugin name collisions never reach here: pluginhost.NewHost
 //     drops both routes and reports the conflict.)
@@ -119,7 +119,7 @@ func AttachCommandsWithOptions(parent *cobra.Command, host *pluginhost.Host, opt
 
 		if taken[route.Command.Name] {
 			// The built-in keeps the verb; the plugin's version lives in its
-			// group. Supported layout — no per-invocation warning. (Routes are
+			// group. Supported layout, so no per-invocation warning. (Routes are
 			// name-unique: plugin-vs-plugin collisions are already resolved,
 			// with a conflict report, in pluginhost.NewHost.)
 			continue
@@ -148,7 +148,7 @@ func AttachCommandsWithOptions(parent *cobra.Command, host *pluginhost.Host, opt
 
 // buildCobraCommandWithDispatch synthesizes a cobra.Command from one
 // pluginhost.CommandRoute. It uses RunE with cobra's "DisableFlagParsing" so the
-// plugin sees the raw argv — kapi only routes; the plugin parses.
+// plugin sees the raw argv: kapi only routes; the plugin parses.
 //
 // When pool is non-nil and the plugin declares Mode-C with a registered
 // SourceConnectorDispatcher claiming this op, the command is routed
@@ -195,14 +195,31 @@ func buildCobraCommandWithDispatch(route *pluginhost.CommandRoute, pool *pluginh
 
 // printRouteHelp prints the help for a route dispatched to a daemon: the
 // manifest's description, the arguments the route takes and its flags. Cobra
-// never parsed those flags, so they join the command's flag set here for the
-// usage template only.
+// never parsed those flags, so the help is printed by a copy of the command
+// that carries them, standing beside it under the same parent while it
+// prints. The route's own command keeps its usage and its flag set: a
+// command's flags say what kapi does around it (cli.ProjectDeclaration), and
+// printing help changes nothing there.
 func printRouteHelp(cmd *cobra.Command, help *pluginhost.RouteHelp) error {
-	if help.Usage != "" {
-		cmd.Use = cmd.Name() + " " + help.Usage
+	shown := &cobra.Command{
+		Use:                cmd.Use,
+		Short:              cmd.Short,
+		Long:               cmd.Long,
+		Annotations:        cmd.Annotations,
+		DisableFlagParsing: true,
+		Run:                func(*cobra.Command, []string) {},
 	}
-	cmd.Flags().AddFlagSet(help.Flags)
-	return cmd.Help()
+	if help.Usage != "" {
+		shown.Use = cmd.Name() + " " + help.Usage
+	}
+	shown.Flags().AddFlagSet(help.Flags)
+	shown.SetOut(cmd.OutOrStdout())
+	shown.SetErr(cmd.ErrOrStderr())
+	if parent := cmd.Parent(); parent != nil {
+		parent.AddCommand(shown)
+		defer parent.RemoveCommand(shown)
+	}
+	return shown.Help()
 }
 
 // buildSubcommandTree synthesizes a cobra subcommand (and, recursively, its
@@ -239,7 +256,7 @@ func buildSubcommandTree(route *pluginhost.CommandRoute, parentPath []string, su
 // Contributions augment a built-in command rather than replacing it, so plain
 // invocations (no contributed flags) keep their original behavior. Handlers run
 // as Mode-A subprocesses in the command's project directory and must be
-// idempotent — kapi may dispatch the same handler on a project that is already
+// idempotent: kapi may dispatch the same handler on a project that is already
 // in the desired state.
 //
 // Call this AFTER built-in commands and AttachCommands have populated the tree.
@@ -314,7 +331,7 @@ func registerContributedFlag(fs *pflag.FlagSet, fl manifest.FlagSpec) {
 }
 
 // contributionEngaged reports whether the user invoked the contribution: the
-// EngageWhen flag was set, or — when EngageWhen is empty — any contributed flag.
+// EngageWhen flag was set, or, when EngageWhen is empty, any contributed flag.
 func contributionEngaged(cmd *cobra.Command, cc manifest.CommandContribution) bool {
 	if cc.EngageWhen != "" {
 		return cmd.Flags().Changed(cc.EngageWhen)

@@ -29,11 +29,17 @@ func stagePlugin(t *testing.T, root, name string) string {
 	return dir
 }
 
-// privateRoot is a temporary plugin root no other user can write.
+// privateRoot is a temporary plugin root no other user can write, owned by
+// the person's primary group. A file created on macOS takes the group of its
+// directory, and a temporary directory under /tmp belongs to wheel, an
+// administrators' group whose write the rule accepts; the person's own group
+// makes a group-writable mode mean what the tests below say it means.
 func privateRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	require.NoError(t, os.Chmod(root, 0o700))
+	require.NoError(t, os.Chown(root, -1, os.Getgid()))
+	require.False(t, isAdminGroup(os.Getgid()), "the tests need a primary group that is not an administrators' group")
 	return root
 }
 
