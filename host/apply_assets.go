@@ -54,7 +54,7 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 		}
 		return a.applyAssetEntryTo(ctx, w, e)
 	case kindRecipe:
-		return a.applyRecipeEntry(cmd, e)
+		return a.applyRecipeEntry(ctx, cmd, e)
 	default:
 		res.Status = "error"
 		res.Detail = fmt.Sprintf("unsupported asset kind %q", e.Kind)
@@ -102,8 +102,7 @@ type changeActor struct {
 // suggested and what a person kept. The operation is recorded as an edit, which
 // is established the moment it lands, because a person applied it.
 //
-// Every surface that applies a change-set comes through here, so an asset edit
-// is in the log whichever one made it.
+// Every surface that applies a change set comes through here.
 //
 // The context policy is put first, before anything is written. Writing a rule,
 // a content memory pair or a recipe field directly is a person's decision, so
@@ -498,7 +497,7 @@ func (a *App) boundVoiceProfileForWrite(ctx context.Context, store coreprofile.S
 	if err != nil {
 		return nil, err
 	}
-	if err := bindVoiceProfile(recipePath, "", profile.ID); err != nil {
+	if err := bindVoiceProfile(ctx, recipePath, "", profile.ID); err != nil {
 		return nil, err
 	}
 	return profile, nil
@@ -525,7 +524,7 @@ func createVoiceProfile(ctx context.Context, store coreprofile.Store, name strin
 // saves the .kapi recipe. Only an allowlisted set of fields can be set; an
 // unknown path or a value that does not decode into the field's type is an
 // error, so a malformed change cannot silently corrupt the recipe.
-func (a *App) applyRecipeEntry(cmd Command, e changeEntry) assetResult {
+func (a *App) applyRecipeEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Path}
 
 	if e.Op != "" && e.Op != "set" {
@@ -553,7 +552,7 @@ func (a *App) applyRecipeEntry(cmd Command, e changeEntry) assetResult {
 		res.Detail = "already set"
 		return res
 	}
-	if err := project.Save(recipePath, proj); err != nil {
+	if err := project.SaveContext(ctx, recipePath, proj); err != nil {
 		return errResult(res, fmt.Sprintf("save project: %v", err))
 	}
 

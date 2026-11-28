@@ -39,7 +39,7 @@ defaults:
 collections:
   - path: "docs/**/*.md"
 `)
-	require.NoError(t, BindVoice(path, "", "fernwell"))
+	require.NoError(t, BindVoice(t.Context(), path, "", "fernwell"))
 	assert.Equal(t, `# Fernwell docs.
 version: v1
 name: fernwell   # the label
@@ -63,19 +63,19 @@ collections:
 
 func TestBindVoice_NoDefaultsAppendsOne(t *testing.T) {
 	path := writeBindRecipe(t, "version: v1\nname: bare")
-	require.NoError(t, BindVoice(path, "", "house"))
+	require.NoError(t, BindVoice(t.Context(), path, "", "house"))
 	assert.Equal(t, "version: v1\nname: bare\ndefaults:\n  voice:\n    profile: house\n", readBindRecipe(t, path))
 }
 
 func TestBindVoice_EmptyDefaults(t *testing.T) {
 	path := writeBindRecipe(t, "version: v1\nname: e\ndefaults:\ncollections: []\n")
-	require.NoError(t, BindVoice(path, "", "house"))
+	require.NoError(t, BindVoice(t.Context(), path, "", "house"))
 	assert.Equal(t, "version: v1\nname: e\ndefaults:\n  voice:\n    profile: house\ncollections: []\n", readBindRecipe(t, path))
 }
 
 func TestBindVoice_QuotesAnIDThatNeedsIt(t *testing.T) {
 	path := writeBindRecipe(t, "version: v1\nname: q\ndefaults:\n  source_language: en\n")
-	require.NoError(t, BindVoice(path, "", "yes"))
+	require.NoError(t, BindVoice(t.Context(), path, "", "yes"))
 	p, err := Load(path)
 	require.NoError(t, err)
 	assert.Equal(t, "yes", p.Defaults.Voice.Profile, "a scalar YAML reads as a boolean is quoted")
@@ -88,7 +88,7 @@ profiles:
   acme:
     channels: [docs]
 `)
-	require.NoError(t, BindVoice(path, "acme", "acme-voice"))
+	require.NoError(t, BindVoice(t.Context(), path, "acme", "acme-voice"))
 	assert.Equal(t, `version: v1
 name: p
 profiles:
@@ -98,19 +98,19 @@ profiles:
     channels: [docs]
 `, readBindRecipe(t, path))
 
-	assert.ErrorContains(t, BindVoice(path, "other", "x"), `declares no profile "other"`)
+	assert.ErrorContains(t, BindVoice(t.Context(), path, "other", "x"), `declares no profile "other"`)
 }
 
 func TestBindVoice_RefusesAnExistingBinding(t *testing.T) {
 	body := "version: v1\nname: b\ndefaults:\n  voice:\n    pack: professional-b2b\n"
 	path := writeBindRecipe(t, body)
-	require.ErrorIs(t, BindVoice(path, "", "house"), ErrVoiceAlreadyBound)
+	require.ErrorIs(t, BindVoice(t.Context(), path, "", "house"), ErrVoiceAlreadyBound)
 	assert.Equal(t, body, readBindRecipe(t, path), "a refused binding writes nothing")
 }
 
 func TestBindVoice_FlowStyleDefaultsFallsBackToSave(t *testing.T) {
 	path := writeBindRecipe(t, "version: v1\nname: f\ndefaults: {source_language: en}\n")
-	require.NoError(t, BindVoice(path, "", "house"))
+	require.NoError(t, BindVoice(t.Context(), path, "", "house"))
 	p, err := Load(path)
 	require.NoError(t, err)
 	assert.Equal(t, "house", p.Defaults.Voice.Profile)
@@ -119,7 +119,7 @@ func TestBindVoice_FlowStyleDefaultsFallsBackToSave(t *testing.T) {
 
 func TestBindVoice_KeepsCRLF(t *testing.T) {
 	path := writeBindRecipe(t, "version: v1\r\nname: w\r\ndefaults:\r\n  source_language: en\r\n")
-	require.NoError(t, BindVoice(path, "", "house"))
+	require.NoError(t, BindVoice(t.Context(), path, "", "house"))
 	assert.Equal(t, "version: v1\r\nname: w\r\ndefaults:\r\n  voice:\r\n    profile: house\r\n  source_language: en\r\n",
 		readBindRecipe(t, path))
 }

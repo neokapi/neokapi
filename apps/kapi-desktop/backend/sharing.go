@@ -197,7 +197,7 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 	err := a.ensureRecipeLocked(op)
 	if err == nil {
 		var fresh *project.KapiProject
-		fresh, err = project.Edit(op.Path, project.LoadOptions{SkipRequiresCheck: true}, func(p *project.KapiProject) error {
+		fresh, err = project.Edit(context.Background(), op.Path, project.LoadOptions{SkipRequiresCheck: true}, func(p *project.KapiProject) error {
 			if spec.Shared() {
 				block := spec
 				p.Context = &block

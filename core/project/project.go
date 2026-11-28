@@ -1177,9 +1177,9 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 // everything else the file holds. A file that cannot be read or parsed, or a
 // result that still fails the checks, is returned as an error and nothing is
 // written.
-func Edit(path string, opts LoadOptions, edit func(*KapiProject) error) (*KapiProject, error) {
+func Edit(ctx context.Context, path string, opts LoadOptions, edit func(*KapiProject) error) (*KapiProject, error) {
 	var out *KapiProject
-	err := filehome.WithLock(context.Background(), path, func() error {
+	err := filehome.WithLock(ctx, path, func() error {
 		data, err := readRecipeFile(path)
 		if err != nil {
 			return fmt.Errorf("read project file: %w", err)
@@ -1231,10 +1231,15 @@ var ErrRecipeChanged = errors.New("changed since it was read")
 // that rewrote the recipe with identical content would be refused by the
 // erasure gate.
 func Save(path string, proj *KapiProject) error {
+	return SaveContext(context.Background(), path, proj)
+}
+
+// SaveContext is Save, waiting for the file's lock only until ctx is done.
+func SaveContext(ctx context.Context, path string, proj *KapiProject) error {
 	if proj.Version == "" {
 		proj.Version = CurrentVersion
 	}
-	return filehome.WithLock(context.Background(), path, func() error {
+	return filehome.WithLock(ctx, path, func() error {
 		if proj.basis.guards(path) {
 			current, err := readRecipeFile(path)
 			switch {

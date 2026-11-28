@@ -171,7 +171,7 @@ func (a *App) SaveVoiceProfileAt(
 	// A point that had no voice of its own has one from here on, and the recipe
 	// is where that is declared.
 	if target.Inherited || !target.Exists {
-		if err := bindVoiceProfile(recipePath, point.Profile, prof.ID); err != nil {
+		if err := bindVoiceProfile(ctx, recipePath, point.Profile, prof.ID); err != nil {
 			return res, err
 		}
 	}
@@ -244,7 +244,7 @@ func newVoiceProfileID(root, profile string) string {
 // A point that binds nothing gains the two lines of the binding and nothing
 // else changes in the file (project.BindVoice). A point that binds another
 // voice has that binding replaced, through project.Save.
-func bindVoiceProfile(recipePath, profile, id string) error {
+func bindVoiceProfile(ctx context.Context, recipePath, profile, id string) error {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -261,7 +261,7 @@ func bindVoiceProfile(recipePath, profile, id string) error {
 		return nil
 	}
 	if current == nil {
-		if err := project.BindVoice(recipePath, profile, id); err != nil {
+		if err := project.BindVoice(ctx, recipePath, profile, id); err != nil {
 			return fmt.Errorf("bind voice profile: %w", err)
 		}
 		return nil
@@ -274,7 +274,7 @@ func bindVoiceProfile(recipePath, profile, id string) error {
 		pr.Voice = binding
 		proj.Profiles[profile] = pr
 	}
-	if err := project.Save(recipePath, proj); err != nil {
+	if err := project.SaveContext(ctx, recipePath, proj); err != nil {
 		return fmt.Errorf("bind voice profile: %w", err)
 	}
 	return nil

@@ -128,7 +128,7 @@ func InitProjectContext(ctx context.Context, root string, opts InitOptions) (*In
 		}
 	default:
 		if opts.MintID {
-			id, minted, err := MintProjectID(recipePath)
+			id, minted, err := MintProjectID(ctx, recipePath)
 			if err != nil {
 				return nil, err
 			}
@@ -205,7 +205,7 @@ func uncoveredProposals(proj *project.KapiProject, proposals []ProposedCollectio
 // keeps its comments, its blank lines, its key order and the spelling of every
 // value already in it. A recipe that already carries an id is read and left
 // alone: SetField refuses to re-key a project, and this path does not ask it to.
-func MintProjectID(recipePath string) (string, bool, error) {
+func MintProjectID(ctx context.Context, recipePath string) (string, bool, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return "", false, fmt.Errorf("load project: %w", err)
@@ -221,7 +221,7 @@ func MintProjectID(recipePath string) (string, bool, error) {
 	if _, err := project.SetField(proj, "id", raw); err != nil {
 		return "", false, err
 	}
-	if err := project.Save(recipePath, proj); err != nil {
+	if err := project.SaveContext(ctx, recipePath, proj); err != nil {
 		return "", false, err
 	}
 	return id, true, nil

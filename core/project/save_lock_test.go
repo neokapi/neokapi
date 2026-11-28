@@ -106,14 +106,14 @@ func TestEdit_RepairsABrokenContextBlockAndKeepsTheRest(t *testing.T) {
 	path := saveLockRecipe(t)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	broken := append(data, []byte("context:\n  backend: dropbox\n")...)
+	broken := append(append([]byte{}, data...), []byte("context:\n  backend: dropbox\n")...)
 	broken = []byte(strings.Replace(string(broken), "name: app", "name: edited elsewhere", 1))
 	require.NoError(t, os.WriteFile(path, broken, 0o644))
 	_, err = Load(path)
 	require.Error(t, err, "the recipe no longer loads")
 
 	shared := t.TempDir()
-	proj, err := Edit(path, LoadOptions{SkipRequiresCheck: true}, func(p *KapiProject) error {
+	proj, err := Edit(t.Context(), path, LoadOptions{SkipRequiresCheck: true}, func(p *KapiProject) error {
 		p.Context = &ContextBackend{Backend: ContextBackendFile, Path: shared}
 		return nil
 	})
@@ -134,7 +134,7 @@ func TestEdit_WritesNothingItCannotRead(t *testing.T) {
 	t.Run("not readable", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), RecipeFileName)
 		require.NoError(t, os.Mkdir(path, 0o755))
-		_, err := Edit(path, LoadOptions{}, edit)
+		_, err := Edit(t.Context(), path, LoadOptions{}, edit)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "read project file")
 		info, err := os.Stat(path)
@@ -145,7 +145,7 @@ func TestEdit_WritesNothingItCannotRead(t *testing.T) {
 		path := filepath.Join(t.TempDir(), RecipeFileName)
 		garbage := []byte("name: [unclosed\n")
 		require.NoError(t, os.WriteFile(path, garbage, 0o644))
-		_, err := Edit(path, LoadOptions{}, edit)
+		_, err := Edit(t.Context(), path, LoadOptions{}, edit)
 		require.Error(t, err)
 		got, err := os.ReadFile(path)
 		require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestEdit_WritesNothingItCannotRead(t *testing.T) {
 		path := saveLockRecipe(t)
 		before, err := os.ReadFile(path)
 		require.NoError(t, err)
-		_, err = Edit(path, LoadOptions{}, func(p *KapiProject) error {
+		_, err = Edit(t.Context(), path, LoadOptions{}, func(p *KapiProject) error {
 			p.Context = &ContextBackend{Backend: "dropbox"}
 			return nil
 		})

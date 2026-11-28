@@ -524,7 +524,7 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 	if proj.Context == nil || *proj.Context != spec {
 		block := spec
 		proj.Context = &block
-		if err := project.Save(req.Project, proj); err != nil {
+		if err := project.SaveContext(ctx, req.Project, proj); err != nil {
 			return err
 		}
 		if file.Action == ShareFileKept {
@@ -694,7 +694,7 @@ func (a *App) shareViaBowrain(ctx context.Context, req ShareRequest, res *ShareR
 			return err
 		}
 	}
-	if err := setBowrainBackend(req.Project, res); err != nil {
+	if err := setBowrainBackend(ctx, req.Project, res); err != nil {
 		return err
 	}
 	res.Moved = move
@@ -759,7 +759,7 @@ func (a *App) readContextToMove(ctx context.Context, recipe string) (*ContextMov
 }
 
 // setBowrainBackend writes `context: {backend: bowrain}` into the recipe.
-func setBowrainBackend(recipe string, res *ShareResult) error {
+func setBowrainBackend(ctx context.Context, recipe string, res *ShareResult) error {
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -769,7 +769,7 @@ func setBowrainBackend(recipe string, res *ShareResult) error {
 		return nil
 	}
 	proj.Context = &want
-	if err := project.Save(recipe, proj); err != nil {
+	if err := project.SaveContext(ctx, recipe, proj); err != nil {
 		return err
 	}
 	for i := range res.Files {
