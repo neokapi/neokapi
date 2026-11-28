@@ -347,14 +347,13 @@ func EnsureLayout(layout Layout) error {
 		if err := os.MkdirAll(layout.Root, 0o755); err != nil {
 			return fmt.Errorf("project: create %s: %w", layout.Root, err)
 		}
-		dir, earlier, err := dataroot.EnsureCheckoutDir(layout.Root)
+		dir, _, err := dataroot.EnsureCheckoutDir(layout.Root)
 		if err != nil {
 			return fmt.Errorf("project: create the state of %s: %w", layout.Root, err)
 		}
 		recordCheckoutProject(layout, dir)
 		local = dir
-		noticeEarlierAtPath(layout, earlier)
-		noticeStateInTree(layout)
+		NoticeState(layout)
 	}
 	if err := os.MkdirAll(filepath.Join(local, WorkDirName, CacheDirName), 0o755); err != nil {
 		return fmt.Errorf("project: create %s: %w", WorkDirName, err)

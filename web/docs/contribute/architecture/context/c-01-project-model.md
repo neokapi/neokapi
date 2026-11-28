@@ -196,6 +196,13 @@ plugin serves resolves its project in the plugin's own process. kapi resolves
 no project before a command that concerns none, such as `kapi version`,
 `kapi help` or `kapi plugin list`.
 
+Kapi Desktop shows the same lines in a dialog when a project opens
+(`host.PendingCheckoutState`), with the files an import or a relink would take,
+their sizes and the servers any sync state was issued by. The person confirms
+there, and kapi takes the plan only while it still digests to what the dialog
+showed (`host.App.ApplyCheckoutStateTransfer`). Closing the dialog records the
+lines as given.
+
 `kapi state import` takes the state an earlier kapi left inside a checkout's
 `.kapi/` (the vault, the sync state, the saved filters, and the places earlier
 layouts kept them) into the checkout's state directory. `kapi state relink`

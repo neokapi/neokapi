@@ -7,6 +7,229 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * StateFileOutput is one file `kapi state import` or `kapi state relink`
+ * takes: where it is, where it goes in the checkout's state directory, and its
+ * size in bytes.
+ */
+export class StateFileOutput {
+    /**
+     * Creates a new StateFileOutput instance.
+     * @param {Partial<StateFileOutput>} [$$source = {}] - The source object to create the StateFileOutput.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (!("size" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["size"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StateFileOutput instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StateFileOutput}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StateFileOutput(/** @type {Partial<StateFileOutput>} */($$parsedSource));
+    }
+}
+
+/**
+ * StateTransferOutput is the result of `kapi state import` and
+ * `kapi state relink`.
+ */
+export class StateTransferOutput {
+    /**
+     * Creates a new StateTransferOutput instance.
+     * @param {Partial<StateTransferOutput>} [$$source = {}] - The source object to create the StateTransferOutput.
+     */
+    constructor($$source = {}) {
+        if (!("action" in $$source)) {
+            /**
+             * Action is "import" or "relink".
+             * @member
+             * @type {string}
+             */
+            this["action"] = "";
+        }
+        if (!("from" in $$source)) {
+            /**
+             * From is the directory the files come from.
+             * @member
+             * @type {string}
+             */
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            /**
+             * To is the checkout's state directory.
+             * @member
+             * @type {string}
+             */
+            this["to"] = "";
+        }
+        if (!("files" in $$source)) {
+            /**
+             * @member
+             * @type {StateFileOutput[]}
+             */
+            this["files"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Servers are the servers the sync state among Files and Withheld was
+             * issued by.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["servers"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Project names the project a relink's state was recorded for.
+             * @member
+             * @type {string | undefined}
+             */
+            this["project"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Unverified is set when kapi's record cannot say the state is this
+             * project's.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["unverified"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Withheld are the files a relink leaves where they are, and WithheldWhy
+             * says why, one line for each group.
+             * @member
+             * @type {StateFileOutput[] | undefined}
+             */
+            this["withheld"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["withheld_why"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SyncServer and SyncProject name the server project the sync state among
+             * the files is bound to, when its sync cache names one. SyncProject is
+             * <workspace>/<project> when the cache records the workspace.
+             * @member
+             * @type {string | undefined}
+             */
+            this["sync_server"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["sync_project"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RemovesSource is set when a relink removes the directory it takes from,
+             * once every file is in place and read back.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["removes_source"] = undefined;
+        }
+        if (!("taken" in $$source)) {
+            /**
+             * Taken is set when the files were taken.
+             * @member
+             * @type {boolean}
+             */
+            this["taken"] = false;
+        }
+        if (!("source_removed" in $$source)) {
+            /**
+             * SourceRemoved is set when the source files were removed after.
+             * @member
+             * @type {boolean}
+             */
+            this["source_removed"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Remaining are the copies an import was asked to remove and could not.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["remaining"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Reason says why nothing was taken.
+             * @member
+             * @type {string | undefined}
+             */
+            this["reason"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StateTransferOutput instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StateTransferOutput}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType1;
+        const $$createField4_0 = $$createType2;
+        const $$createField7_0 = $$createType1;
+        const $$createField8_0 = $$createType2;
+        const $$createField14_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField3_0($$parsedSource["files"]);
+        }
+        if ("servers" in $$parsedSource) {
+            $$parsedSource["servers"] = $$createField4_0($$parsedSource["servers"]);
+        }
+        if ("withheld" in $$parsedSource) {
+            $$parsedSource["withheld"] = $$createField7_0($$parsedSource["withheld"]);
+        }
+        if ("withheld_why" in $$parsedSource) {
+            $$parsedSource["withheld_why"] = $$createField8_0($$parsedSource["withheld_why"]);
+        }
+        if ("remaining" in $$parsedSource) {
+            $$parsedSource["remaining"] = $$createField14_0($$parsedSource["remaining"]);
+        }
+        return new StateTransferOutput(/** @type {Partial<StateTransferOutput>} */($$parsedSource));
+    }
+}
+
+/**
  * TrustSite is one place a recipe arms code execution.
  */
 export class TrustSite {
@@ -108,3 +331,8 @@ export class UnstampedDrafts {
         return new UnstampedDrafts(/** @type {Partial<UnstampedDrafts>} */($$parsedSource));
     }
 }
+
+// Private type creation functions
+const $$createType0 = StateFileOutput.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $Create.Array($Create.Any);

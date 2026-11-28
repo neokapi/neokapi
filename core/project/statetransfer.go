@@ -117,6 +117,13 @@ func PlanImport(l Layout) (StateTransfer, error) {
 		}
 	}
 	out.Servers = syncServers(root, out.Files)
+	for _, f := range out.Files {
+		if f.Target == SyncDirName+"/sync-cache.json" {
+			if b, ok := syncBindingAt(root, filepath.FromSlash(f.Source)); ok {
+				out.SyncProject = &b
+			}
+		}
+	}
 	return out, nil
 }
 
@@ -303,13 +310,28 @@ func ApplyTransfer(l Layout, shown StateTransfer, removeSource bool) error {
 		defer checkouts.Close()
 		return checkouts.RemoveAll(filepath.Base(now.Retire))
 	case removeSource:
+		var kept []string
 		for _, f := range now.Files {
 			if err := src.Remove(filepath.FromSlash(f.Source)); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return err
+				kept = append(kept, f.Source)
 			}
+		}
+		if len(kept) > 0 {
+			return &SourcesKeptError{Files: kept}
 		}
 	}
 	return nil
+}
+
+// SourcesKeptError reports an import that took every file and could not
+// remove some of the copies it was asked to remove. The state is in place;
+// Files are the copies still in the checkout.
+type SourcesKeptError struct {
+	Files []string
+}
+
+func (e *SourcesKeptError) Error() string {
+	return "project: the state was taken, and these copies in the checkout could not be removed: " + strings.Join(e.Files, ", ")
 }
 
 func sameTransfer(a, b StateTransfer) bool {

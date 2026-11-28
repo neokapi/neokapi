@@ -20,6 +20,7 @@ export {
     AtlasSpan,
     AtlasState,
     AtlasValue,
+    CheckoutStateNotice,
     ConnectAction,
     ConnectFile,
     ConnectFileKind,

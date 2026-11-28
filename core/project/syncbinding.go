@@ -2,7 +2,6 @@ package project
 
 import (
 	"encoding/json"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,28 +99,19 @@ func bindingVerdict(recorded, recipe SyncBinding) (same, known bool) {
 func identity(s string) string { return s }
 
 // recipeSyncBinding reads the server project the layout's recipe connects to,
-// from its venue block (RecipeVenue). The compound URL is
-// <server>/<workspace>/<project>, <server>/projects/<project> or
-// <server>/<project>, as the venue's own parser reads it. ok is false for a
-// recipe that names no server project.
+// from its venue block (RecipeVenue), through ParseVenueURL, the parser the
+// venue reads its connection with. ok is false for a recipe that names no
+// server project.
 func recipeSyncBinding(l Layout) (SyncBinding, bool) {
 	v, ok, err := RecipeVenue(l.RecipePath)
 	if err != nil || !ok {
 		return SyncBinding{}, false
 	}
-	u, err := url.Parse(strings.TrimSpace(v.URL))
-	if err != nil || u.Scheme == "" || u.Host == "" {
+	parts := ParseVenueURL(strings.TrimSpace(v.URL))
+	if parts.Project == "" || parts.Server == "://" {
 		return SyncBinding{}, false
 	}
-	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(segments) == 0 || len(segments) > 2 || segments[len(segments)-1] == "" {
-		return SyncBinding{}, false
-	}
-	b := SyncBinding{Server: u.Scheme + "://" + u.Host, Project: segments[len(segments)-1]}
-	if len(segments) == 2 && segments[0] != "projects" {
-		b.Workspace = segments[0]
-	}
-	return b, true
+	return SyncBinding(parts), true
 }
 
 // syncWithheld reports whether a relink leaves the recorded sync state where
@@ -153,11 +143,17 @@ func syncWithheld(l Layout, root *os.Root, opts RelinkOptions) (bool, string) {
 	}
 }
 
-// recordedSyncBinding reads the server project the sync cache in the state
-// directory dir is bound to. ok is false when there is no sync cache or it
+// recordedSyncBinding reads the server project the sync cache in a state
+// directory (root) is bound to. ok is false when there is no sync cache or it
 // names no project.
 func recordedSyncBinding(root *os.Root) (SyncBinding, bool) {
-	data, err := root.ReadFile(filepath.Join(SyncDirName, "sync-cache.json"))
+	return syncBindingAt(root, filepath.Join(SyncDirName, "sync-cache.json"))
+}
+
+// syncBindingAt reads the server project the sync cache at rel in root is
+// bound to.
+func syncBindingAt(root *os.Root, rel string) (SyncBinding, bool) {
+	data, err := root.ReadFile(rel)
 	if err != nil {
 		return SyncBinding{}, false
 	}

@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 // StateFileOutput is one file `kapi state import` or `kapi state relink`
@@ -37,7 +38,8 @@ type StateTransferOutput struct {
 	Withheld    []StateFileOutput `json:"withheld,omitempty"`
 	WithheldWhy []string          `json:"withheld_why,omitempty"`
 	// SyncServer and SyncProject name the server project the sync state among
-	// the files is bound to, when its sync cache names one.
+	// the files is bound to, when its sync cache names one. SyncProject is
+	// <workspace>/<project> when the cache records the workspace.
 	SyncServer  string `json:"sync_server,omitempty"`
 	SyncProject string `json:"sync_project,omitempty"`
 	// RemovesSource is set when a relink removes the directory it takes from,
@@ -47,6 +49,8 @@ type StateTransferOutput struct {
 	Taken bool `json:"taken"`
 	// SourceRemoved is set when the source files were removed after.
 	SourceRemoved bool `json:"source_removed"`
+	// Remaining are the copies an import was asked to remove and could not.
+	Remaining []string `json:"remaining,omitempty"`
 	// Reason says why nothing was taken.
 	Reason string `json:"reason,omitempty"`
 }
@@ -57,7 +61,10 @@ func (o StateTransferOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	fmt.Fprintf(w, "Took %d file(s) from %s into %s.\n", len(o.Files), o.From, o.To)
-	if o.Action == "import" && !o.SourceRemoved {
+	switch {
+	case len(o.Remaining) > 0:
+		fmt.Fprintf(w, "These copies in %s could not be removed; kapi no longer reads them, and you can delete them: %s\n", o.From, strings.Join(o.Remaining, ", "))
+	case o.Action == "import" && !o.SourceRemoved:
 		fmt.Fprintf(w, "The copies in %s are left as they were; kapi no longer reads them, and you can delete them.\n", o.From)
 	}
 	if len(o.Withheld) > 0 {

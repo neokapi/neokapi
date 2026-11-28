@@ -34,6 +34,7 @@ import { Button, SimpleTooltip, Toaster, TooltipProvider } from "@neokapi/ui-pri
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { DesktopGuide } from "./guide/DesktopGuide";
+import { useCheckoutStateNotices } from "./components/CheckoutStateDialog";
 
 export default function App() {
   return (
@@ -235,6 +236,13 @@ function AppInner() {
   useProjectStoreSync(
     filterEnabled && !tm.activeTab?.info.context_only ? (tm.activeTabID ?? undefined) : undefined,
   );
+  // A checkout holding state an earlier kapi left, or a location with state
+  // recorded for another folder, is told once, with the import or relink.
+  const checkoutState = useCheckoutStateNotices(
+    tm.activeTabID,
+    tm.activeTab?.info.name ?? "",
+    filterEnabled && !tm.activeTab?.info.context_only,
+  );
   // Until two projects are registered the home is the Open screen. With no
   // folder open it fills the window: no sidebar, no top bar, nothing to act on
   // but the ways in (see firstScreen).
@@ -255,6 +263,7 @@ function AppInner() {
           shortenHome={shortenHome}
         />
       )}
+      {checkoutState.dialog}
       {showTelemetryNotice && (
         <TelemetryNoticeDialog onClose={() => setShowTelemetryNotice(false)} />
       )}
