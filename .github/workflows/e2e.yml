@@ -170,7 +170,10 @@ jobs:
             echo "tag=${GH_SHA}"
             echo "version=$(git describe --tags --match 'v[0-9]*' --always 2>/dev/null || echo dev)"
             echo "commit=${GH_SHA::7}"
-            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            # The commit time, so a rebuild of the same commit reuses every
+            # layer in the gha cache. A wall-clock date rebuilt the layers
+            # after ARG BUILD_DATE each night and left their blobs unread.
+            echo "build_date=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd HEAD)"
           } >> "$GITHUB_OUTPUT"
 
       # The tag the e2e images push is the commit, never latest.
