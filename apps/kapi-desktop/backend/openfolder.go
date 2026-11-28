@@ -292,8 +292,10 @@ func (a *App) writeDraft(op *openProject) (bool, error) {
 			_ = os.Remove(op.Path)
 			return false, fmt.Errorf("write %s: %w", project.RecipeFileName, werr)
 		}
+		// The file was created a moment ago, exclusively, from the draft;
+		// the tab's recipe is written over it whole.
 		if op.Project != nil {
-			if err := project.Save(op.Path, op.Project); err != nil {
+			if err := project.SaveOver(context.Background(), op.Path, op.Project); err != nil {
 				return false, err
 			}
 		}

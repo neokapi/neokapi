@@ -916,6 +916,9 @@ func (a *App) persistProject(tabID string, snapshot *project.KapiProject, path s
 	}
 	previous := op.Project
 	if path == op.Path {
+		// The snapshot is the tab's recipe as edited: it is written only
+		// while the file still holds what the tab read.
+		recipe.CarryBasis(previous)
 		op.Project = &recipe
 		if err := a.saveRecipe(op); err != nil {
 			op.Project = previous

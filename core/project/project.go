@@ -21,10 +21,12 @@
 package project
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -1179,7 +1181,7 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 // written.
 func Edit(ctx context.Context, path string, opts LoadOptions, edit func(*KapiProject) error) (*KapiProject, error) {
 	var out *KapiProject
-	err := filehome.WithLock(ctx, path, func() error {
+	err := filehome.WithLock(ctx, path, func(ctx context.Context) error {
 		data, err := readRecipeFile(path)
 		if err != nil {
 			return fmt.Errorf("read project file: %w", err)
@@ -1200,7 +1202,7 @@ func Edit(ctx context.Context, path string, opts LoadOptions, edit func(*KapiPro
 		if err := proj.checkPlaceShapes(filepath.Dir(path)); err != nil {
 			return fmt.Errorf("invalid project file %s: %w", path, err)
 		}
-		if err := writeRecipeLocked(path, &proj); err != nil {
+		if err := writeRecipeLocked(ctx, path, &proj); err != nil {
 			return err
 		}
 		out = &proj
@@ -1210,6 +1212,16 @@ func Edit(ctx context.Context, path string, opts LoadOptions, edit func(*KapiPro
 		return nil, err
 	}
 	return out, nil
+}
+
+// CarryBasis makes p, a new value of the recipe from was read as, saved as
+// from would be: only while the file still holds what from was read from.
+// A caller that rebuilds a recipe from an edited copy (a snapshot an editor
+// sent) calls it before the save.
+func (p *KapiProject) CarryBasis(from *KapiProject) {
+	if from != nil {
+		p.basis = from.basis
+	}
 }
 
 // ErrRecipeChanged is what Save returns for a recipe whose file changed
@@ -1225,7 +1237,8 @@ var ErrRecipeChanged = errors.New("changed since it was read")
 // holds what it was loaded from. Otherwise the save is refused with
 // ErrRecipeChanged and writes nothing, so of two saves from one read the
 // later is refused rather than lost. A project built in memory, a save to
-// another path, and a save over a file that is gone are written as before.
+// another path are written only where no file is (ErrRecipeExists);
+// SaveOver writes them over the file.
 //
 // A save with nothing new to write leaves the file alone: a convergence run
 // that rewrote the recipe with identical content would be refused by the
@@ -1236,22 +1249,55 @@ func Save(path string, proj *KapiProject) error {
 
 // SaveContext is Save, waiting for the file's lock only until ctx is done.
 func SaveContext(ctx context.Context, path string, proj *KapiProject) error {
+	return save(ctx, path, proj, false)
+}
+
+// SaveOver writes proj as the recipe at path whatever the file holds, under
+// the file's lock. It is for a caller that means to replace the recipe whole:
+// a person chose the path in a save dialog that asked before overwriting, or
+// the caller wrote the file itself a moment ago under a name nobody else
+// writes. A project read from path is still refused once the file changed
+// after the read (ErrRecipeChanged).
+func SaveOver(ctx context.Context, path string, proj *KapiProject) error {
+	return save(ctx, path, proj, true)
+}
+
+// ErrRecipeExists is what Save returns for a project that was not read from
+// path when path already holds a recipe.
+var ErrRecipeExists = errors.New("already holds a recipe this project was not read from")
+
+// save writes proj to path under the file's lock. A project read from path
+// is written only while the file still holds what was read. Any other
+// project is written only where no file is, unless over is set.
+func save(ctx context.Context, path string, proj *KapiProject, over bool) error {
 	if proj.Version == "" {
 		proj.Version = CurrentVersion
 	}
-	return filehome.WithLock(ctx, path, func() error {
-		if proj.basis.guards(path) {
-			current, err := readRecipeFile(path)
+	return filehome.WithLock(ctx, path, func(ctx context.Context) error {
+		if !proj.basis.guards(path) {
+			if over {
+				return writeRecipeLocked(ctx, path, proj)
+			}
+			_, err := readRecipeFile(path)
 			switch {
 			case errors.Is(err, fs.ErrNotExist):
-				// The file is gone: there is nothing to lose by writing it.
+				return writeRecipeLocked(ctx, path, proj)
 			case err != nil:
 				return fmt.Errorf("read project file: %w", err)
-			case sha256.Sum256(current) != proj.basis.sum:
-				return fmt.Errorf("write project file %s: %w; read it again and repeat the change", path, ErrRecipeChanged)
+			default:
+				return fmt.Errorf("write project file %s: %w; read it and save that, or choose another path", path, ErrRecipeExists)
 			}
 		}
-		return writeRecipeLocked(path, proj)
+		current, err := readRecipeFile(path)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			// The file is gone: there is nothing to lose by writing it.
+		case err != nil:
+			return fmt.Errorf("read project file: %w", err)
+		case sha256.Sum256(current) != proj.basis.sum:
+			return fmt.Errorf("write project file %s: %w; read it again and repeat the change", path, ErrRecipeChanged)
+		}
+		return writeRecipeLocked(ctx, path, proj)
 	})
 }
 
@@ -1262,17 +1308,48 @@ func readRecipeFile(path string) ([]byte, error) {
 	return rootpath.ReadFile(filepath.Dir(path), path)
 }
 
-// writeRecipeLocked writes proj to path, the caller holding the file's lock, and
-// records the written file as the project's basis.
-func writeRecipeLocked(path string, proj *KapiProject) error {
-	if _, err := yamledit.WriteFile(path, proj, 0o644); err != nil {
-		return fmt.Errorf("write project file: %w", err)
-	}
-	written, err := readRecipeFile(path)
-	if err != nil {
+// writeRecipeLocked writes proj to path, ctx carrying the file's held lock,
+// and records the written file as the project's basis. It keeps the comments
+// and key order of the recipe already there (yamledit.Marshal) and writes
+// nothing when the bytes would not change. The file is committed through a
+// file home rooted at the recipe's directory (filehome.Home.Produce): the new
+// bytes go to a temporary file of a fresh name beside the recipe, created
+// exclusively, given the mode the recipe has and renamed into place, and the
+// temporary file is removed on every failure. A recipe that is a link out of
+// its directory is refused.
+func writeRecipeLocked(ctx context.Context, path string, proj *KapiProject) error {
+	original, err := readRecipeFile(path)
+	exists := err == nil
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("read project file: %w", err)
 	}
-	proj.basis = newBasis(path, written)
+	next, err := yamledit.Marshal(original, proj)
+	if err != nil {
+		return fmt.Errorf("write project file: %w", err)
+	}
+	if exists && bytes.Equal(original, next) {
+		proj.basis = newBasis(path, original)
+		return nil
+	}
+	home := filehome.New(nil, filehome.Options{Root: filepath.Dir(path)})
+	before := ""
+	if exists {
+		if before, err = home.Digest(path); err != nil {
+			return fmt.Errorf("read project file: %w", err)
+		}
+	}
+	produced, err := home.Produce(ctx, path, before, func(w io.Writer) error {
+		_, err := w.Write(next)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("write project file: %w", err)
+	}
+	defer func() { _ = produced.Release() }()
+	if err := produced.Commit(ctx); err != nil {
+		return fmt.Errorf("write project file: %w", err)
+	}
+	proj.basis = newBasis(path, next)
 	return nil
 }
 

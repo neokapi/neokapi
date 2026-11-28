@@ -581,6 +581,11 @@ func (s *session) Close() error { return nil }
 // takeLock prepares the home's locks once, then takes the lock on the lock
 // file at path (acquireLockFile).
 func (h *Home) takeLock(ctx context.Context, path string) (*filelock.Lock, error) {
+	if change.HoldsLock(ctx, path) {
+		// The caller holds this lock already (WithLock, or a change set
+		// applying its asset operations); a nil Lock does nothing.
+		return nil, nil
+	}
 	if h.prepareLocks != nil {
 		h.prepared.Do(func() { h.prepareErr = h.prepareLocks() })
 		if h.prepareErr != nil {
@@ -603,14 +608,19 @@ func acquireLockFile(ctx context.Context, path string) (*filelock.Lock, error) {
 }
 
 // WithLock runs fn while holding the lock of the file at target, the one
-// every commit of that file takes (LockFile), so a writer that does not go
-// through a home, such as the recipe's own save, takes turns with the
-// commits of the same file. A commit of the same file from inside fn is
-// refused (filelock.ErrHeldHere).
-func WithLock(ctx context.Context, target string, fn func() error) error {
+// every commit of that file takes (LockFile). A writer that reads the file
+// before it writes, such as the recipe's own save, then takes turns with the
+// commits of the same file. fn gets a context that carries the held lock, so
+// a commit of the file through a home with that context writes under it.
+func WithLock(ctx context.Context, target string, fn func(ctx context.Context) error) error {
 	key, err := LockFile(target)
 	if err != nil {
 		return err
+	}
+	if change.HoldsLock(ctx, key) {
+		// The lock is held already: by a change set applying its asset
+		// operations, or by an outer WithLock.
+		return fn(ctx)
 	}
 	l, err := acquireLockFile(ctx, key)
 	if err != nil {
@@ -618,7 +628,7 @@ func WithLock(ctx context.Context, target string, fn func() error) error {
 	}
 	defer l.Close()
 	defer l.Unlock()
-	return fn()
+	return fn(change.WithHeldLocks(ctx, []string{key}))
 }
 
 // The lock directory holds one lock file for every file a commit ever took a

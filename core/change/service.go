@@ -244,6 +244,10 @@ func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, err
 	if r.refused >= 0 {
 		return r.finish(), nil
 	}
+	// From here to the release, the change set holds the locks it settled
+	// under; a write its asset operations make to one of those files runs
+	// under the held lock.
+	ctx = WithHeldLocks(ctx, r.heldLocks())
 	all, err := r.commit(ctx)
 	if err != nil {
 		return nil, err
@@ -723,6 +727,9 @@ func (r *applyRun) withFindings(p *docPlan, docs []DocResult) []DocResult {
 // order of their keys, and then makes sure each document's change still
 // applies. A document whose home applied the change again is checked again.
 func (r *applyRun) settle(ctx context.Context) error {
+	if err := r.lockAssetFiles(); err != nil {
+		return err
+	}
 	type lock struct {
 		key string
 		p   *docPlan
@@ -775,6 +782,66 @@ func (r *applyRun) settle(ctx context.Context) error {
 		return nil
 	}
 	return nil
+}
+
+// lockAssetFiles adds the locks of the files the change set's asset
+// operations write (AssetFiles) to the locks its documents take, so all of
+// them are taken in one sorted order before anything lands. A lock a
+// document's stage already takes is left with it; any other goes to the
+// first stage that takes further locks. A change set with no staged document
+// takes none: its asset operations ask for their locks as they write.
+func (r *applyRun) lockAssetFiles() error {
+	af, ok := r.s.assets.(AssetFiles)
+	if !ok {
+		return nil
+	}
+	var files []string
+	for _, i := range r.assets {
+		if r.res.Ops[i].Status != OpRefused {
+			files = append(files, af.AssetFiles(r.set.Ops[i])...)
+		}
+	}
+	if len(files) == 0 {
+		return nil
+	}
+	var first LockAdder
+	for _, p := range r.plans {
+		if a, ok := r.staged[p].(LockAdder); ok {
+			first = a
+			break
+		}
+	}
+	if first == nil {
+		return nil
+	}
+	keys, err := first.LockKeysFor(files)
+	if err != nil {
+		return err
+	}
+	for _, k := range keys {
+		taken := false
+		for _, p := range r.plans {
+			if st := r.staged[p]; st != nil && slices.Contains(st.LockKeys(), k) {
+				taken = true
+				break
+			}
+		}
+		if !taken {
+			first.AddLockKeys([]string{k})
+		}
+	}
+	return nil
+}
+
+// heldLocks lists the lock keys the change set's stages hold once settled.
+func (r *applyRun) heldLocks() []string {
+	var keys []string
+	for _, p := range r.plans {
+		if st := r.staged[p]; st != nil {
+			keys = append(keys, st.LockKeys()...)
+		}
+	}
+	return keys
 }
 
 // refuseAll refuses every operation of p with err.

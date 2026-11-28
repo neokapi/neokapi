@@ -37,7 +37,7 @@ func BindVoice(ctx context.Context, path, profile, id string) error {
 	}
 	// The read, the insertion and the write hold the lock every commit of the
 	// recipe takes, so no other writer lands between them.
-	return filehome.WithLock(ctx, path, func() error {
+	return filehome.WithLock(ctx, path, func(ctx context.Context) error {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("read project file: %w", err)
@@ -47,7 +47,7 @@ func BindVoice(ctx context.Context, path, profile, id string) error {
 			return err
 		}
 		if !ok {
-			return bindVoiceBySave(path, profile, id)
+			return bindVoiceBySave(ctx, path, profile, id)
 		}
 		// The result must still be a recipe, and must bind what was asked.
 		var check KapiProject
@@ -55,7 +55,7 @@ func BindVoice(ctx context.Context, path, profile, id string) error {
 			return fmt.Errorf("recipe: binding the voice would leave an unreadable recipe: %w", RecipeYAMLError(err))
 		}
 		if got := voiceAt(&check, profile); got == nil || got.Profile != id {
-			return bindVoiceBySave(path, profile, id)
+			return bindVoiceBySave(ctx, path, profile, id)
 		}
 		info, err := os.Stat(path)
 		if err != nil {
@@ -109,7 +109,7 @@ func voiceAt(p *KapiProject, profile string) *VoiceBinding {
 
 // bindVoiceBySave is the fallback for a parent the text insertion cannot
 // reach. The caller holds the recipe's lock.
-func bindVoiceBySave(path, profile, id string) error {
+func bindVoiceBySave(ctx context.Context, path, profile, id string) error {
 	proj, err := LoadWithOptions(path, LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -125,7 +125,7 @@ func bindVoiceBySave(path, profile, id string) error {
 		pr.Voice = binding
 		proj.Profiles[profile] = pr
 	}
-	return writeRecipeLocked(path, proj)
+	return writeRecipeLocked(ctx, path, proj)
 }
 
 // insertVoiceBinding returns the recipe text with the binding inserted, and
