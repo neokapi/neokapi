@@ -23,8 +23,11 @@ concurrency:
 
 jobs:
   track:
-    # Only the main branch's own runs (never forks / PR runs).
-    if: github.event.workflow_run.head_branch == 'main'
+    # Only this repository's own runs on main. The branch name alone does
+    # not say so: a pull request from a fork's `main` reports `main` too.
+    if: >-
+      github.event.workflow_run.head_branch == 'main'
+      && github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Open, update, or close the main-red tracking issue

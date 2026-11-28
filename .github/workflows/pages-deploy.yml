@@ -74,7 +74,13 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    # A build that followed a pull request from a fork publishes nothing: this
+    # job holds the preview role and writes to pull requests, and the artifact
+    # it would publish was built from the fork's code.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     env:
       PAGES_REPO: github.com:neokapi/neokapi.github.io.git
