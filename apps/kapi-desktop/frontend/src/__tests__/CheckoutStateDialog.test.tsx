@@ -165,9 +165,7 @@ describe("telling a person about state an earlier kapi kept", () => {
     expect(slot("checkout-state-same-project", row)?.textContent).toContain(
       "kapi state relink --from /p --same-project -p /p",
     );
-    expect(slot("checkout-state-same-project", row)?.textContent).not.toContain(
-      "The saved sign-in stays",
-    );
+    expect(slot("checkout-state-sign-in-stays", row)).toBeNull();
     await userEvent.click(within(row).getByRole("button", { name: "Use this saved data here" }));
     expect(apply).toHaveBeenCalledWith("t1", "earlier-at-path", "r1", false);
   });
@@ -210,8 +208,9 @@ describe("telling a person about state an earlier kapi kept", () => {
       slot("checkout-state-earlier-at-path", dialog)!,
     )!;
     expect(command.textContent).toContain("kapi state relink --from /p --same-project -p /p");
-    expect(command.textContent).toContain(
-      "The saved sign-in stays, because it belongs to another server project.",
+    expect(command.textContent).toContain("If it is yours, run this in a terminal:");
+    expect(slot("checkout-state-sign-in-stays", command)?.textContent).toBe(
+      "The saved sign-in stays here. It belongs to another server project.",
     );
   });
 
