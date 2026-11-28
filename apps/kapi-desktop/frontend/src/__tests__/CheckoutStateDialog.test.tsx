@@ -165,6 +165,7 @@ describe("telling a person about state an earlier kapi kept", () => {
     expect(slot("checkout-state-same-project", row)?.textContent).toContain(
       "kapi state relink --from /p --same-project -p /p",
     );
+    expect(slot("checkout-state-sign-in-stays", row)).toBeNull();
     await userEvent.click(within(row).getByRole("button", { name: "Use this saved data here" }));
     expect(apply).toHaveBeenCalledWith("t1", "earlier-at-path", "r1", false);
   });
@@ -184,6 +185,33 @@ describe("telling a person about state an earlier kapi kept", () => {
     await userEvent.click(within(row).getByRole("button", { name: "Copy" }));
     expect(copy).toHaveBeenCalledWith("kapi state relink --from /p --same-project -p /p");
     await waitFor(() => expect(within(row).getByRole("button", { name: "Copied" })).toBeTruthy());
+  });
+
+  it("says the sign-in stays when the command brings only the hidden values", async () => {
+    vi.spyOn(api, "pendingCheckoutState").mockResolvedValue([
+      {
+        ...RELINK,
+        transfer: {
+          ...RELINK.transfer!,
+          withheld: [
+            { source: "vault/redaction.json", target: "vault/redaction.json", size: 25 },
+            { source: "sync/sync-cache.json", target: "sync/sync-cache.json", size: 70 },
+          ],
+        },
+        same_project_leaves_sign_in: true,
+      },
+    ]);
+    render(<Harness tabID="t1" />);
+    const dialog = await screen.findByTestId("checkout-state");
+    const command = slot(
+      "checkout-state-same-project",
+      slot("checkout-state-earlier-at-path", dialog)!,
+    )!;
+    expect(command.textContent).toContain("kapi state relink --from /p --same-project -p /p");
+    expect(command.textContent).toContain("If it is yours, run this in a terminal:");
+    expect(slot("checkout-state-sign-in-stays", command)?.textContent).toBe(
+      "The saved sign-in stays here. It belongs to another server project.",
+    );
   });
 
   it("leaves the sign-in of another server project and says which project it belongs to", async () => {

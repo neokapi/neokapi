@@ -1007,6 +1007,8 @@ export interface CheckoutStateNotice {
   other_project?: string;
   /** The terminal command that takes what an unconfirmed relink leaves, for a person who knows it is theirs. */
   same_project_command?: string;
+  /** True when that command still leaves the saved sign-in, which is bound to another server project. */
+  same_project_leaves_sign_in?: boolean;
 }
 
 /** What a pull merged. */

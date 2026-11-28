@@ -196,7 +196,10 @@ function NoticeSection({
             </p>
           )}
           {notice.same_project_command && !done?.taken && (
-            <SameProjectCommand command={notice.same_project_command} />
+            <SameProjectCommand
+              command={notice.same_project_command}
+              leavesSignIn={notice.same_project_leaves_sign_in === true}
+            />
           )}
           {done?.taken ? (
             <div data-slot="checkout-state-taken" className="space-y-1">
@@ -262,7 +265,7 @@ function NoticeSection({
  * the data belongs to this project, for a person who knows it does. The
  * dialog states nothing on their behalf; the command is theirs to run.
  */
-function SameProjectCommand({ command }: { command: string }) {
+function SameProjectCommand({ command, leavesSignIn }: { command: string; leavesSignIn: boolean }) {
   const [copied, setCopied] = useState(false);
   return (
     <div data-slot="checkout-state-same-project" className="space-y-1">
@@ -284,6 +287,11 @@ function SameProjectCommand({ command }: { command: string }) {
           {copied ? t("Copied") : t("Copy")}
         </Button>
       </div>
+      {leavesSignIn && (
+        <p data-slot="checkout-state-sign-in-stays" className="text-muted-foreground">
+          {t("The saved sign-in stays here. It belongs to another server project.")}
+        </p>
+      )}
     </div>
   );
 }
