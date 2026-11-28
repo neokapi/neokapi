@@ -120,6 +120,8 @@ DOCKER_IMAGE          := ghcr.io/neokapi/bowrain-server
 DOCKER_WORKER_IMAGE   := ghcr.io/neokapi/bowrain-worker
 DOCKER_WEB_IMAGE      := ghcr.io/neokapi/bowrain-web
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
+# The docker-push targets push $(VERSION), never latest.
+include $(ROOT_DIR)/scripts/lib/refuse-latest-version.mk
 
 .PHONY: all help i18n-catalogs \
         build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin \

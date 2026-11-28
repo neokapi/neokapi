@@ -32,6 +32,11 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+      # The tag this workflow pushes besides `main`: never latest, which
+      # belongs to the release.
+      - uses: ./.github/actions/refuse-latest-tag
+        with:
+          tag: ${{ inputs.image-tag }}
 
       - name: Login to ghcr.io
         uses: docker/login-action@v4

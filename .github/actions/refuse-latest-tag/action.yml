@@ -1,0 +1,25 @@
+name: Refuse latest as the image tag
+description: >
+  Fail unless the tag a job is about to push is a Docker tag other than
+  `latest`: the grammar [A-Za-z0-9_][A-Za-z0-9_.-]{0,127}, which leaves no
+  room for whitespace, a line break or a comma. `latest` belongs to the
+  release and its weekly rebuild. scripts/check-release-build-only.py trusts
+  a variable tag only after this action, in the same job, with the same
+  expression. scripts/lib/refuse-latest-version.mk applies the same rule to
+  $(VERSION).
+inputs:
+  tag:
+    description: The tag the job pushes, as the push step writes it
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Refuse latest as the image tag
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+      run: |
+        if ! [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || [ "$TAG" = latest ]; then
+          echo "::error::the image tag must be a commit or version tag, not '$TAG'; latest belongs to the release"
+          exit 1
+        fi
