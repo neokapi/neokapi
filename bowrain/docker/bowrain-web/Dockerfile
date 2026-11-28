@@ -30,8 +30,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 # dependencies are fetched in the build step below, not in a layer of their
 # own: that layer held the pnpm store and node_modules (about 1 GiB), and the
 # gha layer cache the image builds export kept it for a fetch that takes
-# about 20 seconds.
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# about 20 seconds. The lockfile records no tarball URLs, so pnpm fetches from
+# the registry its configuration names: .npmrc names the one the lockfile was
+# resolved against (scripts/check-lockfiles.py holds it to that).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY patches/ patches/
 
 # Source for the web app + its workspace deps. Most @neokapi/* packages are
@@ -67,11 +69,12 @@ COPY scripts/vite-qps-catalog.mjs scripts/
 # project's deps (the web app bundles its @neokapi/* workspace deps from
 # source, so their third-party deps are needed too), builds, and removes
 # node_modules, so the layer keeps the sources and the built dist only. The
-# pnpm store sits on a cache mount, which the layer cache does not export.
+# pnpm store sits on a cache mount, which the layer cache does not export;
+# sharing=locked keeps two builds on one builder from writing it at once.
 # @neokapi/i18n-react/runtime is a built ./dist subpath export consumed by
 # @neokapi/ui, so it builds before the web app. Type safety is enforced by
 # `vp check` in CI, not the build.
-RUN --mount=type=cache,id=bowrain-web-pnpm-store,target=/pnpm-store \
+RUN --mount=type=cache,id=bowrain-web-pnpm-store,target=/pnpm-store,sharing=locked \
     corepack pnpm fetch --store-dir /pnpm-store \
     && corepack pnpm install --offline --store-dir /pnpm-store \
     && corepack pnpm --filter @neokapi/i18n-react run build \
