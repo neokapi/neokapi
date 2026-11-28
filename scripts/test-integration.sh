@@ -59,4 +59,6 @@ if [ -n "${GO_ACTIONGRAPH_DIR:-}" ]; then
 	graph=("-debug-actiongraph=$(mktemp "$GO_ACTIONGRAPH_DIR/actiongraph.XXXXXX")")
 fi
 
-exec go test -tags "$TAGS" "${graph[@]}" "$@" -timeout "$TIMEOUT" -count=1 "${paths[@]}"
+# ${graph[@]+...}: bash before 4.4 (macOS /bin/bash is 3.2) treats an empty
+# array as unbound under set -u.
+exec go test -tags "$TAGS" ${graph[@]+"${graph[@]}"} "$@" -timeout "$TIMEOUT" -count=1 "${paths[@]}"
